@@ -12,17 +12,19 @@ Both `main` and `develop` are protected branches and **require at least 1 Pull R
 
 ### Naming Conventions
 
-Always create your branch off from `develop` and use the following naming conventions:
-*   `feature/<short-description>` (e.g., `feature/delivery-status-api`)
-*   `bugfix/<short-description>` (e.g., `bugfix/jwt-auth-error`)
-*   `hotfix/<short-description>` (e.g., `hotfix/db-connection-timeout` - conditionally branches off `main`)
-*   `chore/<short-description>` (e.g., `chore/update-nuget-packages`)
+Always create your branch off from `develop`. Your branch name **must** include the issue key (e.g., `MER-123`) from your tracker to tightly couple the code to the ticket.
+
+**Format:** `<issue-key>-<short-description>`
+
+*   `MER-26-add-github-actions-pipeline`
+*   `MER-42-fix-jwt-auth-timeout`
+*   `MER-10-setup-project-scaffold`
 
 ## 📝 Commit Messages
 
-We write semantic commit messages so our git history is readable and easily parsed.
+We write semantic commit messages so our git history is readable and easily parsed. **Every commit must start with its issue key.**
 
-**Format:** `<type>(<scope>): <short description>`
+**Format:** `<issue-key> <type>(<scope>): <short description>`
 
 **Types:**
 *   `feat`: A new feature
@@ -33,7 +35,7 @@ We write semantic commit messages so our git history is readable and easily pars
 *   `chore`: Changes to the build process, csproj, or tool configurations
 
 **Example:** 
-`feat(DeliveryService): create endpoint for updating delivery status`
+`MER-26 feat(DeliveryService): create endpoint for updating delivery status`
 
 ## 🔄 Pull Request Process
 

@@ -14,7 +14,10 @@ The backend is divided into three distinct microservices, following Domain-Drive
 *   **Database Migrations:** Configured using **DbUp**. SQL scripts are stored in the `Migrations` folder of each service as embedded resources and run automatically on startup.
 *   **Database & Caching Provider:** Local environments use a Dockerized **SQL Server** for relational data and **Redis** for caching. connection strings are securely managed in `appsettings.Development.json` (git-ignored).
 *   **Security:** **JWT Bearer Authentication** is wired up in the ASP.NET pipeline, along with appropriate **CORS** policies for frontend communication.
-*   **API Documentation:** Configured using .NET 10's built-in `Microsoft.AspNetCore.OpenApi`. Endpoints can be tested using the `/openapi/v1.json` auto-generated endpoints, or by plugging them into Swagger UI.
+*   **API Documentation:** Configured using .NET 10's built-in `Microsoft.AspNetCore.OpenApi`. Once running, the Swagger UI is available at:
+    *   Delivery Service: [http://localhost:6001/swagger](http://localhost:6001/swagger)
+    *   Fleet Service: [http://localhost:6002/swagger](http://localhost:6002/swagger)
+    *   Route Service: [http://localhost:6003/swagger](http://localhost:6003/swagger)
 *   **Code Scaffolding:** Each microservice has pre-created folders and placeholder C# classes for `Models`, `DTOs`, `Controllers`, `Services`, and `Repositories`.
 
 ## 🚀 How to Run Locally
@@ -42,6 +45,7 @@ The backend is divided into three distinct microservices, following Domain-Drive
    dotnet run
    ```
    *Note: On their first run, the services will automatically connect to the SQL Server container, provision their respective databases (`delivery_dev`, `fleet_dev`, `route_dev`), and run any pending DbUp migration scripts.*
+   *Pro Tip: For subsequent runs where you haven't added new NuGet packages, you can speed up the build by appending the `--no-restore` flag (e.g., `dotnet run --no-restore`).*
 
 ## 🗺️ Future Plans & Developer Roadmap
 
