@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog;
-using StackExchange.Redis;
 using Meridian.VehicleGrpc;
+using Meridian.DriverGrpc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,23 +14,21 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-// Configure Redis
-var redisConfiguration = builder.Configuration.GetConnectionString("RedisCache");
-if (!string.IsNullOrEmpty(redisConfiguration))
-{
-    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConfiguration));
-}
-
-// Configure gRPC Client
+// Configure gRPC Clients
 builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
 {
     o.Address = new Uri(builder.Configuration["Grpc:VehicleServiceUrl"]!);
 });
 
-// Configure HttpClient for Google Maps
-builder.Services.AddHttpClient("GoogleMaps", client =>
+builder.Services.AddGrpcClient<DriverGrpc.DriverGrpcClient>(o =>
 {
-    client.BaseAddress = new Uri("https://maps.googleapis.com");
+    o.Address = new Uri(builder.Configuration["Grpc:DriverServiceUrl"]!);
+});
+
+// Configure HttpClient for DeliveryService
+builder.Services.AddHttpClient("DeliveryService", client =>
+{
+    client.BaseAddress = new Uri("http://localhost:6001");
 });
 
 // Keycloak Authentication
