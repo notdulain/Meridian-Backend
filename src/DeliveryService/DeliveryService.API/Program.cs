@@ -9,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddScoped<DeliveryService.API.Repositories.DeliveryRepository>();
+builder.Services.AddScoped<DeliveryService.API.Services.IDeliveryManagerService, DeliveryService.API.Services.DeliveryManagerService>();
 
 // OpenAPI Configuration
 builder.Services.AddOpenApi();
