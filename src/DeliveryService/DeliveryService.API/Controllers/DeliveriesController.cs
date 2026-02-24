@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using DeliveryService.API.Services;
 using DeliveryService.API.DTOs;
-using DeliveryService.API.Services;
-using DeliveryService.API.DTOs;
 
 namespace DeliveryService.API.Controllers;
 
@@ -25,12 +23,22 @@ public class DeliveriesController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.PickupAddress))
             return BadRequest("PickupAddress is required.");
+        if (request.PickupAddress.Length > 500)
+            return BadRequest("PickupAddress must be 500 characters or fewer.");
+
         if (string.IsNullOrWhiteSpace(request.DeliveryAddress))
             return BadRequest("DeliveryAddress is required.");
+        if (request.DeliveryAddress.Length > 500)
+            return BadRequest("DeliveryAddress must be 500 characters or fewer.");
+
         if (request.PackageWeightKg <= 0)
             return BadRequest("PackageWeightKg must be greater than 0.");
         if (request.PackageVolumeM3 <= 0)
             return BadRequest("PackageVolumeM3 must be greater than 0.");
+
+        if (request.Deadline <= DateTime.UtcNow)
+            return BadRequest("Deadline must be in the future.");
+
         if (string.IsNullOrWhiteSpace(request.CreatedBy))
             return BadRequest("CreatedBy is required.");
 
