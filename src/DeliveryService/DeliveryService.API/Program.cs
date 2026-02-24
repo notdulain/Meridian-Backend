@@ -11,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddScoped<DeliveryService.API.Repositories.DeliveryRepository>();
+builder.Services.AddScoped<DeliveryService.API.Services.IDeliveryManagerService, DeliveryService.API.Services.DeliveryManagerService>();
 
 // Delivery services (in-memory minimal implementations)
 builder.Services.AddSingleton<DeliveryRepository>();
