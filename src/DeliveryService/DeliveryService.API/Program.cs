@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Reflection;
 using System.Text;
+using DeliveryService.API.Repositories;
+using DeliveryService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +13,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<DeliveryService.API.Repositories.DeliveryRepository>();
 builder.Services.AddScoped<DeliveryService.API.Services.IDeliveryManagerService, DeliveryService.API.Services.DeliveryManagerService>();
+
+// Delivery services (in-memory minimal implementations)
+builder.Services.AddSingleton<DeliveryRepository>();
+builder.Services.AddScoped<DeliveryManagerService>();
 
 // OpenAPI Configuration
 builder.Services.AddOpenApi();

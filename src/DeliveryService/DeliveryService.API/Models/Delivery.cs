@@ -1,3 +1,5 @@
+using System;
+
 namespace DeliveryService.API.Models;
 
 public class Delivery
@@ -14,4 +16,8 @@ public class Delivery
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
+    public string? OrderNumber { get; set; }
+    public string? Status { get; set; }
+    public string? Destination { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
