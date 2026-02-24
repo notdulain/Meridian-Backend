@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog;
-using StackExchange.Redis;
-using Meridian.VehicleGrpc;
+using DriverService.API.Grpc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,24 +13,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-// Configure Redis
-var redisConfiguration = builder.Configuration.GetConnectionString("RedisCache");
-if (!string.IsNullOrEmpty(redisConfiguration))
-{
-    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConfiguration));
-}
-
-// Configure gRPC Client
-builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
-{
-    o.Address = new Uri(builder.Configuration["Grpc:VehicleServiceUrl"]!);
-});
-
-// Configure HttpClient for Google Maps
-builder.Services.AddHttpClient("GoogleMaps", client =>
-{
-    client.BaseAddress = new Uri("https://maps.googleapis.com");
-});
+builder.Services.AddGrpc();
 
 // Keycloak Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -81,5 +63,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapGrpcService<DriverGrpcService>();
+
+app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
 
 app.Run();
