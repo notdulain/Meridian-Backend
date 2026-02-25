@@ -26,4 +26,15 @@ public class DeliveryDto
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
+    public List<DeliveryStatusHistoryDto> StatusHistory { get; set; } = [];
+}
+
+public class DeliveryStatusHistoryDto
+{
+    public int StatusHistoryId { get; set; }
+    public string? PreviousStatus { get; set; }
+    public string NewStatus { get; set; } = string.Empty;
+    public DateTime ChangedAt { get; set; }
+    public int ChangedBy { get; set; }
+    public string? Notes { get; set; }
 }
