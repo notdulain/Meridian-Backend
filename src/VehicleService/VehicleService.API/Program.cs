@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog;
-using StackExchange.Redis;
-using Meridian.VehicleGrpc;
+using VehicleService.API.Data;
+using VehicleService.API.Grpc;
+using VehicleService.API.Repositories;
+using VehicleService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,24 +16,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-// Configure Redis
-var redisConfiguration = builder.Configuration.GetConnectionString("RedisCache");
-if (!string.IsNullOrEmpty(redisConfiguration))
-{
-    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConfiguration));
-}
+builder.Services.AddGrpc();
 
-// Configure gRPC Client
-builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
-{
-    o.Address = new Uri(builder.Configuration["Grpc:VehicleServiceUrl"]!);
-});
-
-// Configure HttpClient for Google Maps
-builder.Services.AddHttpClient("GoogleMaps", client =>
-{
-    client.BaseAddress = new Uri("https://maps.googleapis.com");
-});
+// DI Configurations
+builder.Services.AddSingleton<DatabaseInitializer>();
+builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
+builder.Services.AddScoped<IVehicleService, VehicleService.API.Services.VehicleService>();
 
 // Keycloak Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -45,6 +35,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// Setup DB
+using (var scope = app.Services.CreateScope())
+{
+    var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
+    initializer.Initialize();
+}
 
 app.UseSerilogRequestLogging();
 
@@ -81,5 +78,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapGrpcService<VehicleGrpcService>();
+
+app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
 
 app.Run();

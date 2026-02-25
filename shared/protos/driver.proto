@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+option csharp_namespace = "Meridian.DriverGrpc";
+
+package driver;
+
+service DriverGrpc {
+  rpc GetDriver (DriverRequest) returns (DriverResponse);
+  rpc CheckAvailability (DriverRequest) returns (AvailabilityResponse);
+  rpc UpdateWorkingHours (UpdateHoursRequest) returns (UpdateHoursResponse);
+}
+
+message DriverRequest {
+  int32 driver_id = 1;
+}
+
+message DriverResponse {
+  int32 driver_id = 1;
+  string keycloak_user_id = 2;
+  string full_name = 3;
+  string license_number = 4;
+  string license_expiry = 5;
+  string phone_number = 6;
+  double max_working_hours_per_day = 7;
+  double current_working_hours_today = 8;
+  bool is_active = 9;
+}
+
+message AvailabilityResponse {
+  bool is_available = 1;
+  string message = 2;
+}
+
+message UpdateHoursRequest {
+  int32 driver_id = 1;
+  double hours_to_add = 2;
+}
+
+message UpdateHoursResponse {
+  bool success = 1;
+  string message = 2;
+  double new_total_hours = 3;
+}
