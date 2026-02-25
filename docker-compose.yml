@@ -27,9 +27,24 @@ services:
     networks:
       - meridian_network
 
+  wso2is:
+    image: wso2/wso2is:7.2.0
+    container_name: meridian-wso2is
+    restart: always
+    environment:
+      - JAVA_OPTS=-Xms512m -Xmx1024m
+    ports:
+      - "9443:9443"
+      - "9763:9763"
+    volumes:
+      - wso2isdata:/home/wso2carbon/wso2is-7.2.0/repository/database
+    networks:
+      - meridian_network
+
 volumes:
   sqldata:
   redisdata:
+  wso2isdata:
 
 
 networks:
