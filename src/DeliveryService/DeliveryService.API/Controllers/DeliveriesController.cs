@@ -45,4 +45,15 @@ public class DeliveriesController : ControllerBase
         var delivery = await _deliveryManagerService.CreateDeliveryAsync(request, cancellationToken);
         return Created($"/api/deliveries/{delivery.Id}", delivery);
     }
+
+    /// <summary>Get full details of a delivery by ID, including its status history.</summary>
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(DeliveryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DeliveryDto>> GetById(int id, CancellationToken cancellationToken)
+    {
+        var delivery = await _deliveryManagerService.GetDeliveryByIdAsync(id, cancellationToken);
+        if (delivery is null) return NotFound();
+        return Ok(delivery);
+    }
 }

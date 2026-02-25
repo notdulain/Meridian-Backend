@@ -30,6 +30,13 @@ public class DeliveryManagerService : IDeliveryManagerService
         return ToDto(created);
     }
 
+    public async Task<DeliveryDto?> GetDeliveryByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var delivery = await _repository.GetByIdAsync(id, cancellationToken);
+        if (delivery is null) return null;
+        return ToDto(delivery);
+    }
+
     private static DeliveryDto ToDto(Delivery d) => new()
     {
         Id = d.Id,
@@ -43,6 +50,15 @@ public class DeliveryManagerService : IDeliveryManagerService
         AssignedDriverId = d.AssignedDriverId,
         CreatedAt = d.CreatedAt,
         UpdatedAt = d.UpdatedAt,
-        CreatedBy = d.CreatedBy
+        CreatedBy = d.CreatedBy,
+        StatusHistory = d.StatusHistory.Select(h => new DeliveryStatusHistoryDto
+        {
+            StatusHistoryId = h.StatusHistoryId,
+            PreviousStatus = h.PreviousStatus,
+            NewStatus = h.NewStatus,
+            ChangedAt = h.ChangedAt,
+            ChangedBy = h.ChangedBy,
+            Notes = h.Notes
+        }).ToList()
     };
 }
