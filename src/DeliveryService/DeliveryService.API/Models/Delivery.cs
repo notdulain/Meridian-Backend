@@ -16,4 +16,5 @@ public class Delivery
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
+    public List<StatusHistory> StatusHistory { get; set; } = [];
 }
