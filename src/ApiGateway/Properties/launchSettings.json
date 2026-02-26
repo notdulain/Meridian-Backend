@@ -3,7 +3,7 @@
         "ApiGateway": {
             "commandName": "Project",
             "dotnetRunMessages": true,
-            "applicationUrl": "http://localhost:6000",
+            "applicationUrl": "http://localhost:5050",
             "environmentVariables": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             }
