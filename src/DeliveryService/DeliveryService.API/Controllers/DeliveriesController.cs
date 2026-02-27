@@ -15,6 +15,23 @@ public class DeliveriesController : ControllerBase
         _deliveryManagerService = deliveryManagerService;
     }
 
+    /// <summary>
+    /// Retrieve a paginated list of deliveries with optional filters.
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<DeliveryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<DeliveryDto>>> Get(
+        [FromQuery] string? status,
+        [FromQuery] string? destination,
+        [FromQuery] DateTime? date,
+        [FromQuery] string? orderNumber,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+    {
+        var list = await _deliveryManagerService.GetAllDeliveriesAsync(status, destination, date, orderNumber, page, pageSize);
+        return Ok(list);
+    }
+
     /// <summary>Create a new delivery request to initiate logistics operations.</summary>
     [HttpPost]
     [ProducesResponseType(typeof(DeliveryDto), StatusCodes.Status201Created)]

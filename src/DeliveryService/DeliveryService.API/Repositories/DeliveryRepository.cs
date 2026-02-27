@@ -5,7 +5,6 @@ using DeliveryService.API.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using DeliveryService.API.Models;
 
 namespace DeliveryService.API.Repositories;
 
@@ -116,5 +115,45 @@ public class DeliveryRepository
         }
 
         return delivery;
+    }
+
+    /// <summary>
+    /// Returns all deliveries without loaded history, used for filtering & pagination.
+    /// </summary>
+    public async Task<IEnumerable<Delivery>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        var list = new List<Delivery>();
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        const string sql = """
+            SELECT DeliveryId, PickupAddress, DeliveryAddress, PackageWeightKg, PackageVolumeM3,
+                   Deadline, Status, AssignedVehicleId, AssignedDriverId, CreatedAt, UpdatedAt, CreatedBy
+            FROM Deliveries;
+            """;
+
+        await using var cmd = new SqlCommand(sql, connection);
+        await using var dr = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await dr.ReadAsync(cancellationToken))
+        {
+            var delivery = new Delivery
+            {
+                Id = dr.GetInt32(0),
+                PickupAddress = dr.GetString(1),
+                DeliveryAddress = dr.GetString(2),
+                PackageWeightKg = dr.GetDecimal(3),
+                PackageVolumeM3 = dr.GetDecimal(4),
+                Deadline = dr.GetDateTime(5),
+                Status = dr.GetString(6),
+                AssignedVehicleId = dr.IsDBNull(7) ? null : dr.GetInt32(7),
+                AssignedDriverId = dr.IsDBNull(8) ? null : dr.GetInt32(8),
+                CreatedAt = dr.GetDateTime(9),
+                UpdatedAt = dr.GetDateTime(10),
+                CreatedBy = dr.GetString(11)
+            };
+            list.Add(delivery);
+        }
+
+        return list;
     }
 }

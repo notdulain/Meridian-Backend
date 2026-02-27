@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using DeliveryService.API.DTOs;
 using DeliveryService.API.Models;
 using DeliveryService.API.Repositories;
@@ -13,6 +15,58 @@ public class DeliveryManagerService : IDeliveryManagerService
         _repository = repository;
     }
 
+	public async Task<IEnumerable<DeliveryDto>> GetAllDeliveriesAsync(
+		string? status = null,
+		string? destination = null,
+		DateTime? date = null,
+		string? orderNumber = null,
+		int page = 1,
+		int pageSize = 50)
+	{
+		var models = await _repository.GetAllAsync();
+		var query = models.AsQueryable();
+
+		if (!string.IsNullOrWhiteSpace(status))
+		{
+			var s = status.Trim();
+			query = query.Where(m => !string.IsNullOrEmpty(m.Status) && m.Status.Equals(s, StringComparison.OrdinalIgnoreCase));
+		}
+
+		if (!string.IsNullOrWhiteSpace(destination))
+		{
+			var d = destination.Trim();
+			// filter against delivery address
+			query = query.Where(m => !string.IsNullOrEmpty(m.DeliveryAddress) && m.DeliveryAddress.IndexOf(d, StringComparison.OrdinalIgnoreCase) >= 0);
+		}
+
+		if (date.HasValue)
+		{
+			var dt = date.Value.Date;
+			query = query.Where(m => m.CreatedAt.Date == dt);
+		}
+
+		if (!string.IsNullOrWhiteSpace(orderNumber))
+		{
+			// interpret orderNumber as numeric id when possible
+			if (int.TryParse(orderNumber.Trim(), out var id))
+			{
+				query = query.Where(m => m.Id == id);
+			}
+		}
+
+		page = Math.Max(1, page);
+		pageSize = Math.Clamp(pageSize, 1, 100);
+
+		var paged = query.Skip((page - 1) * pageSize).Take(pageSize);
+
+		return paged.Select(ToDto);
+	}
+
+	public async Task<DeliveryDto?> GetDeliveryByIdAsync(int id, CancellationToken cancellationToken = default)
+	{
+		var delivery = await _repository.GetByIdAsync(id, cancellationToken);
+		return delivery is null ? null : ToDto(delivery);
+	}
     public async Task<DeliveryDto> CreateDeliveryAsync(CreateDeliveryRequestDto request, CancellationToken cancellationToken = default)
     {
         var delivery = new Delivery
@@ -28,13 +82,6 @@ public class DeliveryManagerService : IDeliveryManagerService
 
         var created = await _repository.CreateAsync(delivery, cancellationToken);
         return ToDto(created);
-    }
-
-    public async Task<DeliveryDto?> GetDeliveryByIdAsync(int id, CancellationToken cancellationToken = default)
-    {
-        var delivery = await _repository.GetByIdAsync(id, cancellationToken);
-        if (delivery is null) return null;
-        return ToDto(delivery);
     }
 
     private static DeliveryDto ToDto(Delivery d) => new()
