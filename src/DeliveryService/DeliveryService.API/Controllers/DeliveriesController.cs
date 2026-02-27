@@ -73,4 +73,31 @@ public class DeliveriesController : ControllerBase
         if (delivery is null) return NotFound();
         return Ok(delivery);
     }
+
+    /// <summary>Update delivery details (addresses, weights, deadline).</summary>
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(DeliveryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DeliveryDto>> Update(int id, [FromBody] UpdateDeliveryRequestDto request, CancellationToken cancellationToken)
+    {
+        if (request.PickupAddress?.Length > 500)
+            return BadRequest("PickupAddress must be 500 characters or fewer.");
+
+        if (request.DeliveryAddress?.Length > 500)
+            return BadRequest("DeliveryAddress must be 500 characters or fewer.");
+
+        if (request.PackageWeightKg.HasValue && request.PackageWeightKg <= 0)
+            return BadRequest("PackageWeightKg must be greater than 0.");
+
+        if (request.PackageVolumeM3.HasValue && request.PackageVolumeM3 <= 0)
+            return BadRequest("PackageVolumeM3 must be greater than 0.");
+
+        if (request.Deadline.HasValue && request.Deadline <= DateTime.UtcNow)
+            return BadRequest("Deadline must be in the future.");
+
+        var delivery = await _deliveryManagerService.UpdateDeliveryAsync(id, request, cancellationToken);
+        if (delivery is null) return NotFound();
+        return Ok(delivery);
+    }
 }

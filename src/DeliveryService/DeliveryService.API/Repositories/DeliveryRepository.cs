@@ -156,4 +156,32 @@ public class DeliveryRepository
 
         return list;
     }
+
+    public async Task<bool> UpdateAsync(int id, Delivery delivery, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        const string sql = """
+            UPDATE Deliveries
+            SET PickupAddress = @PickupAddress,
+                DeliveryAddress = @DeliveryAddress,
+                PackageWeightKg = @PackageWeightKg,
+                PackageVolumeM3 = @PackageVolumeM3,
+                Deadline = @Deadline,
+                UpdatedAt = GETUTCDATE()
+            WHERE DeliveryId = @Id;
+            """;
+
+        await using var cmd = new SqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue("@Id", id);
+        cmd.Parameters.AddWithValue("@PickupAddress", delivery.PickupAddress ?? "");
+        cmd.Parameters.AddWithValue("@DeliveryAddress", delivery.DeliveryAddress ?? "");
+        cmd.Parameters.AddWithValue("@PackageWeightKg", delivery.PackageWeightKg);
+        cmd.Parameters.AddWithValue("@PackageVolumeM3", delivery.PackageVolumeM3);
+        cmd.Parameters.AddWithValue("@Deadline", delivery.Deadline);
+
+        var rowsAffected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+        return rowsAffected > 0;
+    }
 }

@@ -84,6 +84,37 @@ public class DeliveryManagerService : IDeliveryManagerService
         return ToDto(created);
     }
 
+    public async Task<DeliveryDto?> UpdateDeliveryAsync(int id, UpdateDeliveryRequestDto request, CancellationToken cancellationToken = default)
+    {
+        // Retrieve the existing delivery to preserve unchanged fields
+        var existing = await _repository.GetByIdAsync(id, cancellationToken);
+        if (existing is null) return null;
+
+        // Apply updates only to non-null fields
+        if (!string.IsNullOrWhiteSpace(request.PickupAddress))
+            existing.PickupAddress = request.PickupAddress;
+
+        if (!string.IsNullOrWhiteSpace(request.DeliveryAddress))
+            existing.DeliveryAddress = request.DeliveryAddress;
+
+        if (request.PackageWeightKg.HasValue && request.PackageWeightKg > 0)
+            existing.PackageWeightKg = request.PackageWeightKg.Value;
+
+        if (request.PackageVolumeM3.HasValue && request.PackageVolumeM3 > 0)
+            existing.PackageVolumeM3 = request.PackageVolumeM3.Value;
+
+        if (request.Deadline.HasValue && request.Deadline > DateTime.UtcNow)
+            existing.Deadline = request.Deadline.Value;
+
+        // Persist the update
+        var updated = await _repository.UpdateAsync(id, existing, cancellationToken);
+        if (!updated) return null;
+
+        // Retrieve and return the updated delivery with full details
+        var fresh = await _repository.GetByIdAsync(id, cancellationToken);
+        return fresh is null ? null : ToDto(fresh);
+    }
+
     private static DeliveryDto ToDto(Delivery d) => new()
     {
         Id = d.Id,

@@ -6,6 +6,7 @@ public interface IDeliveryManagerService
 {
     Task<DeliveryDto> CreateDeliveryAsync(CreateDeliveryRequestDto request, CancellationToken cancellationToken = default);
     Task<DeliveryDto?> GetDeliveryByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<DeliveryDto?> UpdateDeliveryAsync(int id, UpdateDeliveryRequestDto request, CancellationToken cancellationToken = default);
 
     // Returns deliveries matching the provided filters with paging
     Task<IEnumerable<DeliveryDto>> GetAllDeliveriesAsync(
