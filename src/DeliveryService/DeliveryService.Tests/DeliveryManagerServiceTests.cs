@@ -201,6 +201,18 @@ internal class FakeDeliveryManagerService : IDeliveryManagerService
         return Task.FromResult<DeliveryDto?>(ToDto(_getResult));
     }
 
+    public Task<IEnumerable<DeliveryDto>> GetAllDeliveriesAsync(
+        string? status = null,
+        string? destination = null,
+        DateTime? date = null,
+        string? orderNumber = null,
+        int page = 1,
+        int pageSize = 50)
+    {
+        // Return empty list for fake implementation
+        return Task.FromResult(Enumerable.Empty<DeliveryDto>());
+    }
+
     private static DeliveryDto ToDto(Delivery d) => new()
     {
         Id = d.Id,
