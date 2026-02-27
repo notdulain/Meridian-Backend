@@ -1,0 +1,184 @@
+# Implement Sample Unit Tests — Meridian Backend
+
+This plan introduces xUnit-based unit test projects for each microservice in the Meridian Backend solution. The goal is to give the QA engineer a working test framework with representative sample tests covering controller logic and service-layer logic for every service.
+
+---
+
+## Current State: No Tests Exist
+
+| Service | Path | Test Folder? |
+|---|---|---|
+| DeliveryService | `src/DeliveryService/DeliveryService.API` | ❌ None |
+| VehicleService | `src/VehicleService/VehicleService.API` | ❌ None |
+| DriverService | `src/DriverService/DriverService.API` | ❌ None |
+| AssignmentService | `src/AssignmentService/AssignmentService.API` | ❌ None |
+| RouteService | `src/RouteService/RouteService.API` | ❌ None |
+| TrackingService | `src/TrackingService/TrackingService.API` | ❌ None |
+
+---
+
+## Test Stack
+
+| Package | Purpose |
+|---|---|
+| `xunit` | Test framework |
+| `xunit.runner.visualstudio` | VS/dotnet test runner |
+| `Moq` | Mocking dependencies (services, repos, IHubContext) |
+| `Microsoft.AspNetCore.Mvc.Testing` | For controller unit tests via `WebApplicationFactory` |
+| `coverlet.collector` | Code coverage |
+
+> All test projects will target **.NET 10.0** to match the production services.
+
+---
+
+## Proposed Changes
+
+### DeliveryService Tests
+
+#### [NEW] [DeliveryService.Tests.csproj](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/DeliveryService/DeliveryService.Tests/DeliveryService.Tests.csproj)
+
+New xUnit test project at `src/DeliveryService/DeliveryService.Tests/`. References the API project.
+
+#### [NEW] [DeliveriesControllerTests.cs](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/DeliveryService/DeliveryService.Tests/DeliveriesControllerTests.cs)
+
+Tests the `DeliveriesController` by mocking `IDeliveryManagerService`. Sample tests:
+- `Create_ValidRequest_Returns201` — valid payload returns `201 Created` with delivery DTO
+- `Create_EmptyPickupAddress_Returns400` — missing pickup address returns `400 BadRequest`
+- `Create_EmptyDeliveryAddress_Returns400` — missing delivery address returns `400 BadRequest`
+- `Create_NonPositiveWeight_Returns400` — zero or negative weight returns `400 BadRequest`
+- `Create_PastDeadline_Returns400` — deadline in the past returns `400 BadRequest`
+- `GetById_ExistingId_Returns200` — existing ID returns `200 OK` with delivery DTO
+- `GetById_NonExistingId_Returns404` — non-existent ID returns `404 NotFound`
+
+#### [NEW] [DeliveryManagerServiceTests.cs](file:///c:/Users/athth/OneDrive/Desktop\Sliit/Projects/Meridian/Meridian-Backend/src/DeliveryService/DeliveryService.Tests/DeliveryManagerServiceTests.cs)
+
+Tests `DeliveryManagerService` by mocking `DeliveryRepository`. Sample tests:
+- `CreateDeliveryAsync_SetsStatusPending` — confirms status is always set to `"Pending"` on creation
+- `GetDeliveryByIdAsync_ReturnsNull_WhenNotFound` — returns `null` when repo returns `null`
+- `GetDeliveryByIdAsync_ReturnsMappedDto_WhenFound` — verifies DTO mapping from model
+
+---
+
+### VehicleService Tests
+
+#### [NEW] [VehicleService.Tests.csproj](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/VehicleService/VehicleService.Tests/VehicleService.Tests.csproj)
+
+New xUnit test project at `src/VehicleService/VehicleService.Tests/`. References the API project.
+
+#### [NEW] [VehiclesControllerTests.cs](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/VehicleService/VehicleService.Tests/VehiclesControllerTests.cs)
+
+Tests `VehiclesController` by mocking `IVehicleService`. Sample tests:
+- `CreateVehicle_ValidVehicle_Returns201` — valid vehicle returns `201` with vehicle data
+- `GetVehicle_ExistingId_Returns200` — existing vehicle returns `200 OK` with vehicle data
+- `GetVehicle_NonExistingId_Returns404` — missing vehicle returns `404`
+- `UpdateVehicle_ExistingId_Returns200` — update on existing vehicle returns `200 OK`
+- `UpdateVehicle_NonExistingId_Returns404` — update on missing vehicle returns `404`
+- `DeleteVehicle_ExistingId_Returns200` — delete on existing vehicle returns `200 OK`
+- `DeleteVehicle_NonExistingId_Returns404` — delete on missing vehicle returns `404`
+- `GetAvailableVehicles_ReturnsListSuccessfully` — returns `200 OK` with vehicle list
+
+#### [NEW] [VehicleServiceTests.cs](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/VehicleService/VehicleService.Tests/VehicleServiceTests.cs)
+
+Tests `VehicleService` by mocking `IVehicleRepository`. Sample tests:
+- `UpdateVehicleAsync_SetsCorrectId` — confirms `vehicle.VehicleId = id` is set before updating
+- `GetVehicleByIdAsync_ReturnsNull_WhenNotFound`
+- `GetVehicleByIdAsync_ReturnsVehicle_WhenFound`
+
+---
+
+### DriverService Tests
+
+#### [NEW] [DriverService.Tests.csproj](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/DriverService/DriverService.Tests/DriverService.Tests.csproj)
+
+New xUnit test project at `src/DriverService/DriverService.Tests/`.
+
+#### [NEW] [DriversControllerTests.cs](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/DriverService/DriverService.Tests/DriversControllerTests.cs)
+
+Tests `DriversController` (placeholder impl, no service dependency). Sample tests:
+- `GetDrivers_ReturnsEmptyList_WithCorrectStructure` — returns `200 OK` with empty driver list
+- `GetDriver_ReturnsDriverById` — returns `200 OK` with driver data including the requested ID
+- `CreateDriver_ReturnsStaticDriver` — returns `201` with the created driver
+- `GetAvailableDrivers_ReturnsEmptyList` — returns `200 OK` with empty list
+
+> **Note:** DriverService controllers are placeholder implementations with no real service injection. Controller tests verify HTTP contract and response shape now; richer tests will follow when real service layer is introduced.
+
+---
+
+### AssignmentService Tests
+
+#### [NEW] [AssignmentService.Tests.csproj](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/AssignmentService/AssignmentService.Tests/AssignmentService.Tests.csproj)
+
+New xUnit test project at `src/AssignmentService/AssignmentService.Tests/`.
+
+#### [NEW] [AssignmentsControllerTests.cs](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/AssignmentService/AssignmentService.Tests/AssignmentsControllerTests.cs)
+
+Tests `AssignmentsController` (placeholder impl). Sample tests:
+- `GetAssignments_ReturnsEmptyList` — returns `200 OK` with empty assignment list
+- `GetAssignment_ReturnsAssignmentById` — verifies ID is reflected in response
+- `CompleteAssignment_Returns200WithSuccessMessage`
+- `CancelAssignment_Returns200WithSuccessMessage`
+
+> **Note:** AssignmentsController depends on gRPC clients and `IHttpClientFactory`. Since the current implementation is a placeholder (no real gRPC calls), controller tests will instantiate the controller with `null` gRPC clients. These tests will be upgraded when real gRPC integration is wired.
+
+---
+
+### RouteService Tests
+
+#### [NEW] [RouteService.Tests.csproj](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/RouteService/RouteService.Tests/RouteService.Tests.csproj)
+
+New xUnit test project at `src/RouteService/RouteService.Tests/`.
+
+#### [NEW] [RoutesControllerTests.cs](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/RouteService/RouteService.Tests/RoutesControllerTests.cs)
+
+Tests `RoutesController` (placeholder impl, no dependencies). Sample tests:
+- `OptimizeRoute_ReturnsSuccessWithAtLeastOneOption` — route optimization returns `200 OK` with route option list
+- `GetRoute_ReturnsRouteOptionWithMatchingId` — verifies `RouteId` is reflected in response
+- `CalculateFuelCost_ReturnsSuccessWithFuelCost` — returns `200 OK` with `fuelCost`
+
+---
+
+### TrackingService Tests
+
+#### [NEW] [TrackingService.Tests.csproj](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/TrackingService/TrackingService.Tests/TrackingService.Tests.csproj)
+
+New xUnit test project at `src/TrackingService/TrackingService.Tests/`.
+
+#### [NEW] [TrackingControllerTests.cs](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/src/TrackingService/TrackingService.Tests/TrackingControllerTests.cs)
+
+Tests `TrackingController` by mocking `IHubContext<TrackingHub>`. Sample tests:
+- `PostLocation_ValidUpdate_Returns200AndBroadcasts` — valid update returns `200 OK` and verifies SignalR `SendAsync` was called
+- `GetAssignmentHistory_ReturnsEmptyList` — returns `200 OK` with empty history list
+- `GetDriverLastKnown_ReturnsLocationUpdate` — returns `200 OK` with location for the driver ID
+
+---
+
+### Solution File Update
+
+#### [MODIFY] [Meridian.slnx](file:///c:/Users/athth/OneDrive/Desktop/Sliit/Projects/Meridian/Meridian-Backend/Meridian.slnx)
+
+Add all 6 new test projects into the solution file so that `dotnet test` discovers them automatically.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+After implementing the test projects, run:
+
+```powershell
+# From: c:\Users\athth\OneDrive\Desktop\Sliit\Projects\Meridian\Meridian-Backend
+dotnet test --verbosity normal
+```
+
+Expected output: All tests pass (`Passed!`). The number of tests will grow as the real service implementations are filled in.
+
+To run tests for a single service:
+```powershell
+dotnet test src/DeliveryService/DeliveryService.Tests/DeliveryService.Tests.csproj --verbosity normal
+dotnet test src/VehicleService/VehicleService.Tests/VehicleService.Tests.csproj --verbosity normal
+dotnet test src/DriverService/DriverService.Tests/DriverService.Tests.csproj --verbosity normal
+dotnet test src/AssignmentService/AssignmentService.Tests/AssignmentService.Tests.csproj --verbosity normal
+dotnet test src/RouteService/RouteService.Tests/RouteService.Tests.csproj --verbosity normal
+dotnet test src/TrackingService/TrackingService.Tests/TrackingService.Tests.csproj --verbosity normal
+```
