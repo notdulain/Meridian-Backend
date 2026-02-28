@@ -90,20 +90,20 @@ public class DeliveryManagerService : IDeliveryManagerService
         var existing = await _repository.GetByIdAsync(id, cancellationToken);
         if (existing is null) return null;
 
-        // Apply updates only to non-null fields
+        // Apply updates only to non-null fields (controller validation ensures quality)
         if (!string.IsNullOrWhiteSpace(request.PickupAddress))
-            existing.PickupAddress = request.PickupAddress;
+            existing.PickupAddress = request.PickupAddress.Trim();
 
         if (!string.IsNullOrWhiteSpace(request.DeliveryAddress))
-            existing.DeliveryAddress = request.DeliveryAddress;
+            existing.DeliveryAddress = request.DeliveryAddress.Trim();
 
-        if (request.PackageWeightKg.HasValue && request.PackageWeightKg > 0)
+        if (request.PackageWeightKg.HasValue && request.PackageWeightKg.Value > 0)
             existing.PackageWeightKg = request.PackageWeightKg.Value;
 
-        if (request.PackageVolumeM3.HasValue && request.PackageVolumeM3 > 0)
+        if (request.PackageVolumeM3.HasValue && request.PackageVolumeM3.Value > 0)
             existing.PackageVolumeM3 = request.PackageVolumeM3.Value;
 
-        if (request.Deadline.HasValue && request.Deadline > DateTime.UtcNow)
+        if (request.Deadline.HasValue && request.Deadline.Value > DateTime.UtcNow)
             existing.Deadline = request.Deadline.Value;
 
         // Persist the update

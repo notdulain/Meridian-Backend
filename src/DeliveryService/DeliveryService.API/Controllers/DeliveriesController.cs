@@ -81,20 +81,54 @@ public class DeliveriesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<DeliveryDto>> Update(int id, [FromBody] UpdateDeliveryRequestDto request, CancellationToken cancellationToken)
     {
-        if (request.PickupAddress?.Length > 500)
-            return BadRequest("PickupAddress must be 500 characters or fewer.");
+        // Validate PickupAddress
+        if (request.PickupAddress != null)
+        {
+            if (string.IsNullOrWhiteSpace(request.PickupAddress))
+                return BadRequest("PickupAddress cannot be empty or whitespace.");
+            if (request.PickupAddress.Length < 3)
+                return BadRequest("PickupAddress must be at least 3 characters.");
+            if (request.PickupAddress.Length > 500)
+                return BadRequest("PickupAddress must be 500 characters or fewer.");
+        }
 
-        if (request.DeliveryAddress?.Length > 500)
-            return BadRequest("DeliveryAddress must be 500 characters or fewer.");
+        // Validate DeliveryAddress
+        if (request.DeliveryAddress != null)
+        {
+            if (string.IsNullOrWhiteSpace(request.DeliveryAddress))
+                return BadRequest("DeliveryAddress cannot be empty or whitespace.");
+            if (request.DeliveryAddress.Length < 3)
+                return BadRequest("DeliveryAddress must be at least 3 characters.");
+            if (request.DeliveryAddress.Length > 500)
+                return BadRequest("DeliveryAddress must be 500 characters or fewer.");
+        }
 
-        if (request.PackageWeightKg.HasValue && request.PackageWeightKg <= 0)
-            return BadRequest("PackageWeightKg must be greater than 0.");
+        // Validate PackageWeightKg
+        if (request.PackageWeightKg.HasValue)
+        {
+            if (request.PackageWeightKg <= 0)
+                return BadRequest("PackageWeightKg must be greater than 0.");
+            if (request.PackageWeightKg > 1000)
+                return BadRequest("PackageWeightKg must not exceed 1000 kg.");
+        }
 
-        if (request.PackageVolumeM3.HasValue && request.PackageVolumeM3 <= 0)
-            return BadRequest("PackageVolumeM3 must be greater than 0.");
+        // Validate PackageVolumeM3
+        if (request.PackageVolumeM3.HasValue)
+        {
+            if (request.PackageVolumeM3 <= 0)
+                return BadRequest("PackageVolumeM3 must be greater than 0.");
+            if (request.PackageVolumeM3 > 100)
+                return BadRequest("PackageVolumeM3 must not exceed 100 m³.");
+        }
 
-        if (request.Deadline.HasValue && request.Deadline <= DateTime.UtcNow)
-            return BadRequest("Deadline must be in the future.");
+        // Validate Deadline
+        if (request.Deadline.HasValue)
+        {
+            if (request.Deadline <= DateTime.UtcNow)
+                return BadRequest("Deadline must be in the future.");
+            if (request.Deadline > DateTime.UtcNow.AddYears(1))
+                return BadRequest("Deadline cannot be more than 1 year in the future.");
+        }
 
         var delivery = await _deliveryManagerService.UpdateDeliveryAsync(id, request, cancellationToken);
         if (delivery is null) return NotFound();
