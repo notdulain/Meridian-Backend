@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UserService.API.DTOs;
 using UserService.API.Services;
 
 namespace UserService.API.Controllers;
@@ -18,40 +19,71 @@ public class UsersController : ControllerBase
     // GET /api/users — Admin only
     [Authorize(Roles = "Admin")]
     [HttpGet]
-    public IActionResult GetAll()
+    [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAll()
     {
-        return Ok("get all users placeholder");
+        var users = await _userService.GetAllAsync();
+        return Ok(users);
     }
 
     // GET /api/users/{id} — any authenticated user
     [Authorize]
     [HttpGet("{id:int}")]
-    public IActionResult GetById(int id)
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(int id)
     {
-        return Ok($"get user {id} placeholder");
+        var user = await _userService.GetByIdAsync(id);
+        if (user is null) return NotFound();
+        return Ok(user);
     }
 
     // GET /api/users/me — any authenticated user
     [Authorize]
     [HttpGet("me")]
-    public IActionResult GetMe()
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMe()
     {
-        return Ok("get me placeholder");
+        var userIdClaim = User.FindFirst("sub")?.Value
+                       ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+
+        var user = await _userService.GetMeAsync(userId);
+        if (user is null) return NotFound();
+        return Ok(user);
     }
 
     // PUT /api/users/{id} — Admin only
     [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
-    public IActionResult Update(int id)
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateUserRequest request)
     {
-        return Ok($"update user {id} placeholder");
+        var user = await _userService.UpdateAsync(id, request);
+        if (user is null) return NotFound();
+        return Ok(user);
     }
 
     // DELETE /api/users/{id} — Admin only
     [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
-    public IActionResult SoftDelete(int id)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SoftDelete(int id)
     {
-        return Ok($"delete user {id} placeholder");
+        var deleted = await _userService.SoftDeleteAsync(id);
+        if (!deleted) return NotFound();
+        return NoContent();
     }
 }

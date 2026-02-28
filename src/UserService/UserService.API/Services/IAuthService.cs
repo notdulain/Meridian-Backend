@@ -1,9 +1,11 @@
+using UserService.API.DTOs;
+
 namespace UserService.API.Services;
 
 public interface IAuthService
 {
-    Task<object> RegisterAsync(object request);
-    Task<object> LoginAsync(object request);
-    Task<object> RefreshAsync(object request);
-    Task<bool> RevokeAsync(string token);
+    Task<AuthResponse> RegisterAsync(RegisterRequest request);
+    Task<AuthResponse> LoginAsync(LoginRequest request);
+    Task<AuthResponse> RefreshAsync(RefreshRequest request);
+    Task RevokeAsync(RevokeRequest request);
 }

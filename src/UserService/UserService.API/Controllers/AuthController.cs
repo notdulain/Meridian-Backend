@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UserService.API.DTOs;
 using UserService.API.Services;
 
 namespace UserService.API.Controllers;
@@ -17,30 +18,46 @@ public class AuthController : ControllerBase
 
     // POST /api/auth/register — public
     [HttpPost("register")]
-    public IActionResult Register()
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        return Ok("register placeholder");
+        var response = await _authService.RegisterAsync(request);
+        return CreatedAtAction(nameof(Register), response);
     }
 
     // POST /api/auth/login — public
     [HttpPost("login")]
-    public IActionResult Login()
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        return Ok("login placeholder");
+        var response = await _authService.LoginAsync(request);
+        return Ok(response);
     }
 
     // POST /api/auth/refresh — public
     [HttpPost("refresh")]
-    public IActionResult Refresh()
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
     {
-        return Ok("refresh placeholder");
+        var response = await _authService.RefreshAsync(request);
+        return Ok(response);
     }
 
     // POST /api/auth/revoke — requires auth
     [Authorize]
     [HttpPost("revoke")]
-    public IActionResult Revoke()
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Revoke([FromBody] RevokeRequest request)
     {
-        return Ok("revoke placeholder");
+        await _authService.RevokeAsync(request);
+        return NoContent();
     }
 }

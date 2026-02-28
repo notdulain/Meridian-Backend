@@ -1,8 +1,9 @@
+using DbUp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Reflection;
 using System.Text;
-using UserService.API.Data;
 using UserService.API.Repositories;
 using UserService.API.Services;
 
@@ -37,7 +38,7 @@ var jwtAudience = builder.Configuration["Jwt:Audience"]
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer("MeridianBearer", options =>
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
         options.RequireHttpsMetadata = false;
 
@@ -82,18 +83,32 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService.API.Services.UserService>();
 
 // ─────────────────────────────────────────────
-// DatabaseInitializer
-// ─────────────────────────────────────────────
-builder.Services.AddSingleton<DatabaseInitializer>();
-
-// ─────────────────────────────────────────────
 // Build & configure pipeline
 // ─────────────────────────────────────────────
 var app = builder.Build();
 
-// Run database initialization before starting
-var dbInit = app.Services.GetRequiredService<DatabaseInitializer>();
-await dbInit.InitializeAsync();
+// Run DbUp Migrations
+var connectionString = builder.Configuration.GetConnectionString("UserDb")
+    ?? throw new InvalidOperationException("ConnectionStrings:UserDb is not configured.");
+EnsureDatabase.For.SqlDatabase(connectionString);
+
+var upgrader = DeployChanges.To
+    .SqlDatabase(connectionString)
+    .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
+    .LogToConsole()
+    .Build();
+
+var result = upgrader.PerformUpgrade();
+if (!result.Successful)
+{
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine(result.Error);
+    Console.ResetColor();
+    throw new Exception("Database migration failed", result.Error);
+}
+Console.ForegroundColor = ConsoleColor.Green;
+Console.WriteLine("Database migration successful!");
+Console.ResetColor();
 
 app.UseCors("ReactFrontend");
 
