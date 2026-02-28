@@ -6,4 +6,7 @@
   <Folder Name="/src/RouteService/">
     <Project Path="src/RouteService/RouteService.API/RouteService.API.csproj" />
   </Folder>
+  <Folder Name="/src/UserService/">
+    <Project Path="src/UserService/UserService.API/UserService.API.csproj" />
+  </Folder>
 </Solution>

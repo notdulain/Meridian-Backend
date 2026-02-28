@@ -27,24 +27,63 @@ services:
     networks:
       - meridian_network
 
-  wso2is:
-    image: wso2/wso2is:7.2.0
-    container_name: meridian-wso2is
+  mysql:
+    image: mysql:8.0
+    container_name: meridian-mysql
     restart: always
     environment:
-      - JAVA_OPTS=-Xms512m -Xmx1024m
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=user_db
     ports:
-      - "9443:9443"
-      - "9763:9763"
+      - "3306:3306"
     volumes:
-      - wso2isdata:/home/wso2carbon/wso2is-7.2.0/repository/database
+      - mysqldata:/var/lib/mysql
+    networks:
+      - meridian_network
+
+  user-service:
+    build:
+      context: ./src/UserService/UserService.API
+      dockerfile: Dockerfile
+    container_name: meridian-user-service
+    restart: always
+    ports:
+      - "6007:6007"
+    environment:
+      - ASPNETCORE_URLS=http://+:6007
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__UserDb=Server=mysql;Port=3306;Database=user_db;Uid=root;Pwd=root;
+      - Jwt__Secret=meridian-super-secret-jwt-signing-key-32chars
+      - Jwt__Issuer=meridian-gateway
+      - Jwt__Audience=meridian-api
+    depends_on:
+      - mysql
+    networks:
+      - meridian_network
+
+  api-gateway:
+    build:
+      context: ./src/ApiGateway
+      dockerfile: Dockerfile
+    container_name: meridian-api-gateway
+    restart: always
+    ports:
+      - "6000:6000"
+    environment:
+      - ASPNETCORE_URLS=http://+:6000
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Jwt__Secret=meridian-super-secret-jwt-signing-key-32chars
+      - Jwt__Issuer=meridian-gateway
+      - Jwt__Audience=meridian-api
+    depends_on:
+      - user-service
     networks:
       - meridian_network
 
 volumes:
   sqldata:
   redisdata:
-  wso2isdata:
+  mysqldata:
 
 
 networks:
