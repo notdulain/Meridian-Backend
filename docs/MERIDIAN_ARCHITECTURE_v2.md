@@ -1,13 +1,13 @@
 # Meridian - Fleet Management & Route Optimization Platform
 ## Complete Technical Architecture & Deployment Guide
 
-**Version:** 2.0
-**Date:** February 26, 2026
+**Version:** 2.1
+**Date:** February 28, 2026
 **Project Team:** IT23750760, IT23632332, IT23664708, IT23631724, IT23762336
-**Supersedes:** MERIDIAN_ARCHITECTURE v1.0
+**Supersedes:** MERIDIAN_ARCHITECTURE v2.0
 
 > [!NOTE]
-> This document supersedes v1.0. Major changes from v1: 6 microservices (was 3), WSO2 Identity Server for IAM (was custom JWT), Ocelot API Gateway on port 5050, gRPC for inter-service communication, SQL Server 2022 (was MySQL), standalone TrackingService.
+> This document supersedes v2.0. Major changes from v2.0: WSO2 Identity Server removed; authentication is now handled by the API Gateway using a shared symmetric JWT secret (MeridianBearer). A new UserService (port 6007) added for user management and token issuance. API Gateway remains on port 5050.
 
 ---
 
@@ -40,7 +40,8 @@ Meridian is a microservices-based fleet management and route optimization platfo
 - Rule-based vehicle assignment engine (AssignmentService)
 - Multi-route optimization with fuel cost estimation
 - Real-time GPS tracking with SignalR (dedicated TrackingService)
-- WSO2 Identity Server for role-based authentication (Admin, Dispatcher, Driver)
+- Symmetric JWT authentication via API Gateway (MeridianBearer) with shared signing key
+- Dedicated UserService for user management, login, registration, and token refresh
 - Operational analytics and reporting
 
 ### Technology Stack
@@ -50,7 +51,7 @@ Meridian is a microservices-based fleet management and route optimization platfo
 | **Frontend** | Next.js (React 18+) |
 | **Backend** | ASP.NET Core (.NET 10) |
 | **API Gateway** | Ocelot on ASP.NET Core |
-| **IAM** | WSO2 Identity Server 7.2.0 |
+| **Auth** | Symmetric JWT (MeridianBearer) via API Gateway + UserService |
 | **Database** | SQL Server 2022 |
 | **Cache** | Redis |
 | **Real-time** | ASP.NET Core SignalR |
@@ -77,7 +78,7 @@ Meridian is a microservices-based fleet management and route optimization platfo
 ┌────────────────────▼────────────────────────────────────────────┐
 │                     API GATEWAY (Ocelot)                        │
 │              Port: 5050 (local) | 443 (production)              │
-│     Authentication (WSO2 JWT), Rate Limiting, CORS, Routing     │
+│   JWT Auth (MeridianBearer / symmetric key), CORS, Routing      │
 └─┬──────┬─────────┬──────────┬──────────┬──────────┬────────────┘
   │      │         │          │          │          │
   │REST  │REST     │REST      │REST      │REST      │WS
@@ -89,10 +90,18 @@ Meridian is a microservices-based fleet management and route optimization platfo
 └──────┘ └───────┘ └────────┘ └────────┘ └───────┘ └─────────┘
                                                        SignalR Hub
                   ◄── gRPC (inter-service) ──►
+                               ▲
+               REST (auth/users)
+                               │
+                    ┌──────────┴──────────┐
+                    │     UserService      │
+                    │ Port :6007           │
+                    │ user_db (SQL Server) │
+                    └─────────────────────┘
 
 ┌───────────────────────────────────────────────────────────────┐
 │             Shared Infrastructure (Docker)                    │
-│  SQL Server :1433  │  Redis :6379  │  WSO2 IS :9443/:9763    │
+│          SQL Server :1433          │       Redis :6379        │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -103,7 +112,7 @@ Meridian is a microservices-based fleet management and route optimization platfo
 3. **Database per Service:** Each microservice owns its own SQL Server database
 4. **API-First Design:** RESTful APIs exposed externally via Ocelot; gRPC used internally
 5. **Stateless Services:** Services don't maintain session state
-6. **Centralized Auth:** WSO2 IS issues JWTs; Ocelot validates them at the gateway boundary
+6. **Centralized Auth:** API Gateway validates symmetric JWTs (MeridianBearer). UserService issues tokens on login/registration
 7. **Resilience:** Circuit breakers, retries, and fallback mechanisms on gRPC clients
 
 ---
@@ -120,7 +129,8 @@ Meridian is a microservices-based fleet management and route optimization platfo
 | **AssignmentService** | Vehicle-driver-delivery assignment engine | 6004 | `meridian_assignment` | 7004 |
 | **RouteService** | Route optimization, Google Maps, fuel calc | 6005 | — (Redis cache) | 7005 |
 | **TrackingService** | Real-time GPS tracking, SignalR hub | 6006 | `meridian_tracking` | — |
-| **ApiGateway** | Routing, auth, rate limiting, CORS | 5050 | — | — |
+| **UserService** | User management, auth token issuance | 6007 | `user_db` | — |
+| **ApiGateway** | Routing, JWT validation (MeridianBearer), CORS | 5050 | — | — |
 
 > [!IMPORTANT]
 > Port 6000 is blocked by Chromium-based browsers (`ERR_UNSAFE_PORT`). The API Gateway runs on **5050** locally.
@@ -434,23 +444,78 @@ public class TrackingHub : Hub
 
 #### Technology
 - **Ocelot** on ASP.NET Core (.NET 10)
-- **Authentication:** WSO2 Bearer JWT validation via JWKS endpoint (`https://localhost:9443/oauth2/jwks`)
+- **Authentication:** Symmetric JWT validated with a shared secret (`Jwt:Secret`) using the `MeridianBearer` scheme
 - **CORS:** Allows `http://localhost:3000` (frontend dev server)
 
 #### Route Table (ocelot.json)
 
 | Upstream (5050) | Downstream Service | Port | Auth |
 |---|---|---|---|
-| `/delivery/{everything}` | DeliveryService (localhost) | 6001 | WSO2Bearer |
-| `/vehicle/{everything}` | VehicleService (delivery-service in Docker) | 6002 | WSO2Bearer |
-| `/driver/{everything}` | DriverService | 6003 | WSO2Bearer |
-| `/assignment/{everything}` | AssignmentService | 6004 | WSO2Bearer |
-| `/route/{everything}` | RouteService | 6005 | WSO2Bearer |
-| `/tracking/{everything}` | TrackingService | 6006 | WSO2Bearer |
-| `/hubs/tracking` | TrackingService (WebSocket) | 6006 | WSO2Bearer |
+| `/delivery/{everything}` | DeliveryService | 6001 | None (public for now) |
+| `/vehicle/{everything}` | VehicleService | 6002 | MeridianBearer |
+| `/driver/{everything}` | DriverService | 6003 | MeridianBearer |
+| `/assignment/{everything}` | AssignmentService | 6004 | MeridianBearer |
+| `/route/{everything}` | RouteService | 6005 | MeridianBearer |
+| `/tracking/{everything}` | TrackingService | 6006 | MeridianBearer |
+| `/hubs/tracking` | TrackingService (WebSocket) | 6006 | MeridianBearer |
+| `/api/auth/{everything}` | UserService | 6007 | None (public) |
+| `/api/users/{everything}` | UserService | 6007 | MeridianBearer |
 
 > [!NOTE]
 > For local `dotnet run` development, downstream hosts are `localhost`. In Docker, they use Docker DNS service names (`delivery-service`, `vehicle-service`, etc.).
+
+---
+
+### 4.8 UserService (Port 6007)
+
+#### Technology
+- ASP.NET Core 8.0 Web API
+- **Database:** SQL Server — `user_db`
+- **Auth:** Validates `MeridianBearer` JWT on its own protected endpoints (same shared secret as the gateway)
+- **Startup:** `DatabaseInitializer` creates `Users` and `RefreshTokens` tables on first run if they don't exist
+
+#### API Endpoints
+```
+Base: http://localhost:5050/api/
+
+POST   /api/auth/register   Create new user (public)
+POST   /api/auth/login      Authenticate, receive JWT + refresh token (public)
+POST   /api/auth/refresh    Exchange refresh token for new JWT (public)
+POST   /api/auth/revoke     Revoke refresh token [Authorize]
+
+GET    /api/users           List all users [Authorize, Admin]
+GET    /api/users/{id}      Get user by ID [Authorize]
+GET    /api/users/me        Get current user profile [Authorize]
+PUT    /api/users/{id}      Update user [Authorize, Admin]
+DELETE /api/users/{id}      Soft-delete user [Authorize, Admin]
+```
+
+#### Data Models
+```csharp
+public class User
+{
+    public int UserId { get; set; }
+    public string FullName { get; set; }
+    public string Email { get; set; }       // unique
+    public string PasswordHash { get; set; }
+    public UserRole Role { get; set; }      // Admin | Dispatcher | Driver
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class RefreshToken
+{
+    public int RefreshTokenId { get; set; }
+    public int UserId { get; set; }         // FK → Users
+    public string Token { get; set; }       // unique
+    public DateTime ExpiresAt { get; set; }
+    public bool IsRevoked { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public enum UserRole { Admin, Dispatcher, Driver }
+```
 
 ---
 
@@ -465,18 +530,18 @@ public class TrackingHub : Hub
 
 | Service | Database Name | Dev Connection |
 |---|---|---|
-| DeliveryService | `meridian_delivery` | `Server=localhost,1433;Database=meridian_delivery;` |
-| VehicleService | `meridian_vehicle` | `Server=localhost,1433;Database=meridian_vehicle;` |
-| DriverService | `meridian_driver` | `Server=localhost,1433;Database=meridian_driver;` |
-| AssignmentService | `meridian_assignment` | `Server=localhost,1433;Database=meridian_assignment;` |
-| TrackingService | `meridian_tracking` | `Server=localhost,1433;Database=meridian_tracking;` |
+| DeliveryService | `delivery_db` | `Server=localhost,1433;Database=delivery_db;...` |
+| VehicleService | `vehicle_db` | `Server=localhost,1433;Database=vehicle_db;...` |
+| DriverService | `driver_db` | `Server=localhost,1433;Database=driver_db;...` |
+| AssignmentService | `assignment_db` | `Server=localhost,1433;Database=assignment_db;...` |
+| TrackingService | `tracking_db` | `Server=localhost,1433;Database=tracking_db;...` |
+| UserService | `user_db` | `Server=localhost,1433;Database=user_db;...` |
 | RouteService | — | Redis-only (route cache) |
 
-**SQL Server credentials (docker-compose dev):**
-```
-SA Password: Passw0rd!
-Port: 1433
-```
+**Credentials:** `User Id=sa; Password=<in appsettings.Development.json>; TrustServerCertificate=True;`
+
+> [!IMPORTANT]
+> All connection strings and JWT secrets live in gitignored `appsettings.Development.json` files only — never in `appsettings.json`.
 
 ### 5.3 Redis Cache
 
@@ -515,7 +580,7 @@ src/
 - `201 Created` — Successful POST
 - `204 No Content` — Successful DELETE
 - `400 Bad Request` — Validation errors
-- `401 Unauthorized` — Missing/invalid WSO2 JWT
+- `401 Unauthorized` — Missing/invalid JWT
 - `403 Forbidden` — Valid JWT but insufficient role
 - `404 Not Found` — Resource doesn't exist
 - `409 Conflict` — Business rule violation (e.g. vehicle already assigned)
@@ -640,51 +705,55 @@ http://localhost:6005/swagger   → RouteService
 
 ## 7. Authentication & Security
 
-### 7.1 WSO2 Identity Server (IAM)
+### 7.1 Authentication Architecture
 
-**Version:** WSO2 IS 7.2.0
-**Docker ports:** `9443` (HTTPS management/OIDC), `9763` (HTTP)
-**Role model:** Admin, Dispatcher, Driver
+**Approach:** Shared symmetric JWT secret between the API Gateway and UserService.
+**Scheme name:** `MeridianBearer`
+**Role model:** `Admin`, `Dispatcher`, `Driver` (stored in JWT `role` claim)
 
 **Flow:**
-1. User authenticates against WSO2 IS (`POST /oauth2/token`) and receives a JWT access token
-2. Frontend sends JWT as `Authorization: Bearer <token>` header with every request
-3. **Ocelot gateway** validates the JWT against WSO2 JWKS (`https://localhost:9443/oauth2/jwks`)
-4. If valid, Ocelot forwards the request to the downstream service
-5. Downstream services **do not** validate tokens independently — trust is established at the gateway
+1. User calls `POST /api/auth/login` → request routed through Ocelot (no auth required) → UserService
+2. UserService validates credentials, issues a signed JWT access token + refresh token
+3. Frontend sends JWT as `Authorization: Bearer <token>` with every subsequent request
+4. **Ocelot gateway** validates the JWT using the shared symmetric secret (`MeridianBearer`)
+5. If valid, Ocelot forwards the request to the downstream service
+6. **UserService** also validates `MeridianBearer` tokens on its own protected endpoints (`/api/auth/revoke`, `/api/users/*`)
+7. Other downstream services trust that the gateway has already validated the token
 
 ```csharp
-// ApiGateway Program.cs — WSO2 JWT validation
+// ApiGateway & UserService Program.cs — shared JWT config
 builder.Services.AddAuthentication()
-    .AddJwtBearer("WSO2Bearer", options =>
+    .AddJwtBearer("MeridianBearer", options =>
     {
-        options.Authority = "https://localhost:9443/oauth2/token";
         options.RequireHttpsMetadata = false;
-        options.BackchannelHttpHandler = new HttpClientHandler
-        {
-            // Accept WSO2 self-signed cert in dev
-            ServerCertificateCustomValidationCallback =
-                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-        };
-        options.Configuration = new OpenIdConnectConfiguration
-        {
-            JwksUri = "https://localhost:9443/oauth2/jwks"
-        };
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(config["Jwt:Secret"])),
+            ValidateIssuer = true,
+            ValidIssuer = config["Jwt:Issuer"],       // meridian-gateway
             ValidateAudience = true,
-            ValidAudience = "YOUR_WSO2_AUDIENCE",
+            ValidAudience = config["Jwt:Audience"],   // meridian-api
             ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
         };
     });
 ```
 
-### 7.2 Role-Based Access (enforced at Gateway via Ocelot + WSO2 scopes)
+**JWT configuration keys** (in `appsettings.Development.json`, gitignored):
+
+| Key | Value |
+|---|---|
+| `Jwt:Secret` | Shared symmetric signing key (≥32 chars) |
+| `Jwt:Issuer` | `meridian-gateway` |
+| `Jwt:Audience` | `meridian-api` |
+
+### 7.2 Role-Based Access
 
 | Role | Allowed Operations |
 |---|---|
-| **Admin** | Full access to all services |
+| **Admin** | Full access to all services, user management |
 | **Dispatcher** | Create/view deliveries, manage assignments, view fleet |
 | **Driver** | View own assignments, update location/status via TrackingService |
 
@@ -693,8 +762,8 @@ builder.Services.AddAuthentication()
 1. **HTTPS enforced** in all non-dev environments
 2. **CORS** configured in API Gateway: allows `http://localhost:3000` in dev
 3. **SQL Injection prevention:** Parameterized queries with ADO.NET
-4. **Secrets:** Azure Key Vault in production; `appsettings.Development.json` for local (not committed)
-5. **WSO2 self-signed cert:** Bypassed with `DangerousAcceptAnyServerCertificateValidator` in dev only
+4. **Secrets:** `Jwt:Secret`, connection strings, and API keys live in gitignored `appsettings.Development.json` only — `appsettings.json` contains no sensitive values
+5. **Passwords hashed** in UserService before storage (to be implemented)
 6. **gRPC channels** use unencrypted HTTP/2 in dev; TLS required in production
 
 ---
@@ -776,7 +845,7 @@ await connection.start();
 **API communication:**
 - All REST calls go through `http://localhost:5050` (API Gateway) in dev
 - SignalR connects to `ws://localhost:5050/hubs/tracking`
-- Bearer token from WSO2 IS attached to every request
+- Bearer JWT (issued by UserService, validated by gateway) attached to every request via `Authorization: Bearer <token>`
 
 ---
 
@@ -792,21 +861,21 @@ await connection.start();
 ### 11.2 Start Infrastructure (Docker)
 
 ```bash
-# From repo root — starts SQL Server, Redis, WSO2 IS
+# From repo root — starts SQL Server and Redis
 docker compose up -d
 ```
 
 | Service | URL |
 |---|---|
-| SQL Server | `localhost:1433` (sa / Passw0rd!) |
+| SQL Server | `localhost:1433` |
 | Redis | `localhost:6379` |
-| WSO2 IS | `https://localhost:9443` (admin / admin) |
 
 ### 11.3 Start Microservices (local dotnet run)
 
 ```bash
 # Each in a separate terminal
-cd src/ApiGateway              && dotnet run   # :5050
+cd src/ApiGateway                             && dotnet run   # :5050
+cd src/UserService/UserService.API            && dotnet run   # :6007
 cd src/DeliveryService/DeliveryService.API    && dotnet run   # :6001
 cd src/VehicleService/VehicleService.API      && dotnet run   # :6002
 cd src/DriverService/DriverService.API        && dotnet run   # :6003
@@ -831,6 +900,7 @@ npm run dev   # http://localhost:3000
 | Service | HTTP/REST | gRPC |
 |---|---|---|
 | ApiGateway | 5050 | — |
+| UserService | 6007 | — |
 | DeliveryService | 6001 | 7001 |
 | VehicleService | 6002 | 7002 |
 | DriverService | 6003 | 7003 |
@@ -839,8 +909,6 @@ npm run dev   # http://localhost:3000
 | TrackingService | 6006 | — |
 | SQL Server | 1433 | — |
 | Redis | 6379 | — |
-| WSO2 IS (HTTPS) | 9443 | — |
-| WSO2 IS (HTTP) | 9763 | — |
 | Next.js Frontend | 3000 | — |
 
 ---
@@ -878,7 +946,7 @@ fix/*       → Bug fix branches
 | Secrets | Azure Key Vault |
 | Monitoring | Azure Application Insights |
 | Container Registry | Azure Container Registry |
-| IAM | WSO2 IS (hosted on Azure VM) or Azure AD B2C |
+| Auth | Azure Key Vault for JWT secret; UserService deployed as App Service |
 
 ---
 
@@ -886,7 +954,7 @@ fix/*       → Bug fix branches
 
 ```
 Meridian/
-├── docker-compose.yml              # Infrastructure: SQL Server, Redis, WSO2 IS
+├── docker-compose.yml              # Infrastructure: SQL Server, Redis
 ├── meridian-frontend/              # Next.js frontend
 │   └── app/
 │       └── page.tsx                # API Gateway tester (dev tool)
@@ -898,9 +966,16 @@ Meridian/
     │   └── Contribution-Guidelines.md
     └── src/
         ├── ApiGateway/
-        │   ├── ocelot.json             # Route table, auth config
-        │   ├── Program.cs              # WSO2 JWT setup, CORS
+        │   ├── ocelot.json             # Route table, MeridianBearer auth config
+        │   ├── Program.cs              # Symmetric JWT setup, CORS
         │   └── Properties/launchSettings.json  # Port 5050
+        ├── UserService/
+        │   └── UserService.API/
+        │       ├── Controllers/        # AuthController, UsersController
+        │       ├── Services/           # IAuthService, IUserService (stubs)
+        │       ├── Repositories/       # IUserRepository, IRefreshTokenRepository (stubs)
+        │       ├── Models/             # User, RefreshToken, UserRole
+        │       └── Data/               # DatabaseInitializer.cs
         ├── DeliveryService/
         │   └── DeliveryService.API/
         │       ├── Controllers/
