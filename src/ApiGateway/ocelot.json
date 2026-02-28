@@ -38,7 +38,7 @@
                 }
             ],
             "AuthenticationOptions": {
-                "AuthenticationProviderKey": "WSO2Bearer",
+                "AuthenticationProviderKey": "MeridianBearer",
                 "AllowedScopes": []
             }
         },
@@ -61,7 +61,7 @@
                 }
             ],
             "AuthenticationOptions": {
-                "AuthenticationProviderKey": "WSO2Bearer",
+                "AuthenticationProviderKey": "MeridianBearer",
                 "AllowedScopes": []
             }
         },
@@ -84,7 +84,7 @@
                 }
             ],
             "AuthenticationOptions": {
-                "AuthenticationProviderKey": "WSO2Bearer",
+                "AuthenticationProviderKey": "MeridianBearer",
                 "AllowedScopes": []
             }
         },
@@ -107,7 +107,7 @@
                 }
             ],
             "AuthenticationOptions": {
-                "AuthenticationProviderKey": "WSO2Bearer",
+                "AuthenticationProviderKey": "MeridianBearer",
                 "AllowedScopes": []
             }
         },
@@ -130,7 +130,7 @@
                 }
             ],
             "AuthenticationOptions": {
-                "AuthenticationProviderKey": "WSO2Bearer",
+                "AuthenticationProviderKey": "MeridianBearer",
                 "AllowedScopes": []
             }
         },
@@ -153,7 +153,42 @@
                 }
             ],
             "AuthenticationOptions": {
-                "AuthenticationProviderKey": "WSO2Bearer",
+                "AuthenticationProviderKey": "MeridianBearer",
+                "AllowedScopes": []
+            }
+        },
+        {
+            "UpstreamPathTemplate": "/api/auth/{everything}",
+            "UpstreamHttpMethod": [
+                "POST"
+            ],
+            "DownstreamPathTemplate": "/api/auth/{everything}",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "user-service",
+                    "Port": 6007
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/api/users/{everything}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE"
+            ],
+            "DownstreamPathTemplate": "/api/users/{everything}",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "user-service",
+                    "Port": 6007
+                }
+            ],
+            "AuthenticationOptions": {
+                "AuthenticationProviderKey": "MeridianBearer",
                 "AllowedScopes": []
             }
         }

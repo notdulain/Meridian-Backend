@@ -2,7 +2,7 @@ using System;
 
 namespace DeliveryService.API.DTOs;
 
-public class CreateDeliveryRequestDto
+public record CreateDeliveryRequestDto
 {
     public string PickupAddress { get; set; } = string.Empty;
     public string DeliveryAddress { get; set; } = string.Empty;
