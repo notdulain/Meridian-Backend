@@ -12,6 +12,15 @@ public record CreateDeliveryRequestDto
     public string CreatedBy { get; set; } = string.Empty;
 }
 
+public class UpdateDeliveryRequestDto
+{
+    public string? PickupAddress { get; set; }
+    public string? DeliveryAddress { get; set; }
+    public decimal? PackageWeightKg { get; set; }
+    public decimal? PackageVolumeM3 { get; set; }
+    public DateTime? Deadline { get; set; }
+}
+
 public class DeliveryDto
 {
     public int Id { get; set; }
