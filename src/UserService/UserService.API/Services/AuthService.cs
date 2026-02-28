@@ -1,23 +1,25 @@
+using UserService.API.DTOs;
+
 namespace UserService.API.Services;
 
 public class AuthService : IAuthService
 {
-    public Task<object> RegisterAsync(object request)
+    public Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
         throw new NotImplementedException();
     }
 
-    public Task<object> LoginAsync(object request)
+    public Task<AuthResponse> LoginAsync(LoginRequest request)
     {
         throw new NotImplementedException();
     }
 
-    public Task<object> RefreshAsync(object request)
+    public Task<AuthResponse> RefreshAsync(RefreshRequest request)
     {
         throw new NotImplementedException();
     }
 
-    public Task<bool> RevokeAsync(string token)
+    public Task RevokeAsync(RevokeRequest request)
     {
         throw new NotImplementedException();
     }

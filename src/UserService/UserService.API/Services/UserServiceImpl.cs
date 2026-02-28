@@ -1,25 +1,25 @@
-using UserService.API.Models;
+using UserService.API.DTOs;
 
 namespace UserService.API.Services;
 
 public class UserService : IUserService
 {
-    public Task<IEnumerable<User>> GetAllAsync()
+    public Task<IEnumerable<UserResponse>> GetAllAsync()
     {
         throw new NotImplementedException();
     }
 
-    public Task<User?> GetByIdAsync(int userId)
+    public Task<UserResponse?> GetByIdAsync(int userId)
     {
         throw new NotImplementedException();
     }
 
-    public Task<User?> GetMeAsync(int userId)
+    public Task<UserResponse?> GetMeAsync(int userId)
     {
         throw new NotImplementedException();
     }
 
-    public Task<User?> UpdateAsync(int userId, object request)
+    public Task<UserResponse?> UpdateAsync(int userId, UpdateUserRequest request)
     {
         throw new NotImplementedException();
     }
