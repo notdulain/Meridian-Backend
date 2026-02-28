@@ -27,45 +27,6 @@ services:
     networks:
       - meridian_network
 
-  user-service:
-    build:
-      context: ./src/UserService/UserService.API
-      dockerfile: Dockerfile
-    container_name: meridian-user-service
-    restart: always
-    ports:
-      - "6007:6007"
-    environment:
-      - ASPNETCORE_URLS=http://+:6007
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__UserDb=Server=sql,1433;Database=user_db;User Id=sa;Password=Passw0rd!;TrustServerCertificate=True;
-      - Jwt__Secret=meridian-super-secret-jwt-signing-key-32chars
-      - Jwt__Issuer=meridian-gateway
-      - Jwt__Audience=meridian-api
-    depends_on:
-      - sql
-    networks:
-      - meridian_network
-
-  api-gateway:
-    build:
-      context: ./src/ApiGateway
-      dockerfile: Dockerfile
-    container_name: meridian-api-gateway
-    restart: always
-    ports:
-      - "6000:6000"
-    environment:
-      - ASPNETCORE_URLS=http://+:6000
-      - ASPNETCORE_ENVIRONMENT=Production
-      - Jwt__Secret=meridian-super-secret-jwt-signing-key-32chars
-      - Jwt__Issuer=meridian-gateway
-      - Jwt__Audience=meridian-api
-    depends_on:
-      - user-service
-    networks:
-      - meridian_network
-
 volumes:
   sqldata:
   redisdata:
