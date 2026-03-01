@@ -6,6 +6,7 @@ namespace DeliveryService.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 public class RolesController : ControllerBase
 {
     /// <summary>
