@@ -115,6 +115,17 @@ public class DeliveryManagerService : IDeliveryManagerService
         return fresh is null ? null : ToDto(fresh);
     }
 
+    public async Task<bool> DeleteDeliveryAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var existing = await _repository.GetByIdAsync(id, cancellationToken);
+        if (existing is null) return false;
+
+        if (!existing.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Only deliveries with status 'Cancelled' can be deleted.");
+
+        return await _repository.DeleteAsync(id, cancellationToken);
+    }
+
     private static DeliveryDto ToDto(Delivery d) => new()
     {
         Id = d.Id,
