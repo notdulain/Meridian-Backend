@@ -135,4 +135,23 @@ public class DeliveriesController : ControllerBase
         if (delivery is null) return NotFound();
         return Ok(delivery);
     }
+
+    /// <summary>Delete a cancelled delivery and all its status history.</summary>
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var deleted = await _deliveryManagerService.DeleteDeliveryAsync(id, cancellationToken);
+            if (!deleted) return NotFound();
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 }
