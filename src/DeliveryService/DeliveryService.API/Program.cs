@@ -115,11 +115,6 @@ app.UseHttpsRedirection();
 app.UseCors("AllowedOrigins");
 app.UseAuthentication();
 
-// simple role extraction middleware – parses the `role` claim and makes a
-// UserRole value available via HttpContext.Items["UserRole"].
-// no enforcement is done here, restrictions will be added later.
-app.UseMiddleware<DeliveryService.API.Middleware.RoleMiddleware>();
-
 app.UseAuthorization();
 app.MapControllers();
 

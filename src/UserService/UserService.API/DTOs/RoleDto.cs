@@ -1,4 +1,4 @@
-namespace DeliveryService.API.DTOs;
+namespace UserService.API.DTOs;
 
 public class RoleDto
 {

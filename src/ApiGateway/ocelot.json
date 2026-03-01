@@ -191,6 +191,24 @@
                 "AuthenticationProviderKey": "MeridianBearer",
                 "AllowedScopes": []
             }
+        },
+        {
+            "UpstreamPathTemplate": "/api/roles/{everything}",
+            "UpstreamHttpMethod": [
+                "GET"
+            ],
+            "DownstreamPathTemplate": "/api/roles/{everything}",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "user-service",
+                    "Port": 6007
+                }
+            ],
+            "AuthenticationOptions": {
+                "AuthenticationProviderKey": "MeridianBearer",
+                "AllowedScopes": []
+            }
         }
     ],
     "GlobalConfiguration": {
