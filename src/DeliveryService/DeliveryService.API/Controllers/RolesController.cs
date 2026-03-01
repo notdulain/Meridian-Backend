@@ -6,6 +6,7 @@ namespace DeliveryService.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 public class RolesController : ControllerBase
 {
     /// <summary>
@@ -23,5 +24,21 @@ public class RolesController : ControllerBase
         }).ToList();
 
         return Ok(roles);
+    }
+
+    /// <summary>
+    /// Retrieve the role of the current user (if authenticated).
+    /// </summary>
+    [HttpGet("me")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    public ActionResult<string?> GetMyRole()
+    {
+        if (HttpContext.Items.TryGetValue("UserRole", out var obj) && obj is UserRole ur)
+        {
+            return Ok(ur.ToString());
+        }
+
+        // role not available (anon or token missing/invalid)
+        return Ok((string?)null);
     }
 }
