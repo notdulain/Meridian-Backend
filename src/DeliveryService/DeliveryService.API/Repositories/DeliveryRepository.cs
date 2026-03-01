@@ -184,4 +184,26 @@ public class DeliveryRepository
         var rowsAffected = await cmd.ExecuteNonQueryAsync(cancellationToken);
         return rowsAffected > 0;
     }
+
+    public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        // Delete status history first to satisfy the FK constraint
+        const string deleteHistorySql = "DELETE FROM StatusHistory WHERE DeliveryId = @Id;";
+        await using (var cmd = new SqlCommand(deleteHistorySql, connection))
+        {
+            cmd.Parameters.AddWithValue("@Id", id);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        const string deleteDeliverySql = "DELETE FROM Deliveries WHERE DeliveryId = @Id;";
+        await using (var cmd = new SqlCommand(deleteDeliverySql, connection))
+        {
+            cmd.Parameters.AddWithValue("@Id", id);
+            var rowsAffected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+            return rowsAffected > 0;
+        }
+    }
 }
