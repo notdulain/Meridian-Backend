@@ -6,13 +6,13 @@ namespace DeliveryService.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 public class RolesController : ControllerBase
 {
     /// <summary>
     /// Retrieve all available user roles.
     /// </summary>
     [HttpGet]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(IEnumerable<RoleDto>), StatusCodes.Status200OK)]
     public ActionResult<IEnumerable<RoleDto>> GetRoles()
     {
@@ -30,6 +30,7 @@ public class RolesController : ControllerBase
     /// Retrieve the role of the current user (if authenticated).
     /// </summary>
     [HttpGet("me")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     public ActionResult<string?> GetMyRole()
     {
