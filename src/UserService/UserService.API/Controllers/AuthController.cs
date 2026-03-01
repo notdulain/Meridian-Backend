@@ -60,4 +60,17 @@ public class AuthController : ControllerBase
         await _authService.RevokeAsync(request);
         return NoContent();
     }
+
+    // POST /api/auth/logout — requires auth
+    // Alias for revoke to provide a clearer semantic for clients.
+    [Authorize]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Logout([FromBody] RevokeRequest request)
+    {
+        await _authService.RevokeAsync(request);
+        return NoContent();
+    }
 }
