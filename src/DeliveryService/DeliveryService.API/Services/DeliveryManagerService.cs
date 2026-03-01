@@ -120,9 +120,6 @@ public class DeliveryManagerService : IDeliveryManagerService
         var existing = await _repository.GetByIdAsync(id, cancellationToken);
         if (existing is null) return false;
 
-        if (!existing.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Only deliveries with status 'Cancelled' can be deleted.");
-
         return await _repository.DeleteAsync(id, cancellationToken);
     }
 
