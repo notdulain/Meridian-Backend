@@ -201,6 +201,16 @@ internal class FakeDeliveryManagerService : IDeliveryManagerService
         return Task.FromResult<DeliveryDto?>(ToDto(_getResult));
     }
 
+    public Task<DeliveryDto?> UpdateDeliveryAsync(int id, UpdateDeliveryRequestDto request, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<DeliveryDto?>(null);
+    }
+
+    public Task<bool> DeleteDeliveryAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(true);
+    }
+
     public Task<IEnumerable<DeliveryDto>> GetAllDeliveriesAsync(
         string? status = null,
         string? destination = null,
