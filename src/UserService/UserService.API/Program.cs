@@ -2,6 +2,7 @@ using DbUp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using Microsoft.OpenApi.Models;
 using System.Reflection;
 using System.Text;
 using UserService.API.Repositories;
@@ -17,9 +18,39 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .WriteTo.Console());
 
 // ─────────────────────────────────────────────
-// Controllers
+// Controllers & API Explorer
 // ─────────────────────────────────────────────
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+
+// ─────────────────────────────────────────────
+// Swagger / OpenAPI
+// ─────────────────────────────────────────────
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "UserService API", Version = "v1" });
+
+    // JWT Bearer — this produces the Authorize button + lock icons
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter your JWT access token (without the 'Bearer ' prefix)"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // ─────────────────────────────────────────────
 // HttpContextAccessor
@@ -111,6 +142,16 @@ Console.WriteLine("Database migration successful!");
 Console.ResetColor();
 
 app.UseCors("ReactFrontend");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "UserService v1");
+        c.RoutePrefix = "swagger";
+    });
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
