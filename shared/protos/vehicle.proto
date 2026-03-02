@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+option csharp_namespace = "Meridian.VehicleGrpc";
+
+package vehicle;
+
+service VehicleGrpc {
+  rpc GetVehicle (VehicleRequest) returns (VehicleResponse);
+  rpc CheckAvailability (VehicleRequest) returns (AvailabilityResponse);
+  rpc UpdateStatus (UpdateStatusRequest) returns (UpdateStatusResponse);
+}
+
+message VehicleRequest {
+  int32 vehicle_id = 1;
+}
+
+message VehicleResponse {
+  int32 vehicle_id = 1;
+  string plate_number = 2;
+  string make = 3;
+  string model = 4;
+  int32 year = 5;
+  double capacity_kg = 6;
+  double capacity_m3 = 7;
+  double fuel_efficiency_km_per_litre = 8;
+  string status = 9;
+}
+
+message AvailabilityResponse {
+  bool is_available = 1;
+  string message = 2;
+}
+
+message UpdateStatusRequest {
+  int32 vehicle_id = 1;
+  string new_status = 2; // "Available", "OnTrip", "Maintenance", "Retired"
+}
+
+message UpdateStatusResponse {
+  bool success = 1;
+  string message = 2;
+}

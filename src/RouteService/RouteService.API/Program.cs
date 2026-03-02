@@ -1,108 +1,86 @@
-using DbUp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Reflection;
-using System.Text;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using StackExchange.Redis;
+using Meridian.VehicleGrpc;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+builder.Host.UseSerilog((context, configuration) =>
+    configuration.ReadFrom.Configuration(context.Configuration));
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
-// OpenAPI Configuration
-builder.Services.AddOpenApi();
-
-// JWT Authentication Configuration
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
-        };
-    });
-
-// CORS Configuration
-builder.Services.AddCors(options =>
+builder.Services.AddSwaggerGen(c =>
 {
-    options.AddPolicy("AllowedOrigins", policy =>
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "RouteService API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter your JWT access token (without the 'Bearer ' prefix)"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+            Array.Empty<string>()
+        }
     });
 });
 
+// Configure Redis
+var redisConfiguration = builder.Configuration.GetConnectionString("RedisCache");
+if (!string.IsNullOrEmpty(redisConfiguration))
+{
+    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConfiguration));
+}
+
+// Configure gRPC Client
+builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
+{
+    o.Address = new Uri(builder.Configuration["Grpc:VehicleServiceUrl"]!);
+});
+
+// Configure HttpClient for Google Maps
+builder.Services.AddHttpClient("GoogleMaps", client =>
+{
+    client.BaseAddress = new Uri("https://maps.googleapis.com");
+});
+
+// Keycloak Authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = builder.Configuration["Keycloak:Authority"];
+        options.Audience = builder.Configuration["Keycloak:Audience"];
+        options.RequireHttpsMetadata = false; // dev only
+    });
+
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
-// Run DbUp Migrations
-var connectionString = builder.Configuration.GetConnectionString("RouteDb");
-EnsureDatabase.For.SqlDatabase(connectionString);
+app.UseSerilogRequestLogging();
 
-var upgrader = DeployChanges.To
-    .SqlDatabase(connectionString)
-    .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
-    .LogToConsole()
-    .Build();
-
-var result = upgrader.PerformUpgrade();
-if (!result.Successful)
-{
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine(result.Error);
-    Console.ResetColor();
-    throw new Exception("Database migration failed", result.Error);
-}
-Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine("Database migration successful!");
-Console.ResetColor();
-
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapGet("/swagger", () => Results.Content(
-        """
-        <!doctype html>
-        <html lang="en">
-        <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <title>Swagger UI</title>
-          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
-          <style>body { margin: 0; } #swagger-ui { max-width: 100%; }</style>
-        </head>
-        <body>
-          <div id="swagger-ui"></div>
-          <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-          <script>
-            window.ui = SwaggerUIBundle({
-              url: '/openapi/v1.json',
-              dom_id: '#swagger-ui'
-            });
-          </script>
-        </body>
-        </html>
-        """,
-        "text/html"));
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "RouteService v1");
+        c.RoutePrefix = "swagger";
+    });
 }
 
-app.UseHttpsRedirection();
-app.UseCors("AllowedOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();

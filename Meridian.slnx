@@ -3,10 +3,10 @@
   <Folder Name="/src/DeliveryService/">
     <Project Path="src/DeliveryService/DeliveryService.API/DeliveryService.API.csproj" />
   </Folder>
-  <Folder Name="/src/FleetService/">
-    <Project Path="src/FleetService/FleetService.API/FleetService.API.csproj" />
-  </Folder>
   <Folder Name="/src/RouteService/">
     <Project Path="src/RouteService/RouteService.API/RouteService.API.csproj" />
+  </Folder>
+  <Folder Name="/src/UserService/">
+    <Project Path="src/UserService/UserService.API/UserService.API.csproj" />
   </Folder>
 </Solution>
