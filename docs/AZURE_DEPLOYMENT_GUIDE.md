@@ -1,212 +1,250 @@
 # Azure Deployment Guide for Meridian
 
-This guide outlines the steps required to deploy the Meridian microservices to Microsoft Azure. We will be using **Azure App Service (Web App for Containers)** to host our Dockerized microservices and **Azure SQL Database** as our managed relational database.
+This guide outlines the steps required to deploy the Meridian microservices to Microsoft Azure. We will be using **Azure Container Apps** to host our Dockerized microservices, **Azure SQL Database** as our managed relational database, and **Azure Cache for Redis** for distributed caching.
 
 ## Prerequisites
 
 1.  **Azure Account:** An active Microsoft Azure account.
 2.  **Azure CLI:** Installed on your local machine (`brew update && brew install azure-cli` on Mac).
 3.  **Docker Desktop:** Running locally.
-4.  **Docker Hub or Azure Container Registry (ACR):** An account to host your Docker images.
+4.  **Docker Hub:** An account to host your Docker images.
 
-## Phase 1: Containerize the Microservices
+## Azure Acronym Legend
 
-Before deploying to Azure, we need to create a Docker image for each service.
+To keep resource names concise while adhering to naming standards, the following abbreviations (prefixes/suffixes) are used throughout the guide and in the deployment script:
 
-### 1. Create Dockerfiles
+*   **rg**: Resource Group
+*   **cae**: Container Apps Environment
+*   **ca**: Container App
+*   **sqldb / sql-server**: Azure SQL Database / Server
+*   **redis**: Azure Cache for Redis
+*   **kv**: Azure Key Vault
+*   **law**: Log Analytics Workspace
+*   **appi**: Application Insights
 
-We need a `Dockerfile` in the root of each API project.
-*   `src/DeliveryService/DeliveryService.API/Dockerfile`
-*   `src/FleetService/FleetService.API/Dockerfile`
-*   `src/RouteService/RouteService.API/Dockerfile`
+## Phase 1: Environment Topology
 
-Here is the standard `.NET 10` Dockerfile template you should place in each of those locations (make sure to replace `DeliveryService.API.csproj` and `DeliveryService.API.dll` with the respective service names):
+As per the architectural design, Meridian uses three distinct environments, each isolated in its own Azure Resource Group:
 
-```dockerfile
-# Use the official ASP.NET Core runtime as a base image
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
-WORKDIR /app
-EXPOSE 8080
+1.  **QA:** `rg-meridian-qa`
+2.  **Staging:** `rg-meridian-staging`
+3.  **Production:** `rg-meridian-prod`
 
-# Use the official .NET SDK for building the application
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
-COPY ["DeliveryService.API.csproj", "./"]
-RUN dotnet restore "./DeliveryService.API.csproj"
-COPY . .
-WORKDIR "/src/."
-RUN dotnet build "DeliveryService.API.csproj" -c Release -o /app/build
+Within each Resource Group, the following resources will be created:
+*   **Azure Container Apps Environment:** The managed cluster hosting the microservices.
+*   **Azure Container Apps:** The actual microservices (`ca-api-gateway`, `ca-user-service`, `ca-delivery-service`, `ca-vehicle-service`, `ca-driver-service`, `ca-assignment-service`, `ca-route-service`, `ca-tracking-service`).
+*   **Azure SQL Database Server:** Hosting the relational databases (`user_db`, `meridian_delivery`, `meridian_vehicle`, `meridian_driver`, `meridian_assignment`, `meridian_tracking`).
+*   **Azure Cache for Redis:** Caching (RouteService) and SignalR backplane (TrackingService).
+*   **Azure Key Vault:** Securely storing secrets (connection strings, JWT keys).
+*   **Log Analytics Workspace & Application Insights:** For centralized logging and distributed tracing.
 
-FROM build AS publish
-RUN dotnet publish "DeliveryService.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
+## Phase 2: Containerize the Microservices
 
-# Final stage/image
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "DeliveryService.API.dll"]
-```
+Before deploying to Azure, create Docker images for all 8 components and push them to Docker Hub.
 
-### 2. Build the Docker Images
+### 1. Build and push the Docker Images
 
-From the directory containing each `Dockerfile`, run the build command. Let's tag them with your Docker Hub username (e.g., `notdulain`).
+Ensure you have a `Dockerfile` for each API project. Then build and push images:
 
 ```bash
-docker build -t notdulain/meridian-delivery:v1 -f src/DeliveryService/DeliveryService.API/Dockerfile src/DeliveryService/DeliveryService.API
-docker build -t notdulain/meridian-fleet:v1 -f src/FleetService/FleetService.API/Dockerfile src/FleetService/FleetService.API
-docker build -t notdulain/meridian-route:v1 -f src/RouteService/RouteService.API/Dockerfile src/RouteService/RouteService.API
+# 1. API Gateway
+docker build -t <your-dockerhub-username>/meridian-apigateway:v1 -f src/ApiGateway/ApiGateway/Dockerfile src/ApiGateway/ApiGateway
+docker push <your-dockerhub-username>/meridian-apigateway:v1
+
+# 2. User Service
+docker build -t <your-dockerhub-username>/meridian-userservice:v1 -f src/UserService/UserService.API/Dockerfile src/UserService/UserService.API
+docker push <your-dockerhub-username>/meridian-userservice:v1
+
+# 3. Delivery Service
+docker build -t <your-dockerhub-username>/meridian-deliveryservice:v1 -f src/DeliveryService/DeliveryService.API/Dockerfile src/DeliveryService/DeliveryService.API
+docker push <your-dockerhub-username>/meridian-deliveryservice:v1
+
+# 4. Vehicle Service
+docker build -t <your-dockerhub-username>/meridian-vehicleservice:v1 -f src/VehicleService/VehicleService.API/Dockerfile src/VehicleService/VehicleService.API
+docker push <your-dockerhub-username>/meridian-vehicleservice:v1
+
+# 5. Driver Service
+docker build -t <your-dockerhub-username>/meridian-driverservice:v1 -f src/DriverService/DriverService.API/Dockerfile src/DriverService/DriverService.API
+docker push <your-dockerhub-username>/meridian-driverservice:v1
+
+# 6. Assignment Service
+docker build -t <your-dockerhub-username>/meridian-assignmentservice:v1 -f src/AssignmentService/AssignmentService.API/Dockerfile src/AssignmentService/AssignmentService.API
+docker push <your-dockerhub-username>/meridian-assignmentservice:v1
+
+# 7. Route Service
+docker build -t <your-dockerhub-username>/meridian-routeservice:v1 -f src/RouteService/RouteService.API/Dockerfile src/RouteService/RouteService.API
+docker push <your-dockerhub-username>/meridian-routeservice:v1
+
+# 8. Tracking Service
+docker build -t <your-dockerhub-username>/meridian-trackingservice:v1 -f src/TrackingService/TrackingService.API/Dockerfile src/TrackingService/TrackingService.API
+docker push <your-dockerhub-username>/meridian-trackingservice:v1
 ```
 
-### 3. Push to Container Registry
+## Phase 3: Provision Azure Resources (Batch Script)
 
-Log in to Docker Hub and push your images.
+To keep the deployment clean and automated, use the following bash script to provision all resources for a specific environment at once. This script uses Azure CLI. Save it, modify the variables, and execute it to instantly stand up the environment infrastructure.
 
-```bash
-docker login
-docker push notdulain/meridian-delivery:v1
-docker push notdulain/meridian-fleet:v1
-docker push notdulain/meridian-route:v1
-```
-
-## Phase 2: Provision Azure Resources (via CLI)
-
-We will use the Azure CLI to create the necessary resources. Open your terminal and log in:
+> **Note:** Ensure you are logged in using `az login` before running this script.
 
 ```bash
-az login
-```
+#!/bin/bash
 
-### 1. Environment Variables
+# ==============================================================================
+# Meridian Environment Infrastructure Setup Script
+# ==============================================================================
 
-Let's set some variables to make the commands easier to copy-paste. Replace `notdulain` with your actual Azure subscription ID if needed, and choose a region close to you.
+# Configuration Variables
+ENV="qa" # Change to 'staging' or 'prod' as needed
+LOCATION="eastasia"
 
-```bash
-RESOURCE_GROUP="rg-meridian-prod"
-LOCATION="eastus"
-SQL_SERVER="sql-meridian-prod-$$RANDOM" # Randomizes name to be unique
+# Resource Names (Following naming conventions)
+RESOURCE_GROUP="rg-meridian-$ENV"
+LOG_ANALYTICS="law-meridian-$ENV"
+APP_INSIGHTS="appi-meridian-$ENV"
+SQL_SERVER="sql-server-meridian-$ENV-$RANDOM"
+REDIS_NAME="redis-meridian-$ENV-$RANDOM"
+KEYVAULT_NAME="kv-meridian-$ENV-$RANDOM"
+CAE_NAME="cae-meridian-$ENV"
+
+# Database Configuration (Update these securely)
 DB_ADMIN="meridianadmin"
-DB_PASSWORD="YourStrong!Passw0rd123"
-APP_SERVICE_PLAN="asp-meridian-prod"
-```
+DB_PASSWORD="Passw0rd!"
 
-### 2. Create a Resource Group
+# Docker Hub Configuration
+DOCKER_USER="<your-dockerhub-username>"
 
-This groups all our Meridian resources together.
+echo "🚀 Deploying Meridian Platform ($ENV Environment)..."
 
-```bash
+# 1. Create Resource Group
+echo "📦 Creating Resource Group: $RESOURCE_GROUP"
 az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# 2. Setup Logging and Application Insights
+echo "📊 Setting up Log Analytics and Application Insights..."
+WORKSPACE_ID=$(az monitor log-analytics workspace create --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS --query customerId -o tsv)
+WORKSPACE_SECRET=$(az monitor log-analytics workspace get-shared-keys --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS --query primarySharedKey -o tsv)
+az monitor app-insights component create --app $APP_INSIGHTS --location $LOCATION --kind web -g $RESOURCE_GROUP --application-type web
+
+# 3. Create Azure SQL Server and configure firewall
+echo "🗄️ Creating SQL Server: $SQL_SERVER..."
+az sql server create --name $SQL_SERVER --resource-group $RESOURCE_GROUP --location $LOCATION --admin-user $DB_ADMIN --admin-password $DB_PASSWORD
+az sql server firewall-rule create --resource-group $RESOURCE_GROUP --server $SQL_SERVER --name AllowAllAzureIPs --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
+
+# 4. Create Redis Cache
+echo "⚡ Creating Redis Cache: $REDIS_NAME..."
+az redis create --name $REDIS_NAME --resource-group $RESOURCE_GROUP --location $LOCATION --sku Basic --vm-size c0
+
+# 5. Create Key Vault
+echo "🔐 Creating Key Vault: $KEYVAULT_NAME..."
+az keyvault create --name $KEYVAULT_NAME --resource-group $RESOURCE_GROUP --location $LOCATION
+
+# 6. Create Container Apps Environment
+echo "☁️ Creating Container Apps Environment: $CAE_NAME..."
+az containerapp env create --name $CAE_NAME --resource-group $RESOURCE_GROUP --location $LOCATION --logs-workspace-id $WORKSPACE_ID --logs-workspace-key $WORKSPACE_SECRET
+
+# 7. Create Container Apps (Microservices)
+echo "🛳️ Deploying Microservices to Container Apps..."
+
+# API Gateway (Publicly accessible, HTTP ingress)
+az containerapp create \
+    --name ca-api-gateway \
+    --resource-group $RESOURCE_GROUP \
+    --environment $CAE_NAME \
+    --image docker.io/$DOCKER_USER/meridian-apigateway:v1 \
+    --target-port 8080 \
+    --ingress external \
+    --min-replicas 1 \
+    --max-replicas 3
+
+# User Service (Internal, REST endpoints)
+az containerapp create \
+    --name ca-user-service \
+    --resource-group $RESOURCE_GROUP \
+    --environment $CAE_NAME \
+    --image docker.io/$DOCKER_USER/meridian-userservice:v1 \
+    --target-port 8080 \
+    --ingress internal \
+    --min-replicas 0 \
+    --max-replicas 5
+
+# Delivery Service (Internal, gRPC support via http2)
+az containerapp create \
+    --name ca-delivery-service \
+    --resource-group $RESOURCE_GROUP \
+    --environment $CAE_NAME \
+    --image docker.io/$DOCKER_USER/meridian-deliveryservice:v1 \
+    --target-port 8080 \
+    --ingress internal \
+    --transport http2 \
+    --min-replicas 0 \
+    --max-replicas 5
+
+# Vehicle Service (Internal, gRPC support via http2)
+az containerapp create \
+    --name ca-vehicle-service \
+    --resource-group $RESOURCE_GROUP \
+    --environment $CAE_NAME \
+    --image docker.io/$DOCKER_USER/meridian-vehicleservice:v1 \
+    --target-port 8080 \
+    --ingress internal \
+    --transport http2 \
+    --min-replicas 0 \
+    --max-replicas 5
+
+# Driver Service (Internal, gRPC support via http2)
+az containerapp create \
+    --name ca-driver-service \
+    --resource-group $RESOURCE_GROUP \
+    --environment $CAE_NAME \
+    --image docker.io/$DOCKER_USER/meridian-driverservice:v1 \
+    --target-port 8080 \
+    --ingress internal \
+    --transport http2 \
+    --min-replicas 0 \
+    --max-replicas 5
+
+# Assignment Service (Internal, gRPC/REST)
+az containerapp create \
+    --name ca-assignment-service \
+    --resource-group $RESOURCE_GROUP \
+    --environment $CAE_NAME \
+    --image docker.io/$DOCKER_USER/meridian-assignmentservice:v1 \
+    --target-port 8080 \
+    --ingress internal \
+    --transport http2 \
+    --min-replicas 0 \
+    --max-replicas 5
+
+# Route Service (Internal, gRPC/REST)
+az containerapp create \
+    --name ca-route-service \
+    --resource-group $RESOURCE_GROUP \
+    --environment $CAE_NAME \
+    --image docker.io/$DOCKER_USER/meridian-routeservice:v1 \
+    --target-port 8080 \
+    --ingress internal \
+    --transport http2 \
+    --min-replicas 0 \
+    --max-replicas 5
+
+# Tracking Service (Internal, SignalR WebSockets require http/1.1 or auto transport, not strictly gRPC http2)
+az containerapp create \
+    --name ca-tracking-service \
+    --resource-group $RESOURCE_GROUP \
+    --environment $CAE_NAME \
+    --image docker.io/$DOCKER_USER/meridian-trackingservice:v1 \
+    --target-port 8080 \
+    --ingress internal \
+    --transport auto \
+    --min-replicas 0 \
+    --max-replicas 5
+
+echo "✅ Environment setup complete! 
+API Gateway URL: $(az containerapp show --resource-group $RESOURCE_GROUP --name ca-api-gateway --query properties.configuration.ingress.fqdn -o tsv)"
 ```
 
-### 3. Provision Azure SQL Database
+## Phase 4: CI/CD Pipeline Automation
 
-We will deploy a single logical SQL server, and then the `.NET` DbUp migrations will create the specific databases (`delivery_prod`, etc.) when the apps start up.
-
-```bash
-# Create the SQL Server
-az sql server create \
-    --name $SQL_SERVER \
-    --resource-group $RESOURCE_GROUP \
-    --location $LOCATION \
-    --admin-user $DB_ADMIN \
-    --admin-password $DB_PASSWORD
-
-# Create a firewall rule to allow all Azure internal IPs to access the database
-az sql server firewall-rule create \
-    --resource-group $RESOURCE_GROUP \
-    --server $SQL_SERVER \
-    --name AllowAllAzureIPs \
-    --start-ip-address 0.0.0.0 \
-    --end-ip-address 0.0.0.0
-
-# Optional: Allow your local machine's IP if you want to connect via SSMS/Azure Data Studio
-# az sql server firewall-rule create --resource-group $RESOURCE_GROUP --server $SQL_SERVER --name AllowMyIP --start-ip-address <YOUR_IP> --end-ip-address <YOUR_IP>
-```
-
-Keep the full Server Name handy (e.g., `sql-meridian-prod-1234.database.windows.net`). Your Production Connection String will look like this:
-`Server=tcp:$SQL_SERVER.database.windows.net,1433;Database=delivery_prod;User ID=$DB_ADMIN;Password=$DB_PASSWORD;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;`
-
-### 4. Setup Redis Cache (For Route Service)
-
-```bash
-az redis create \
-    --name redis-meridian-prod \
-    --resource-group $RESOURCE_GROUP \
-    --location $LOCATION \
-    --sku Basic \
-    --vm-size c0
-```
-*Note: This takes 15-20 minutes to provision.*
-
-### 5. Create App Service Plan (Linux)
-
-This is the underlying compute infrastructure. A `B1` (Basic) plan is good for development/testing real workloads.
-
-```bash
-az appservice plan create \
-    --name $APP_SERVICE_PLAN \
-    --resource-group $RESOURCE_GROUP \
-    --sku B1 \
-    --is-linux
-```
-
-## Phase 3: Deploy the Web Apps
-
-Now we deploy the Docker containers to Azure App Service.
-
-### 1. Create Web Apps & Link Containers
-
-```bash
-# Delivery Service
-az webapp create \
-    --resource-group $RESOURCE_GROUP \
-    --plan $APP_SERVICE_PLAN \
-    --name app-meridian-delivery \
-    --deployment-container-image-name notdulain/meridian-delivery:v1
-
-# Fleet Service
-az webapp create \
-    --resource-group $RESOURCE_GROUP \
-    --plan $APP_SERVICE_PLAN \
-    --name app-meridian-fleet \
-    --deployment-container-image-name notdulain/meridian-fleet:v1
-
-# Route Service
-az webapp create \
-    --resource-group $RESOURCE_GROUP \
-    --plan $APP_SERVICE_PLAN \
-    --name app-meridian-route \
-    --deployment-container-image-name notdulain/meridian-route:v1
-```
-
-### 2. Configure Environment Variables (App Settings)
-
-We need to inject our production connection strings and JWT secrets. DbUp will automatically run against these new databases on startup.
-
-**Crucial Step:** When defining the connection string in App Settings, we must override the exact structure in `appsettings.json`.
-
-```bash
-# Example for Delivery Service
-az webapp config appsettings set \
-    --resource-group $RESOURCE_GROUP \
-    --name app-meridian-delivery \
-    --settings \
-    ConnectionStrings__DeliveryDb="Server=tcp:$SQL_SERVER.database.windows.net,1433;Database=delivery_prod;User ID=$DB_ADMIN;Password=$DB_PASSWORD;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;" \
-    Jwt__SecretKey="YOUR_VERY_SECURE_PRODUCTION_LONG_KEY_HERE!" \
-    Jwt__Issuer="MeridianProduction" \
-    Jwt__Audience="MeridianClients" \
-    WEBSITES_PORT=8080 # Tells Azure which port the container exposes
-```
-
-*Repeat the `az webapp config appsettings set` command for Fleet and Route services, updating the `ConnectionStrings__FleetDb` and `ConnectionStrings__RouteDb` keys respectively. For the Route service, also add the Redis connection string key!*
-
-### 3. Restart and Verify
-
-```bash
-az webapp restart --name app-meridian-delivery --resource-group $RESOURCE_GROUP
-```
-
-Navigate to `https://app-meridian-delivery.azurewebsites.net/openapi/v1.json` to verify the deployment is live!
-
----
-## Next Steps (Advanced)
-Once manual deployment is working, the next logical step is to automate this process by creating a **GitHub Actions Workflow** (`.github/workflows/deploy.yml`) that builds the Docker image and pushes it to Azure automatically whenever code is merged into the `main` branch.
+Once manual deployment is confirmed via this script, configure GitHub Actions to automatically run on code commit. This entails:
+1. Pushing the images to Docker Hub via GitHub.
+2. Integrating the `az containerapp update` command directly in the CI/CD pipeline to seamlessly push the latest commit.
