@@ -1,7 +1,8 @@
+using DbUp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using VehicleService.API.Data;
+using System.Reflection;
 using VehicleService.API.Grpc;
 using VehicleService.API.Repositories;
 using VehicleService.API.Services;
@@ -39,7 +40,6 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddGrpc();
 
 // DI Configurations
-builder.Services.AddSingleton<DatabaseInitializer>();
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
 builder.Services.AddScoped<IVehicleService, VehicleService.API.Services.VehicleService>();
 
@@ -56,12 +56,27 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Setup DB
-using (var scope = app.Services.CreateScope())
+// Run DbUp Migrations
+var connectionString = builder.Configuration.GetConnectionString("VehicleDb");
+EnsureDatabase.For.SqlDatabase(connectionString);
+
+var upgrader = DeployChanges.To
+    .SqlDatabase(connectionString)
+    .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
+    .LogToConsole()
+    .Build();
+
+var result = upgrader.PerformUpgrade();
+if (!result.Successful)
 {
-    var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
-    initializer.Initialize();
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine(result.Error);
+    Console.ResetColor();
+    throw new Exception("Database migration failed", result.Error);
 }
+Console.ForegroundColor = ConsoleColor.Green;
+Console.WriteLine("Database migration successful!");
+Console.ResetColor();
 
 app.UseSerilogRequestLogging();
 
