@@ -11,6 +11,8 @@ public interface IGoogleMapsService
 
 public sealed class GoogleMapsService : IGoogleMapsService
 {
+    private const string RequestFailedMessage = "Unable to retrieve route information from Google Maps.";
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -32,67 +34,125 @@ public sealed class GoogleMapsService : IGoogleMapsService
         var apiKey = _configuration["GoogleMaps:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
         {
+            _logger.LogError("Google Maps API key is missing. Origin: {Origin}, Destination: {Destination}", origin, destination);
             throw new GoogleMapsServiceException("Google Maps API key is not configured.");
         }
 
         var requestUri =
             $"/maps/api/directions/json?origin={Uri.EscapeDataString(origin)}&destination={Uri.EscapeDataString(destination)}&key={Uri.EscapeDataString(apiKey)}";
 
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            _logger.LogWarning("Google Directions API returned HTTP {StatusCode} for origin '{Origin}' and destination '{Destination}'.",
-                response.StatusCode, origin, destination);
-            throw new GoogleMapsServiceException("Google Directions API request failed.");
-        }
-
-        GoogleRouteResponse? routeResponse;
+        HttpResponseMessage response;
         try
         {
-            routeResponse = await response.Content.ReadFromJsonAsync<GoogleRouteResponse>(SerializerOptions, cancellationToken);
+            response = await _httpClient.GetAsync(requestUri, cancellationToken);
         }
-        catch (JsonException ex)
+        catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "Google Directions API returned malformed JSON.");
-            throw new GoogleMapsServiceException("Google Directions API returned an invalid response.");
-        }
-
-        if (routeResponse is null)
-        {
-            throw new GoogleMapsServiceException("Google Directions API returned an invalid response.");
-        }
-
-        if (string.Equals(routeResponse.Status, "ZERO_RESULTS", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new RouteNotFoundException("No routes found for the provided origin and destination.");
+            _logger.LogError(ex,
+                "Google Maps API request failed. Origin: {Origin}, Destination: {Destination}, StatusCode: {StatusCode}, ErrorMessage: {ErrorMessage}",
+                origin,
+                destination,
+                ex.StatusCode,
+                ex.Message);
+            throw new GoogleMapsServiceException(RequestFailedMessage);
         }
 
-        if (!string.Equals(routeResponse.Status, "OK", StringComparison.OrdinalIgnoreCase))
+        using (response)
         {
-            var errorMessage = string.IsNullOrWhiteSpace(routeResponse.ErrorMessage)
-                ? $"Google Directions API returned status '{routeResponse.Status}'."
-                : routeResponse.ErrorMessage;
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning(
+                    "Google Maps API returned a non-success response. Origin: {Origin}, Destination: {Destination}, StatusCode: {StatusCode}, ErrorMessage: {ErrorMessage}",
+                    origin,
+                    destination,
+                    response.StatusCode,
+                    string.IsNullOrWhiteSpace(errorBody) ? "No response body returned." : errorBody);
+                throw new GoogleMapsServiceException(RequestFailedMessage);
+            }
 
-            _logger.LogWarning("Google Directions API returned status '{Status}' for origin '{Origin}' and destination '{Destination}'.",
-                routeResponse.Status, origin, destination);
-            throw new GoogleMapsServiceException(errorMessage);
+            GoogleRouteResponse? routeResponse;
+            try
+            {
+                routeResponse = await response.Content.ReadFromJsonAsync<GoogleRouteResponse>(SerializerOptions, cancellationToken);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex,
+                    "Google Maps API JSON parsing failed. Origin: {Origin}, Destination: {Destination}, StatusCode: {StatusCode}, ErrorMessage: {ErrorMessage}",
+                    origin,
+                    destination,
+                    response.StatusCode,
+                    ex.Message);
+                throw new GoogleMapsServiceException("Google Maps returned an invalid response.");
+            }
+
+            if (routeResponse is null)
+            {
+                _logger.LogWarning(
+                    "Google Maps API returned an empty route response. Origin: {Origin}, Destination: {Destination}, StatusCode: {StatusCode}, ErrorMessage: {ErrorMessage}",
+                    origin,
+                    destination,
+                    response.StatusCode,
+                    "Response body could not be deserialized.");
+                throw new GoogleMapsServiceException("Google Maps returned an invalid response.");
+            }
+
+            if (string.Equals(routeResponse.Status, "ZERO_RESULTS", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(
+                    "Google Maps API returned no routes. Origin: {Origin}, Destination: {Destination}, StatusCode: {StatusCode}, ErrorMessage: {ErrorMessage}",
+                    origin,
+                    destination,
+                    response.StatusCode,
+                    routeResponse.ErrorMessage ?? routeResponse.Status);
+                throw new RouteNotFoundException("No routes found for the provided origin and destination.");
+            }
+
+            if (!string.Equals(routeResponse.Status, "OK", StringComparison.OrdinalIgnoreCase))
+            {
+                var errorMessage = string.IsNullOrWhiteSpace(routeResponse.ErrorMessage)
+                    ? $"Google Directions API returned status '{routeResponse.Status}'."
+                    : routeResponse.ErrorMessage;
+
+                _logger.LogWarning(
+                    "Google Maps API returned a non-success directions status. Origin: {Origin}, Destination: {Destination}, StatusCode: {StatusCode}, ErrorMessage: {ErrorMessage}",
+                    origin,
+                    destination,
+                    response.StatusCode,
+                    errorMessage);
+                throw new GoogleMapsServiceException(RequestFailedMessage);
+            }
+
+            var route = routeResponse.Routes.FirstOrDefault();
+            var leg = route?.Legs.FirstOrDefault();
+
+            if (route is null || leg?.Distance is null || leg.Duration is null || string.IsNullOrWhiteSpace(route.OverviewPolyline?.Points))
+            {
+                _logger.LogWarning(
+                    "Google Maps API returned an invalid or incomplete route. Origin: {Origin}, Destination: {Destination}, StatusCode: {StatusCode}, ErrorMessage: {ErrorMessage}",
+                    origin,
+                    destination,
+                    response.StatusCode,
+                    "Missing distance, duration, or polyline.");
+                throw new GoogleMapsServiceException("Google Maps returned an incomplete route response.");
+            }
+
+            _logger.LogInformation(
+                "Google Maps route lookup succeeded. Origin: {Origin}, Destination: {Destination}, StatusCode: {StatusCode}, Distance: {Distance}, Duration: {Duration}",
+                origin,
+                destination,
+                response.StatusCode,
+                leg.Distance.Text,
+                leg.Duration.Text);
+
+            return new GoogleDirectionsResult
+            {
+                Distance = leg.Distance.Text,
+                Duration = leg.Duration.Text,
+                Polyline = route.OverviewPolyline.Points
+            };
         }
-
-        var route = routeResponse.Routes.FirstOrDefault();
-        var leg = route?.Legs.FirstOrDefault();
-
-        if (route is null || leg?.Distance is null || leg.Duration is null || string.IsNullOrWhiteSpace(route.OverviewPolyline?.Points))
-        {
-            throw new GoogleMapsServiceException("Google Directions API response is missing route details.");
-        }
-
-        return new GoogleDirectionsResult
-        {
-            Distance = leg.Distance.Text,
-            Duration = leg.Duration.Text,
-            Polyline = route.OverviewPolyline.Points
-        };
     }
 }
 
