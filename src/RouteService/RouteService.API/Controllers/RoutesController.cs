@@ -6,6 +6,7 @@ namespace RouteService.API.Controllers;
 
 [ApiController]
 [Route("routes")]
+[Route("api/[controller]")]
 public class RoutesController : ControllerBase
 {
     private readonly IGoogleMapsService _googleMapsService;
