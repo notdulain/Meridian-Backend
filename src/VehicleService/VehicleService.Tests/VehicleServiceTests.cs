@@ -256,17 +256,17 @@ public class VehicleServiceTests
         var vehicles = new List<Vehicle> { vehicle1, vehicle2 };
 
         _repositoryMock
-            .Setup(r => r.GetAllAsync(1, 10, null))
+            .Setup(r => r.GetAllAsync(1, 10, null, null))
             .ReturnsAsync((vehicles, 2));
 
         // Act
-        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, null);
+        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, null, null);
 
         // Assert
         Assert.NotNull(resultVehicles);
         Assert.Equal(2, resultVehicles.Count());
         Assert.Equal(2, totalCount);
-        _repositoryMock.Verify(r => r.GetAllAsync(1, 10, null), Times.Once);
+        _repositoryMock.Verify(r => r.GetAllAsync(1, 10, null, null), Times.Once);
     }
 
     [Fact]
@@ -280,16 +280,39 @@ public class VehicleServiceTests
         var vehicles = new List<Vehicle> { vehicle1 };
 
         _repositoryMock
-            .Setup(r => r.GetAllAsync(1, 10, "Maintenance"))
+            .Setup(r => r.GetAllAsync(1, 10, "Maintenance", null))
             .ReturnsAsync((vehicles, 1));
 
         // Act
-        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, "Maintenance");
+        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, "Maintenance", null);
 
         // Assert
         Assert.Single(resultVehicles);
         Assert.Equal(1, totalCount);
         Assert.All(resultVehicles, v => Assert.Equal("Maintenance", v.Status));
+    }
+
+    [Fact]
+    public async Task GetVehiclesAsync_WithIsActiveFilter_ReturnsFilteredResults()
+    {
+        // Arrange
+        var vehicle1 = CreateValidVehicle();
+        vehicle1.VehicleId = 1;
+        vehicle1.Status = "Available";
+        
+        var vehicles = new List<Vehicle> { vehicle1 };
+
+        _repositoryMock
+            .Setup(r => r.GetAllAsync(1, 10, null, true))
+            .ReturnsAsync((vehicles, 1));
+
+        // Act
+        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, null, true);
+
+        // Assert
+        Assert.Single(resultVehicles);
+        Assert.Equal(1, totalCount);
+        Assert.All(resultVehicles, v => Assert.NotEqual("Retired", v.Status));
     }
 
     // ---------- Helpers ----------

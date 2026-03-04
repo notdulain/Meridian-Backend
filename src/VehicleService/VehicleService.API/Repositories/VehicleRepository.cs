@@ -48,20 +48,29 @@ public class VehicleRepository : IVehicleRepository
         return vehicle;
     }
 
-    public async Task<(IEnumerable<Vehicle> Vehicles, int TotalCount)> GetAllAsync(int page, int pageSize, string? status)
+    public async Task<(IEnumerable<Vehicle> Vehicles, int TotalCount)> GetAllAsync(int page, int pageSize, string? status, bool? isActive = null)
     {
         using var connection = GetConnection();
         await connection.OpenAsync();
 
-        var statusFilter = string.IsNullOrEmpty(status) ? "" : "WHERE Status = @Status";
-        var countQuery = $"SELECT COUNT(*) FROM Vehicles {statusFilter}";
+        var filters = new List<string>();
+        if (!string.IsNullOrEmpty(status)) filters.Add("Status = @Status");
+        
+        if (isActive.HasValue)
+        {
+            if (isActive.Value) filters.Add("Status != 'Retired'");
+            else filters.Add("Status = 'Retired'");
+        }
+        
+        var filterClause = filters.Count > 0 ? "WHERE " + string.Join(" AND ", filters) : "";
+        var countQuery = $"SELECT COUNT(*) FROM Vehicles {filterClause}";
         
         using var countCommand = new SqlCommand(countQuery, connection);
         if (!string.IsNullOrEmpty(status)) countCommand.Parameters.AddWithValue("@Status", status);
         var totalCount = (int)await countCommand.ExecuteScalarAsync()!;
 
         var offset = (page - 1) * pageSize;
-        var query = $"SELECT * FROM Vehicles {statusFilter} ORDER BY VehicleId DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+        var query = $"SELECT * FROM Vehicles {filterClause} ORDER BY VehicleId DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
         
         using var command = new SqlCommand(query, connection);
         if (!string.IsNullOrEmpty(status)) command.Parameters.AddWithValue("@Status", status);

@@ -30,11 +30,11 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetVehicles([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? status = null)
+    public async Task<IActionResult> GetVehicles([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? status = null, [FromQuery] bool? isActive = null)
     {
         try
         {
-            var (vehicles, totalCount) = await _service.GetVehiclesAsync(page, pageSize, status);
+            var (vehicles, totalCount) = await _service.GetVehiclesAsync(page, pageSize, status, isActive);
             return Ok(new
             {
                 success = true,

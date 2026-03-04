@@ -17,9 +17,9 @@ public class VehicleService : IVehicleService
         return _repository.CreateAsync(vehicle);
     }
 
-    public Task<(IEnumerable<Vehicle> Vehicles, int TotalCount)> GetVehiclesAsync(int page, int pageSize, string? status)
+    public Task<(IEnumerable<Vehicle> Vehicles, int TotalCount)> GetVehiclesAsync(int page, int pageSize, string? status, bool? isActive = null)
     {
-        return _repository.GetAllAsync(page, pageSize, status);
+        return _repository.GetAllAsync(page, pageSize, status, isActive);
     }
 
     public Task<Vehicle?> GetVehicleByIdAsync(int id)
