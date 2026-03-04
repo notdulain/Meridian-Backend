@@ -3,6 +3,7 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using StackExchange.Redis;
 using Meridian.VehicleGrpc;
+using RouteService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,7 +49,7 @@ builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
 });
 
 // Configure HttpClient for Google Maps
-builder.Services.AddHttpClient("GoogleMaps", client =>
+builder.Services.AddHttpClient<IGoogleMapsService, GoogleMapsService>(client =>
 {
     client.BaseAddress = new Uri("https://maps.googleapis.com");
 });
