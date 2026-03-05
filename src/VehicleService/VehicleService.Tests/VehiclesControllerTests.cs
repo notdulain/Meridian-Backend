@@ -347,11 +347,11 @@ public class VehiclesControllerTests
         var vehicles = new List<Vehicle> { vehicle1, vehicle2 };
 
         _serviceMock
-            .Setup(s => s.GetVehiclesAsync(1, 10, null))
+            .Setup(s => s.GetVehiclesAsync(1, 10, null, null))
             .ReturnsAsync((vehicles, 2));
 
         // Act
-        var result = await _controller.GetVehicles(1, 10, null);
+        var result = await _controller.GetVehicles(1, 10, null, null);
 
         // Assert
         var ok = Assert.IsType<OkObjectResult>(result);
@@ -370,11 +370,35 @@ public class VehiclesControllerTests
         var vehicles = new List<Vehicle> { vehicle1 };
 
         _serviceMock
-            .Setup(s => s.GetVehiclesAsync(1, 10, "Available"))
+            .Setup(s => s.GetVehiclesAsync(1, 10, "Available", null))
             .ReturnsAsync((vehicles, 1));
 
         // Act
-        var result = await _controller.GetVehicles(1, 10, "Available");
+        var result = await _controller.GetVehicles(1, 10, "Available", null);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(ok.Value);
+        var success = GetPropertyValue<bool>(ok.Value, "success");
+        Assert.True(success);
+    }
+
+    [Fact]
+    public async Task GetVehicles_WithIsActiveFilter_Returns200()
+    {
+        // Arrange
+        var vehicle1 = CreateValidVehicle();
+        vehicle1.VehicleId = 1;
+        vehicle1.Status = "Available";
+
+        var vehicles = new List<Vehicle> { vehicle1 };
+
+        _serviceMock
+            .Setup(s => s.GetVehiclesAsync(1, 10, null, true))
+            .ReturnsAsync((vehicles, 1));
+
+        // Act
+        var result = await _controller.GetVehicles(1, 10, null, true);
 
         // Assert
         var ok = Assert.IsType<OkObjectResult>(result);
