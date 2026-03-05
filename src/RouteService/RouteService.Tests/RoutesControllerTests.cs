@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Moq;
 using System.Text.Json;
 using RouteService.API.Controllers;
 using RouteService.API.Models;
+using RouteService.API.Services;
 using Xunit;
 
 namespace RouteService.Tests;
@@ -13,10 +15,12 @@ namespace RouteService.Tests;
 public class RoutesControllerTests
 {
     private readonly RoutesController _controller;
+    private readonly Mock<IGoogleMapsService> _googleMapsServiceMock;
 
     public RoutesControllerTests()
     {
-        _controller = new RoutesController();
+        _googleMapsServiceMock = new Mock<IGoogleMapsService>(MockBehavior.Strict);
+        _controller = new RoutesController(_googleMapsServiceMock.Object);
     }
 
     // ---------- POST /api/routes/optimize ----------

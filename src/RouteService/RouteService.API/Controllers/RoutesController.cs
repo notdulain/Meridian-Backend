@@ -1,12 +1,21 @@
 using Microsoft.AspNetCore.Mvc;
 using RouteService.API.Models;
+using RouteService.API.Services;
 
 namespace RouteService.API.Controllers;
 
 [ApiController]
+[Route("routes")]
 [Route("api/[controller]")]
 public class RoutesController : ControllerBase
 {
+    private readonly IGoogleMapsService _googleMapsService;
+
+    public RoutesController(IGoogleMapsService googleMapsService)
+    {
+        _googleMapsService = googleMapsService;
+    }
+
     [HttpPost("optimize")]
     public IActionResult OptimizeRoute([FromBody] OptimizeRouteRequest request)
     {
@@ -30,5 +39,34 @@ public class RoutesController : ControllerBase
     {
         // Placeholder implementation
         return Ok(new { success = true, fuelCost = 10.5 });
+    }
+
+    [HttpGet("calculate")]
+    public async Task<IActionResult> CalculateRoute([FromQuery] string origin, [FromQuery] string destination, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(destination))
+        {
+            return BadRequest(new { message = "Both origin and destination are required." });
+        }
+
+        try
+        {
+            var route = await _googleMapsService.GetRouteAsync(origin, destination, cancellationToken);
+
+            return Ok(new
+            {
+                distance = route.Distance,
+                duration = route.Duration,
+                polyline = route.Polyline
+            });
+        }
+        catch (RouteNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (GoogleMapsServiceException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+        }
     }
 }
