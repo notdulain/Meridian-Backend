@@ -1,11 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using RouteService.API.Models;
 using RouteService.API.Services;
 
 namespace RouteService.API.Controllers;
 
 [ApiController]
-[Route("routes")]
+
 [Route("api/[controller]")]
 public class RoutesController : ControllerBase
 {
@@ -17,28 +17,40 @@ public class RoutesController : ControllerBase
     }
 
     [HttpPost("optimize")]
-    public IActionResult OptimizeRoute([FromBody] OptimizeRouteRequest request)
+    public async Task<IActionResult> OptimizeRoute([FromBody] OptimizeRouteRequest request, CancellationToken cancellationToken)
     {
-        // Placeholder implementation
-        var options = new List<RouteOption>
+        if (string.IsNullOrWhiteSpace(request.Origin) || string.IsNullOrWhiteSpace(request.Destination))
         {
-            new RouteOption { RouteId = "R1", Summary = "Fastest", Distance = "10 km", Duration = "15 mins", FuelCost = 5.5, PolylinePoints = "" }
-        };
-        return Ok(new { success = true, data = options });
-    }
+            return BadRequest(new { success = false, message = "Both origin and destination are required." });
+        }
 
-    [HttpGet("{routeId}")]
-    public IActionResult GetRoute(string routeId)
-    {
-        // Placeholder implementation
-        return Ok(new { success = true, data = new RouteOption { RouteId = routeId, Summary = "Fastest", Distance = "10 km", Duration = "15 mins", FuelCost = 5.5, PolylinePoints = "" } });
-    }
+        try
+        {
+            var routes = await _googleMapsService.GetAlternativeRoutesAsync(request.Origin, request.Destination, cancellationToken);
 
-    [HttpPost("fuel-cost")]
-    public IActionResult CalculateFuelCost()
-    {
-        // Placeholder implementation
-        return Ok(new { success = true, fuelCost = 10.5 });
+            if (routes.Count == 0)
+            {
+                return NotFound(new { success = false, message = "No routes found for the provided origin and destination." });
+            }
+
+            var optimizedRoute = routes[0];
+            var alternatives = routes.Skip(1).ToList();
+
+            return Ok(new
+            {
+                success = true,
+                optimizedRoute,
+                alternatives
+            });
+        }
+        catch (RouteNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (GoogleMapsServiceException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { success = false, message = ex.Message });
+        }
     }
 
     [HttpGet("calculate")]
@@ -69,4 +81,28 @@ public class RoutesController : ControllerBase
             return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
         }
     }
+
+    [HttpGet("alternatives")]
+    public async Task<IActionResult> GetAlternativeRoutes([FromQuery] string origin, [FromQuery] string destination, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(destination))
+        {
+            return BadRequest(new { success = false, message = "Both origin and destination are required." });
+        }
+
+        try
+        {
+            var routes = await _googleMapsService.GetAlternativeRoutesAsync(origin, destination, cancellationToken);
+            return Ok(new { success = true, routes });
+        }
+        catch (RouteNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (GoogleMapsServiceException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { success = false, message = ex.Message });
+        }
+    }
 }
+

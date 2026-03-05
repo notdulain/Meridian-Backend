@@ -10,6 +10,15 @@ using UserService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load shared UserService config files from the parent folder if present.
+var sharedConfigRoot = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
+builder.Configuration
+    .AddJsonFile(Path.Combine(sharedConfigRoot, "appsettings.json"), optional: true, reloadOnChange: true)
+    .AddJsonFile(
+        Path.Combine(sharedConfigRoot, $"appsettings.{builder.Environment.EnvironmentName}.json"),
+        optional: true,
+        reloadOnChange: true);
+
 // ─────────────────────────────────────────────
 // Serilog
 // ─────────────────────────────────────────────
