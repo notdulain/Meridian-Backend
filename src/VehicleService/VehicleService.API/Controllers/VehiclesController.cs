@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VehicleService.API.Models;
 using VehicleService.API.Services;
@@ -16,6 +17,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateVehicle([FromBody] Vehicle vehicle)
     {
         try
@@ -30,6 +32,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> GetVehicles([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? status = null, [FromQuery] bool? isActive = null)
     {
         try
@@ -49,6 +52,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> GetVehicle(int id)
     {
         try
@@ -65,6 +69,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateVehicle(int id, [FromBody] Vehicle vehicle)
     {
         try
@@ -82,6 +87,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPut("{id}/status")]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusRequestDto request)
     {
         try
@@ -98,6 +104,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteVehicle(int id)
     {
         try
@@ -114,6 +121,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpGet("available")]
+    [Authorize(Roles = "Admin,Dispatcher,Driver")]
     public async Task<IActionResult> GetAvailableVehicles()
     {
         try
