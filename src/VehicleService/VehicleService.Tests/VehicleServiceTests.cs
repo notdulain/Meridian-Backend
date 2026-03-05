@@ -40,6 +40,59 @@ public class VehicleServiceTests
         _repositoryMock.Verify(r => r.CreateAsync(vehicle), Times.Once);
     }
 
+    [Fact]
+    public async Task CreateVehicleAsync_ThrowsArgumentException_WhenCapacityKgIsZeroOrLess()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.CapacityKg = 0;
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+        Assert.Equal("Capacity (Kg) must be greater than zero.", ex.Message);
+        
+        vehicle.CapacityKg = -10;
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateVehicleAsync_ThrowsArgumentException_WhenCapacityM3IsZeroOrLess()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.CapacityM3 = 0;
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+        Assert.Equal("Capacity (M3) must be greater than zero.", ex.Message);
+
+        vehicle.CapacityM3 = -5;
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateVehicleAsync_ThrowsArgumentException_WhenPlateNumberAlreadyExists()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.PlateNumber = "DUPLICATE-123";
+
+        // Setup the mock to return an existing vehicle for this plate number
+        _repositoryMock
+            .Setup(r => r.GetByPlateNumberAsync("DUPLICATE-123"))
+            .ReturnsAsync(new Vehicle { PlateNumber = "DUPLICATE-123", Make = "Ford", Model = "Fiesta", Status = "Available" });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+        Assert.Equal("A vehicle with plate number 'DUPLICATE-123' already exists.", ex.Message);
+
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
     // ---------- GetVehicleByIdAsync ----------
 
     [Fact]

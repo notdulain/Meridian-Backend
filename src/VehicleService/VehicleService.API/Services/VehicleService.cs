@@ -12,9 +12,19 @@ public class VehicleService : IVehicleService
         _repository = repository;
     }
 
-    public Task<Vehicle> CreateVehicleAsync(Vehicle vehicle)
+    public async Task<Vehicle> CreateVehicleAsync(Vehicle vehicle)
     {
-        return _repository.CreateAsync(vehicle);
+        if (vehicle.CapacityKg <= 0)
+            throw new ArgumentException("Capacity (Kg) must be greater than zero.");
+        
+        if (vehicle.CapacityM3 <= 0)
+            throw new ArgumentException("Capacity (M3) must be greater than zero.");
+            
+        var existing = await _repository.GetByPlateNumberAsync(vehicle.PlateNumber);
+        if (existing != null)
+            throw new ArgumentException($"A vehicle with plate number '{vehicle.PlateNumber}' already exists.");
+
+        return await _repository.CreateAsync(vehicle);
     }
 
     public Task<(IEnumerable<Vehicle> Vehicles, int TotalCount)> GetVehiclesAsync(int page, int pageSize, string? status)

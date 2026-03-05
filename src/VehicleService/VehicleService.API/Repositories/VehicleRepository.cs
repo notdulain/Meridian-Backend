@@ -96,6 +96,24 @@ public class VehicleRepository : IVehicleRepository
         return null;
     }
 
+    public async Task<Vehicle?> GetByPlateNumberAsync(string plateNumber)
+    {
+        using var connection = GetConnection();
+        await connection.OpenAsync();
+
+        var query = "SELECT * FROM Vehicles WHERE PlateNumber = @PlateNumber";
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@PlateNumber", plateNumber);
+
+        using var reader = await command.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return MapToVehicle(reader);
+        }
+
+        return null;
+    }
+
     public async Task<Vehicle> UpdateAsync(Vehicle vehicle)
     {
         using var connection = GetConnection();
