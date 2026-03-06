@@ -1,9 +1,13 @@
+using DbUp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using System.Reflection;
 using System.Text;
 using DriverService.API.Grpc;
+using DriverService.API.Repositories;
+using DriverService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +41,10 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddGrpc();
 
+// DI Configurations
+builder.Services.AddScoped<IDriverRepository, DriverRepository>();
+builder.Services.AddScoped<IDriverService, DriverService.API.Services.DriverService>();
+
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
@@ -60,6 +68,28 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// Run DbUp Migrations
+var connectionString = builder.Configuration.GetConnectionString("DriverDb");
+EnsureDatabase.For.SqlDatabase(connectionString);
+
+var upgrader = DeployChanges.To
+    .SqlDatabase(connectionString)
+    .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
+    .LogToConsole()
+    .Build();
+
+var result = upgrader.PerformUpgrade();
+if (!result.Successful)
+{
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine(result.Error);
+    Console.ResetColor();
+    throw new Exception("Database migration failed", result.Error);
+}
+Console.ForegroundColor = ConsoleColor.Green;
+Console.WriteLine("Database migration successful!");
+Console.ResetColor();
+
 app.UseSerilogRequestLogging();
 
 if (app.Environment.IsDevelopment())
@@ -81,3 +111,4 @@ app.MapGrpcService<DriverGrpcService>();
 app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
 
 app.Run();
+
