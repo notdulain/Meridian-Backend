@@ -18,6 +18,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public IActionResult GetDrivers([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         // Placeholder implementation
@@ -26,10 +27,11 @@ public class DriversController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public IActionResult GetDriver(int id)
     {
         // Placeholder implementation
-        return Ok(new { success = true, data = new Driver { DriverId = id, KeycloakUserId = "sub", FullName = "John Doe", LicenseNumber = "XYZ", LicenseExpiry = "2025", PhoneNumber = "xxx" } });
+        return Ok(new { success = true, data = new Driver { DriverId = id, UserId = "sub", FullName = "John Doe", LicenseNumber = "XYZ", LicenseExpiry = "2025", PhoneNumber = "xxx" } });
     }
 
     [HttpGet("me")]
@@ -38,7 +40,7 @@ public class DriversController : ControllerBase
     {
         // Placeholder implementation - read sub claim
         var sub = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        return Ok(new { success = true, data = new Driver { DriverId = 1, KeycloakUserId = sub ?? "sub", FullName = "My Name", LicenseNumber = "XYZ", LicenseExpiry = "2025", PhoneNumber = "xxx" } });
+        return Ok(new { success = true, data = new Driver { DriverId = 1, UserId = sub ?? "sub", FullName = "My Name", LicenseNumber = "XYZ", LicenseExpiry = "2025", PhoneNumber = "xxx" } });
     }
 
     [HttpPut("{id}")]
@@ -51,6 +53,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpPut("{id}/hours")]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public IActionResult UpdateWorkingHours(int id, [FromBody] UpdateHoursDto request)
     {
         // Placeholder implementation
@@ -58,6 +61,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public IActionResult DeleteDriver(int id)
     {
         // Placeholder implementation (soft delete)
@@ -65,6 +69,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpGet("available")]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public IActionResult GetAvailableDrivers()
     {
         // Placeholder implementation
