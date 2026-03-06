@@ -54,37 +54,39 @@ az acr login --name $ACR_NAME
 Ensure you have a `Dockerfile` for each API project. Then build and push images:
 
 ```bash
+# Run all commands from the Meridian-Backend/ directory.
+# Services that depend on shared gRPC protos use `.` (repo root) as the build context.
 ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
 
-# 1. API Gateway
-docker build -t $ACR_LOGIN_SERVER/meridian-apigateway:v1 -f src/ApiGateway/ApiGateway/Dockerfile src/ApiGateway/ApiGateway
+# 1. API Gateway (build context: service directory)
+docker build -t $ACR_LOGIN_SERVER/meridian-apigateway:v1 -f src/ApiGateway/Dockerfile src/ApiGateway
 docker push $ACR_LOGIN_SERVER/meridian-apigateway:v1
 
-# 2. User Service
+# 2. User Service (build context: service directory)
 docker build -t $ACR_LOGIN_SERVER/meridian-userservice:v1 -f src/UserService/UserService.API/Dockerfile src/UserService/UserService.API
 docker push $ACR_LOGIN_SERVER/meridian-userservice:v1
 
-# 3. Delivery Service
+# 3. Delivery Service (build context: service directory)
 docker build -t $ACR_LOGIN_SERVER/meridian-deliveryservice:v1 -f src/DeliveryService/DeliveryService.API/Dockerfile src/DeliveryService/DeliveryService.API
 docker push $ACR_LOGIN_SERVER/meridian-deliveryservice:v1
 
-# 4. Vehicle Service
-docker build -t $ACR_LOGIN_SERVER/meridian-vehicleservice:v1 -f src/VehicleService/VehicleService.API/Dockerfile src/VehicleService/VehicleService.API
+# 4. Vehicle Service (build context: repo root — needs shared/protos/vehicle.proto)
+docker build -t $ACR_LOGIN_SERVER/meridian-vehicleservice:v1 -f src/VehicleService/VehicleService.API/Dockerfile .
 docker push $ACR_LOGIN_SERVER/meridian-vehicleservice:v1
 
-# 5. Driver Service
-docker build -t $ACR_LOGIN_SERVER/meridian-driverservice:v1 -f src/DriverService/DriverService.API/Dockerfile src/DriverService/DriverService.API
+# 5. Driver Service (build context: repo root — needs shared/protos/driver.proto)
+docker build -t $ACR_LOGIN_SERVER/meridian-driverservice:v1 -f src/DriverService/DriverService.API/Dockerfile .
 docker push $ACR_LOGIN_SERVER/meridian-driverservice:v1
 
-# 6. Assignment Service
-docker build -t $ACR_LOGIN_SERVER/meridian-assignmentservice:v1 -f src/AssignmentService/AssignmentService.API/Dockerfile src/AssignmentService/AssignmentService.API
+# 6. Assignment Service (build context: repo root — needs shared/protos/vehicle.proto + driver.proto)
+docker build -t $ACR_LOGIN_SERVER/meridian-assignmentservice:v1 -f src/AssignmentService/AssignmentService.API/Dockerfile .
 docker push $ACR_LOGIN_SERVER/meridian-assignmentservice:v1
 
-# 7. Route Service
-docker build -t $ACR_LOGIN_SERVER/meridian-routeservice:v1 -f src/RouteService/RouteService.API/Dockerfile src/RouteService/RouteService.API
+# 7. Route Service (build context: repo root — needs shared/protos/vehicle.proto)
+docker build -t $ACR_LOGIN_SERVER/meridian-routeservice:v1 -f src/RouteService/RouteService.API/Dockerfile .
 docker push $ACR_LOGIN_SERVER/meridian-routeservice:v1
 
-# 8. Tracking Service
+# 8. Tracking Service (build context: service directory)
 docker build -t $ACR_LOGIN_SERVER/meridian-trackingservice:v1 -f src/TrackingService/TrackingService.API/Dockerfile src/TrackingService/TrackingService.API
 docker push $ACR_LOGIN_SERVER/meridian-trackingservice:v1
 ```
