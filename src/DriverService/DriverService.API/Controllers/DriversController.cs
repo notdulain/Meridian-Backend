@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DriverService.API.Models;
+using DriverService.API.Services;
 
 namespace DriverService.API.Controllers;
 
@@ -8,68 +9,133 @@ namespace DriverService.API.Controllers;
 [Route("api/[controller]")]
 public class DriversController : ControllerBase
 {
+    private readonly IDriverService _service;
+
+    public DriversController(IDriverService service)
+    {
+        _service = service;
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public IActionResult CreateDriver([FromBody] Driver driver)
+    public async Task<IActionResult> CreateDriver([FromBody] Driver driver)
     {
-        // Placeholder implementation
-        driver.DriverId = 1;
-        return StatusCode(201, new { success = true, data = driver });
+        try
+        {
+            var created = await _service.CreateDriverAsync(driver);
+            return StatusCode(201, new { success = true, data = created });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to create driver", errors = new[] { ex.Message } });
+        }
     }
 
     [HttpGet]
-    public IActionResult GetDrivers([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> GetDrivers([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
-        // Placeholder implementation
-        var drivers = new List<Driver>();
-        return Ok(new { success = true, data = drivers, meta = new { page, pageSize, totalCount = 0 } });
+        try
+        {
+            var (drivers, totalCount) = await _service.GetDriversAsync(page, pageSize);
+            return Ok(new { success = true, data = drivers, meta = new { page, pageSize, totalCount } });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to fetch drivers", errors = new[] { ex.Message } });
+        }
     }
 
     [HttpGet("{id}")]
-    public IActionResult GetDriver(int id)
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> GetDriver(int id)
     {
-        // Placeholder implementation
-        return Ok(new { success = true, data = new Driver { DriverId = id, KeycloakUserId = "sub", FullName = "John Doe", LicenseNumber = "XYZ", LicenseExpiry = "2025", PhoneNumber = "xxx" } });
+        try
+        {
+            var driver = await _service.GetDriverByIdAsync(id);
+            if (driver == null) return NotFound(new { success = false, message = "Driver not found", errors = Array.Empty<string>() });
+
+            return Ok(new { success = true, data = driver });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to fetch driver", errors = new[] { ex.Message } });
+        }
     }
 
     [HttpGet("me")]
     [Authorize(Roles = "Driver")]
     public IActionResult GetMyProfile()
     {
-        // Placeholder implementation - read sub claim
         var sub = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        return Ok(new { success = true, data = new Driver { DriverId = 1, KeycloakUserId = sub ?? "sub", FullName = "My Name", LicenseNumber = "XYZ", LicenseExpiry = "2025", PhoneNumber = "xxx" } });
+        return Ok(new { success = true, userId = sub });
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public IActionResult UpdateDriver(int id, [FromBody] Driver driver)
+    public async Task<IActionResult> UpdateDriver(int id, [FromBody] Driver driver)
     {
-        // Placeholder implementation
-        driver.DriverId = id;
-        return Ok(new { success = true, data = driver });
+        try
+        {
+            var existing = await _service.GetDriverByIdAsync(id);
+            if (existing == null) return NotFound(new { success = false, message = "Driver not found", errors = Array.Empty<string>() });
+
+            var updated = await _service.UpdateDriverAsync(id, driver);
+            return Ok(new { success = true, data = updated });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to update driver", errors = new[] { ex.Message } });
+        }
     }
 
     [HttpPut("{id}/hours")]
-    public IActionResult UpdateWorkingHours(int id, [FromBody] UpdateHoursDto request)
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> UpdateWorkingHours(int id, [FromBody] UpdateHoursDto request)
     {
-        // Placeholder implementation
-        return Ok(new { success = true, message = "Hours updated" });
+        try
+        {
+            var success = await _service.UpdateWorkingHoursAsync(id, request.HoursToAdd);
+            if (!success) return NotFound(new { success = false, message = "Driver not found", errors = Array.Empty<string>() });
+
+            return Ok(new { success = true, message = "Working hours updated" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to update working hours", errors = new[] { ex.Message } });
+        }
     }
 
     [HttpDelete("{id}")]
-    public IActionResult DeleteDriver(int id)
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteDriver(int id)
     {
-        // Placeholder implementation (soft delete)
-        return Ok(new { success = true, message = "Driver deleted" });
+        try
+        {
+            var success = await _service.DeleteDriverAsync(id);
+            if (!success) return NotFound(new { success = false, message = "Driver not found", errors = Array.Empty<string>() });
+
+            return Ok(new { success = true, message = "Driver deleted successfully (soft delete)" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to delete driver", errors = new[] { ex.Message } });
+        }
     }
 
     [HttpGet("available")]
-    public IActionResult GetAvailableDrivers()
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> GetAvailableDrivers()
     {
-        // Placeholder implementation
-        var drivers = new List<Driver>();
-        return Ok(new { success = true, data = drivers });
+        try
+        {
+            var drivers = await _service.GetAvailableDriversAsync();
+            return Ok(new { success = true, data = drivers });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to fetch available drivers", errors = new[] { ex.Message } });
+        }
     }
 }
 
