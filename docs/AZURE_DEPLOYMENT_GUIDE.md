@@ -1,19 +1,19 @@
 # Azure Deployment Guide for Meridian
 
-This guide outlines the steps required to deploy the Meridian microservices to Microsoft Azure. We will be using **Azure Container Apps** to host our Dockerized microservices, **Azure SQL Database** as our managed relational database, and **Azure Cache for Redis** for distributed caching.
+This guide outlines the steps required to deploy the Meridian microservices to Microsoft Azure. We will be using **Azure Container Apps** to host our Dockerized microservices, **Azure Container Registry (ACR)** to store Docker images, **Azure SQL Database** as our managed relational database, and **Azure Cache for Redis** for distributed caching.
 
 ## Prerequisites
 
 1.  **Azure Account:** An active Microsoft Azure account.
 2.  **Azure CLI:** Installed on your local machine (`brew update && brew install azure-cli` on Mac).
 3.  **Docker Desktop:** Running locally.
-4.  **Docker Hub:** An account to host your Docker images.
 
 ## Azure Acronym Legend
 
 To keep resource names concise while adhering to naming standards, the following abbreviations (prefixes/suffixes) are used throughout the guide and in the deployment script:
 
 *   **rg**: Resource Group
+*   **acr**: Azure Container Registry
 *   **cae**: Container Apps Environment
 *   **ca**: Container App
 *   **sqldb / sql-server**: Azure SQL Database / Server
@@ -40,44 +40,53 @@ Within each Resource Group, the following resources will be created:
 
 ## Phase 2: Containerize the Microservices
 
-Before deploying to Azure, create Docker images for all 8 components and push them to Docker Hub.
+Before deploying to Azure, create Docker images for all 8 components and push them to **Azure Container Registry (ACR)**.
 
-### 1. Build and push the Docker Images
+### 1. Log in to ACR
+
+```bash
+ACR_NAME="acrmeridian<env>"  # e.g. acrmeridianqa
+az acr login --name $ACR_NAME
+```
+
+### 2. Build and push the Docker Images
 
 Ensure you have a `Dockerfile` for each API project. Then build and push images:
 
 ```bash
+ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
+
 # 1. API Gateway
-docker build -t <your-dockerhub-username>/meridian-apigateway:v1 -f src/ApiGateway/ApiGateway/Dockerfile src/ApiGateway/ApiGateway
-docker push <your-dockerhub-username>/meridian-apigateway:v1
+docker build -t $ACR_LOGIN_SERVER/meridian-apigateway:v1 -f src/ApiGateway/ApiGateway/Dockerfile src/ApiGateway/ApiGateway
+docker push $ACR_LOGIN_SERVER/meridian-apigateway:v1
 
 # 2. User Service
-docker build -t <your-dockerhub-username>/meridian-userservice:v1 -f src/UserService/UserService.API/Dockerfile src/UserService/UserService.API
-docker push <your-dockerhub-username>/meridian-userservice:v1
+docker build -t $ACR_LOGIN_SERVER/meridian-userservice:v1 -f src/UserService/UserService.API/Dockerfile src/UserService/UserService.API
+docker push $ACR_LOGIN_SERVER/meridian-userservice:v1
 
 # 3. Delivery Service
-docker build -t <your-dockerhub-username>/meridian-deliveryservice:v1 -f src/DeliveryService/DeliveryService.API/Dockerfile src/DeliveryService/DeliveryService.API
-docker push <your-dockerhub-username>/meridian-deliveryservice:v1
+docker build -t $ACR_LOGIN_SERVER/meridian-deliveryservice:v1 -f src/DeliveryService/DeliveryService.API/Dockerfile src/DeliveryService/DeliveryService.API
+docker push $ACR_LOGIN_SERVER/meridian-deliveryservice:v1
 
 # 4. Vehicle Service
-docker build -t <your-dockerhub-username>/meridian-vehicleservice:v1 -f src/VehicleService/VehicleService.API/Dockerfile src/VehicleService/VehicleService.API
-docker push <your-dockerhub-username>/meridian-vehicleservice:v1
+docker build -t $ACR_LOGIN_SERVER/meridian-vehicleservice:v1 -f src/VehicleService/VehicleService.API/Dockerfile src/VehicleService/VehicleService.API
+docker push $ACR_LOGIN_SERVER/meridian-vehicleservice:v1
 
 # 5. Driver Service
-docker build -t <your-dockerhub-username>/meridian-driverservice:v1 -f src/DriverService/DriverService.API/Dockerfile src/DriverService/DriverService.API
-docker push <your-dockerhub-username>/meridian-driverservice:v1
+docker build -t $ACR_LOGIN_SERVER/meridian-driverservice:v1 -f src/DriverService/DriverService.API/Dockerfile src/DriverService/DriverService.API
+docker push $ACR_LOGIN_SERVER/meridian-driverservice:v1
 
 # 6. Assignment Service
-docker build -t <your-dockerhub-username>/meridian-assignmentservice:v1 -f src/AssignmentService/AssignmentService.API/Dockerfile src/AssignmentService/AssignmentService.API
-docker push <your-dockerhub-username>/meridian-assignmentservice:v1
+docker build -t $ACR_LOGIN_SERVER/meridian-assignmentservice:v1 -f src/AssignmentService/AssignmentService.API/Dockerfile src/AssignmentService/AssignmentService.API
+docker push $ACR_LOGIN_SERVER/meridian-assignmentservice:v1
 
 # 7. Route Service
-docker build -t <your-dockerhub-username>/meridian-routeservice:v1 -f src/RouteService/RouteService.API/Dockerfile src/RouteService/RouteService.API
-docker push <your-dockerhub-username>/meridian-routeservice:v1
+docker build -t $ACR_LOGIN_SERVER/meridian-routeservice:v1 -f src/RouteService/RouteService.API/Dockerfile src/RouteService/RouteService.API
+docker push $ACR_LOGIN_SERVER/meridian-routeservice:v1
 
 # 8. Tracking Service
-docker build -t <your-dockerhub-username>/meridian-trackingservice:v1 -f src/TrackingService/TrackingService.API/Dockerfile src/TrackingService/TrackingService.API
-docker push <your-dockerhub-username>/meridian-trackingservice:v1
+docker build -t $ACR_LOGIN_SERVER/meridian-trackingservice:v1 -f src/TrackingService/TrackingService.API/Dockerfile src/TrackingService/TrackingService.API
+docker push $ACR_LOGIN_SERVER/meridian-trackingservice:v1
 ```
 
 ## Phase 3: Provision Azure Resources (Batch Script)
@@ -110,8 +119,9 @@ CAE_NAME="cae-meridian-$ENV"
 DB_ADMIN="meridianadmin"
 DB_PASSWORD="Passw0rd!"
 
-# Docker Hub Configuration
-DOCKER_USER="<your-dockerhub-username>"
+# Azure Container Registry
+ACR_NAME="acrmeridian$ENV"
+ACR_LOGIN_SERVER="$ACR_NAME.azurecr.io"
 
 echo "🚀 Deploying Meridian Platform ($ENV Environment)..."
 
@@ -138,11 +148,17 @@ az redis create --name $REDIS_NAME --resource-group $RESOURCE_GROUP --location $
 echo "🔐 Creating Key Vault: $KEYVAULT_NAME..."
 az keyvault create --name $KEYVAULT_NAME --resource-group $RESOURCE_GROUP --location $LOCATION
 
-# 6. Create Container Apps Environment
+# 6. Create Azure Container Registry
+echo "📦 Creating Azure Container Registry: $ACR_NAME..."
+az acr create --name $ACR_NAME --resource-group $RESOURCE_GROUP --location $LOCATION --sku Basic --admin-enabled true
+ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
+ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query passwords[0].value -o tsv)
+
+# 7. Create Container Apps Environment
 echo "☁️ Creating Container Apps Environment: $CAE_NAME..."
 az containerapp env create --name $CAE_NAME --resource-group $RESOURCE_GROUP --location $LOCATION --logs-workspace-id $WORKSPACE_ID --logs-workspace-key $WORKSPACE_SECRET
 
-# 7. Create Container Apps (Microservices)
+# 8. Create Container Apps (Microservices)
 echo "🛳️ Deploying Microservices to Container Apps..."
 
 # API Gateway (Publicly accessible, HTTP ingress)
@@ -150,7 +166,10 @@ az containerapp create \
     --name ca-api-gateway \
     --resource-group $RESOURCE_GROUP \
     --environment $CAE_NAME \
-    --image docker.io/$DOCKER_USER/meridian-apigateway:v1 \
+    --image $ACR_LOGIN_SERVER/meridian-apigateway:v1 \
+    --registry-server $ACR_LOGIN_SERVER \
+    --registry-username $ACR_NAME \
+    --registry-password $ACR_PASSWORD \
     --target-port 8080 \
     --ingress external \
     --min-replicas 1 \
@@ -161,7 +180,10 @@ az containerapp create \
     --name ca-user-service \
     --resource-group $RESOURCE_GROUP \
     --environment $CAE_NAME \
-    --image docker.io/$DOCKER_USER/meridian-userservice:v1 \
+    --image $ACR_LOGIN_SERVER/meridian-userservice:v1 \
+    --registry-server $ACR_LOGIN_SERVER \
+    --registry-username $ACR_NAME \
+    --registry-password $ACR_PASSWORD \
     --target-port 8080 \
     --ingress internal \
     --min-replicas 0 \
@@ -172,7 +194,10 @@ az containerapp create \
     --name ca-delivery-service \
     --resource-group $RESOURCE_GROUP \
     --environment $CAE_NAME \
-    --image docker.io/$DOCKER_USER/meridian-deliveryservice:v1 \
+    --image $ACR_LOGIN_SERVER/meridian-deliveryservice:v1 \
+    --registry-server $ACR_LOGIN_SERVER \
+    --registry-username $ACR_NAME \
+    --registry-password $ACR_PASSWORD \
     --target-port 8080 \
     --ingress internal \
     --transport http2 \
@@ -184,7 +209,10 @@ az containerapp create \
     --name ca-vehicle-service \
     --resource-group $RESOURCE_GROUP \
     --environment $CAE_NAME \
-    --image docker.io/$DOCKER_USER/meridian-vehicleservice:v1 \
+    --image $ACR_LOGIN_SERVER/meridian-vehicleservice:v1 \
+    --registry-server $ACR_LOGIN_SERVER \
+    --registry-username $ACR_NAME \
+    --registry-password $ACR_PASSWORD \
     --target-port 8080 \
     --ingress internal \
     --transport http2 \
@@ -196,7 +224,10 @@ az containerapp create \
     --name ca-driver-service \
     --resource-group $RESOURCE_GROUP \
     --environment $CAE_NAME \
-    --image docker.io/$DOCKER_USER/meridian-driverservice:v1 \
+    --image $ACR_LOGIN_SERVER/meridian-driverservice:v1 \
+    --registry-server $ACR_LOGIN_SERVER \
+    --registry-username $ACR_NAME \
+    --registry-password $ACR_PASSWORD \
     --target-port 8080 \
     --ingress internal \
     --transport http2 \
@@ -208,7 +239,10 @@ az containerapp create \
     --name ca-assignment-service \
     --resource-group $RESOURCE_GROUP \
     --environment $CAE_NAME \
-    --image docker.io/$DOCKER_USER/meridian-assignmentservice:v1 \
+    --image $ACR_LOGIN_SERVER/meridian-assignmentservice:v1 \
+    --registry-server $ACR_LOGIN_SERVER \
+    --registry-username $ACR_NAME \
+    --registry-password $ACR_PASSWORD \
     --target-port 8080 \
     --ingress internal \
     --transport http2 \
@@ -220,7 +254,10 @@ az containerapp create \
     --name ca-route-service \
     --resource-group $RESOURCE_GROUP \
     --environment $CAE_NAME \
-    --image docker.io/$DOCKER_USER/meridian-routeservice:v1 \
+    --image $ACR_LOGIN_SERVER/meridian-routeservice:v1 \
+    --registry-server $ACR_LOGIN_SERVER \
+    --registry-username $ACR_NAME \
+    --registry-password $ACR_PASSWORD \
     --target-port 8080 \
     --ingress internal \
     --transport http2 \
@@ -232,7 +269,10 @@ az containerapp create \
     --name ca-tracking-service \
     --resource-group $RESOURCE_GROUP \
     --environment $CAE_NAME \
-    --image docker.io/$DOCKER_USER/meridian-trackingservice:v1 \
+    --image $ACR_LOGIN_SERVER/meridian-trackingservice:v1 \
+    --registry-server $ACR_LOGIN_SERVER \
+    --registry-username $ACR_NAME \
+    --registry-password $ACR_PASSWORD \
     --target-port 8080 \
     --ingress internal \
     --transport auto \
@@ -246,5 +286,6 @@ API Gateway URL: $(az containerapp show --resource-group $RESOURCE_GROUP --name 
 ## Phase 4: CI/CD Pipeline Automation
 
 Once manual deployment is confirmed via this script, configure GitHub Actions to automatically run on code commit. This entails:
-1. Pushing the images to Docker Hub via GitHub.
-2. Integrating the `az containerapp update` command directly in the CI/CD pipeline to seamlessly push the latest commit.
+1. Authenticating to ACR from GitHub Actions using `azure/docker-login` with ACR credentials stored as GitHub Secrets.
+2. Building and pushing images to ACR (`$ACR_LOGIN_SERVER`) on every commit.
+3. Integrating the `az containerapp update --image $ACR_LOGIN_SERVER/<service>:<tag>` command directly in the CI/CD pipeline to seamlessly deploy the latest image.
