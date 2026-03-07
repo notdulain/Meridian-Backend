@@ -27,7 +27,13 @@ The backend is organized into an API gateway and several microservices, followin
    - Vehicle/driver assignment logic and recommendations (Port `6004`, gRPC `7004`)
 
 7. **RouteService (`/src/RouteService/RouteService.API`)**  
-   - Route optimization, Google Maps integration, fuel cost estimation, Redis-backed route cache (Port `6005`, gRPC `7005`)
+- Route optimization, Google Maps Routes API integration, fuel cost estimation, Redis-backed route cache (Port `6005`, gRPC `7005`)
+- HTTP endpoints (via the ApiGateway):
+  - `POST /api/routes/optimize` – optimize a route and return the best option plus alternatives
+  - `GET /api/routes/calculate` – calculate distance, ETA, and polyline between origin and destination
+  - `GET /api/routes/alternatives` – list alternative route options from Google Routes API
+  - `GET /api/routes/compare` – compare alternative routes with distance, ETA, and fuel cost metrics
+  - `GET /api/routes/rank` – return ranked routes including fuel consumption (L), fuel cost (LKR), and duration (hours)
 
 8. **TrackingService (`/src/TrackingService/TrackingService.API`)**  
    - Real-time GPS tracking via SignalR hub, location history (Port `6006`)

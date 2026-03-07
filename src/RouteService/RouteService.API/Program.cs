@@ -48,10 +48,11 @@ builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
     o.Address = new Uri(builder.Configuration["Grpc:VehicleServiceUrl"]!);
 });
 
-// Configure HttpClient for Google Maps
+// Configure HttpClient for Google Routes API (v2)
 builder.Services.AddHttpClient<IGoogleMapsService, GoogleMapsService>(client =>
 {
-    client.BaseAddress = new Uri("https://maps.googleapis.com");
+    client.BaseAddress = new Uri("https://routes.googleapis.com");
+    client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Meridian-RouteService/1.0");
 });
 
 // Keycloak Authentication

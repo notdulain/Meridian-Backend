@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace RouteService.API.Models;
 
@@ -16,6 +16,9 @@ public sealed class GoogleRouteResponse
 
 public sealed class Route
 {
+    [JsonPropertyName("summary")]
+    public string Summary { get; set; } = string.Empty;
+
     [JsonPropertyName("legs")]
     public List<Leg> Legs { get; set; } = [];
 
