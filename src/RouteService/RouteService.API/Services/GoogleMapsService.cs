@@ -77,6 +77,42 @@ public sealed class GoogleMapsService : IGoogleMapsService
         return ranked;
     }
 
+    public async Task<List<RouteComparison>> GetRouteComparisonsAsync(string origin, string destination, CancellationToken cancellationToken)
+    {
+        var options = await ComputeRoutesAsync(origin, destination, includeAlternatives: true, cancellationToken);
+
+        if (options.Count == 0)
+        {
+            _logger.LogWarning("Google Routes API returned no routes for comparison. Origin: {Origin}, Destination: {Destination}", origin, destination);
+            throw new RouteNotFoundException("No routes found for the provided origin and destination.");
+        }
+
+        var comparisons = options.Select(o => new RouteComparison
+        {
+            RouteId = Guid.NewGuid().ToString("N"),
+            Summary = o.Summary,
+            DistanceKm = Math.Round(o.DistanceValue / 1000.0, 2),
+            DurationMinutes = (int)Math.Round(o.DurationValue / 60.0),
+            FuelCost = o.FuelCost,
+            IsRecommended = false,
+            PolylinePoints = o.PolylinePoints
+        }).ToList();
+
+        var recommended = comparisons
+            .OrderBy(r => r.FuelCost)
+            .ThenBy(r => r.DistanceKm)
+            .ThenBy(r => r.DurationMinutes)
+            .First();
+
+        recommended.IsRecommended = true;
+
+        _logger.LogInformation(
+            "Route comparison succeeded. Origin: {Origin}, Destination: {Destination}, RouteCount: {RouteCount}, RecommendedRouteId: {RecommendedRouteId}",
+            origin, destination, comparisons.Count, recommended.RouteId);
+
+        return comparisons;
+    }
+
     private async Task<List<RouteOption>> ComputeRoutesAsync(string origin, string destination, bool includeAlternatives, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(destination))
@@ -187,7 +223,7 @@ public sealed class GoogleMapsService : IGoogleMapsService
                 Summary = summary,
                 Distance = FormatDistanceKm(distanceKm),
                 DistanceValue = r.DistanceMeters,
-                Duration = FormatDurationReadable(durationSeconds),
+                Duration = FormatDurationMinutes(durationSeconds),
                 DurationValue = durationSeconds,
                 FuelCost = fuelCost,
                 PolylinePoints = r.Polyline?.EncodedPolyline ?? string.Empty
@@ -242,23 +278,23 @@ public sealed class GoogleMapsService : IGoogleMapsService
         return 0;
     }
 
+    /// <summary>Converts distance to km and formats as "{km} km" for RouteOption and API responses.</summary>
     private static string FormatDistanceKm(double km)
     {
-        if (km < 1)
-            return $"{(int)Math.Round(km * 1000)} m";
         return $"{km.ToString("F1", CultureInfo.InvariantCulture)} km";
     }
 
-    private static string FormatDurationReadable(int totalSeconds)
+    /// <summary>Converts duration (seconds from API "123s" string) to hours and minutes for RouteOption and API responses.</summary>
+    private static string FormatDurationMinutes(int totalSeconds)
     {
-        if (totalSeconds < 60)
-            return $"{totalSeconds} sec";
-        var minutes = totalSeconds / 60;
-        if (minutes < 60)
+        var totalMinutes = (int)Math.Round(totalSeconds / 60.0);
+        var hours = totalMinutes / 60;
+        var minutes = totalMinutes % 60;
+        if (hours == 0)
             return $"{minutes} min";
-        var hours = minutes / 60;
-        minutes %= 60;
-        return minutes > 0 ? $"{hours} hr {minutes} min" : $"{hours} hr";
+        if (minutes == 0)
+            return $"{hours} hr";
+        return $"{hours} hr {minutes} min";
     }
 
     private static double CalculateFuelCost(int distanceMeters)
