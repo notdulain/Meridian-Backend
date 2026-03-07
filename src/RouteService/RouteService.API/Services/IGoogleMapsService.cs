@@ -15,4 +15,9 @@ public interface IGoogleMapsService
         string origin,
         string destination,
         CancellationToken cancellationToken);
+
+    Task<RouteRankingResponse> GetRankedRoutesAsync(
+        string origin,
+        string destination,
+        CancellationToken cancellationToken);
 }

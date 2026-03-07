@@ -113,6 +113,62 @@ public sealed class GoogleMapsService : IGoogleMapsService
         return comparisons;
     }
 
+    public async Task<RouteRankingResponse> GetRankedRoutesAsync(string origin, string destination, CancellationToken cancellationToken)
+    {
+        var options = await ComputeRoutesAsync(origin, destination, includeAlternatives: true, cancellationToken);
+
+        if (options.Count == 0)
+        {
+            _logger.LogWarning("Google Routes API returned no routes for ranking. Origin: {Origin}, Destination: {Destination}", origin, destination);
+            throw new RouteNotFoundException("No routes found for the provided origin and destination.");
+        }
+
+        var routes = options.Select(o =>
+        {
+            var distanceKm = o.DistanceValue / 1000.0;
+            var durationSeconds = o.DurationValue;
+            var durationHours = durationSeconds / 3600.0;
+            var fuelConsumptionLitres = distanceKm / DefaultVehicleFuelEfficiencyKmPerLiter;
+            var fuelCostLkr = Math.Round(fuelConsumptionLitres * DefaultFuelPriceLkr, 2);
+
+            return new RouteRankedOption
+            {
+                RouteId = Guid.NewGuid().ToString("N"),
+                Rank = 0,
+                Summary = o.Summary,
+                DistanceKm = Math.Round(distanceKm, 2),
+                DurationHours = Math.Round(durationHours, 2),
+                FuelConsumptionLitres = Math.Round(fuelConsumptionLitres, 2),
+                FuelCostLKR = fuelCostLkr,
+                PolylinePoints = o.PolylinePoints,
+                IsRecommended = false
+            };
+        }).ToList();
+
+        var rankedRoutes = routes
+            .OrderBy(r => r.FuelCostLKR)
+            .ThenBy(r => r.DistanceKm)
+            .ThenBy(r => r.DurationHours)
+            .ToList();
+
+        for (var i = 0; i < rankedRoutes.Count; i++)
+            rankedRoutes[i].Rank = i + 1;
+
+        rankedRoutes[0].IsRecommended = true;
+        var recommendedRouteId = rankedRoutes[0].RouteId;
+
+        _logger.LogInformation(
+            "Route ranking succeeded. Origin: {Origin}, Destination: {Destination}, RouteCount: {RouteCount}, RecommendedRouteId: {RecommendedRouteId}",
+            origin, destination, rankedRoutes.Count, recommendedRouteId);
+
+        return new RouteRankingResponse
+        {
+            Success = true,
+            Routes = rankedRoutes,
+            RecommendedRouteId = recommendedRouteId
+        };
+    }
+
     private async Task<List<RouteOption>> ComputeRoutesAsync(string origin, string destination, bool includeAlternatives, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(destination))

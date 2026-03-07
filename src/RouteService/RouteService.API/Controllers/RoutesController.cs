@@ -135,5 +135,29 @@ public class RoutesController : ControllerBase
             return StatusCode(StatusCodes.Status502BadGateway, new { success = false, message = ex.Message });
         }
     }
+
+    /// <summary>GET /api/routes/rank?origin=Colombo&amp;destination=Kandy - Rank route options by fuel cost, distance, and duration (fuel in litres, cost in LKR, duration in hours).</summary>
+    [HttpGet("rank")]
+    public async Task<IActionResult> GetRankedRoutes([FromQuery] string origin, [FromQuery] string destination, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(destination))
+        {
+            return BadRequest(new { success = false, message = "Both origin and destination are required." });
+        }
+
+        try
+        {
+            var response = await _googleMapsService.GetRankedRoutesAsync(origin, destination, cancellationToken);
+            return Ok(response);
+        }
+        catch (RouteNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (GoogleMapsServiceException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { success = false, message = ex.Message });
+        }
+    }
 }
 
