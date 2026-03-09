@@ -193,7 +193,14 @@ fi
 echo "🛳️  Deploying Microservices to Container Apps..."
 
 REGISTRY_FLAGS="--registry-server $ACR_LOGIN_SERVER --registry-username $ACR_NAME --registry-password $ACR_PASSWORD"
-SHARED_ENV="ASPNETCORE_ENVIRONMENT=QA Swagger__Enabled=true Jwt__Issuer=meridian-gateway Jwt__Audience=meridian-api Jwt__SecretKey=$JWT_SECRET Jwt__Secret=$JWT_SECRET"
+SHARED_ENV=(
+    "ASPNETCORE_ENVIRONMENT=QA"
+    "Swagger__Enabled=true"
+    "Jwt__Issuer=meridian-gateway"
+    "Jwt__Audience=meridian-api"
+    "Jwt__SecretKey=$JWT_SECRET"
+    "Jwt__Secret=$JWT_SECRET"
+)
 IMAGE_TAG="${IMAGE_TAG:-v2}"
 
 # Helper: create or update a container app
@@ -289,6 +296,23 @@ create_app_if_missing() {
 
 # Get the Environment Default Domain for internal FQDN routing
 ACA_DOMAIN=$(az containerapp env show --name "$CAE_NAME" --resource-group "$RESOURCE_GROUP" --query "properties.defaultDomain" -o tsv)
+USER_SERVICE_HOST="ca-user-service.internal.$ACA_DOMAIN"
+DELIVERY_SERVICE_HOST="ca-delivery-service.internal.$ACA_DOMAIN"
+VEHICLE_SERVICE_HOST="ca-vehicle-service.internal.$ACA_DOMAIN"
+DRIVER_SERVICE_HOST="ca-driver-service.internal.$ACA_DOMAIN"
+ASSIGNMENT_SERVICE_HOST="ca-assignment-service.internal.$ACA_DOMAIN"
+ROUTE_SERVICE_HOST="ca-route-service.internal.$ACA_DOMAIN"
+TRACKING_SERVICE_HOST="ca-tracking-service.internal.$ACA_DOMAIN"
+GATEWAY_ENV=(
+    "OCELOT_BASE_URL=https://placeholder"
+    "USER_SERVICE_HOST=$USER_SERVICE_HOST"
+    "DELIVERY_SERVICE_HOST=$DELIVERY_SERVICE_HOST"
+    "VEHICLE_SERVICE_HOST=$VEHICLE_SERVICE_HOST"
+    "DRIVER_SERVICE_HOST=$DRIVER_SERVICE_HOST"
+    "ASSIGNMENT_SERVICE_HOST=$ASSIGNMENT_SERVICE_HOST"
+    "ROUTE_SERVICE_HOST=$ROUTE_SERVICE_HOST"
+    "TRACKING_SERVICE_HOST=$TRACKING_SERVICE_HOST"
+)
 
 # --- API Gateway ---
 create_app_if_missing ca-api-gateway \
@@ -300,15 +324,8 @@ create_app_if_missing ca-api-gateway \
     --min-replicas 1 \
     --max-replicas 3 \
     --env-vars \
-        "OCELOT_BASE_URL=https://placeholder" \
-        "USER_SERVICE_HOST=ca-user-service.internal.$ACA_DOMAIN" \
-        "DELIVERY_SERVICE_HOST=ca-delivery-service.internal.$ACA_DOMAIN" \
-        "VEHICLE_SERVICE_HOST=ca-vehicle-service.internal.$ACA_DOMAIN" \
-        "DRIVER_SERVICE_HOST=ca-driver-service.internal.$ACA_DOMAIN" \
-        "ASSIGNMENT_SERVICE_HOST=ca-assignment-service.internal.$ACA_DOMAIN" \
-        "ROUTE_SERVICE_HOST=ca-route-service.internal.$ACA_DOMAIN" \
-        "TRACKING_SERVICE_HOST=ca-tracking-service.internal.$ACA_DOMAIN" \
-        $SHARED_ENV
+        "${GATEWAY_ENV[@]}" \
+        "${SHARED_ENV[@]}"
 GATEWAY_FQDN=$(az containerapp show \
     --resource-group "$RESOURCE_GROUP" \
     --name ca-api-gateway \
@@ -328,7 +345,7 @@ create_app_if_missing ca-user-service \
     --ingress internal \
     --min-replicas 1 \
     --max-replicas 5 \
-    --env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" $SHARED_ENV
+    --env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" "${SHARED_ENV[@]}"
 
 # --- Delivery Service ---
 create_app_if_missing ca-delivery-service \
@@ -340,7 +357,7 @@ create_app_if_missing ca-delivery-service \
     --transport auto \
     --min-replicas 1 \
     --max-replicas 5 \
-    --env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" $SHARED_ENV
+    --env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" "${SHARED_ENV[@]}"
 
 # --- Vehicle Service ---
 create_app_if_missing ca-vehicle-service \
@@ -352,7 +369,7 @@ create_app_if_missing ca-vehicle-service \
     --transport auto \
     --min-replicas 1 \
     --max-replicas 5 \
-    --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" $SHARED_ENV
+    --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "${SHARED_ENV[@]}"
 
 # --- Driver Service ---
 create_app_if_missing ca-driver-service \
@@ -364,7 +381,7 @@ create_app_if_missing ca-driver-service \
     --transport auto \
     --min-replicas 1 \
     --max-replicas 5 \
-    --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" $SHARED_ENV
+    --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "${SHARED_ENV[@]}"
 
 # --- Assignment Service ---
 create_app_if_missing ca-assignment-service \
@@ -376,7 +393,7 @@ create_app_if_missing ca-assignment-service \
     --transport auto \
     --min-replicas 1 \
     --max-replicas 5 \
-    --env-vars "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" $SHARED_ENV
+    --env-vars "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" "${SHARED_ENV[@]}"
 
 # --- Route Service ---
 create_app_if_missing ca-route-service \
@@ -391,7 +408,7 @@ create_app_if_missing ca-route-service \
     --env-vars \
         "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
         "ConnectionStrings__Redis=$REDIS_CONN" \
-        $SHARED_ENV
+        "${SHARED_ENV[@]}"
 
 # --- Tracking Service ---
 create_app_if_missing ca-tracking-service \
@@ -406,7 +423,7 @@ create_app_if_missing ca-tracking-service \
     --env-vars \
         "ConnectionStrings__TrackingDb=$CONN_BASE;Initial Catalog=meridian_tracking;" \
         "ConnectionStrings__Redis=$REDIS_CONN" \
-        $SHARED_ENV
+        "${SHARED_ENV[@]}"
 
 echo ""
 echo "✅ Meridian QA environment deployed!"
