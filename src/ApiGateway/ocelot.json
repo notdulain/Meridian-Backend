@@ -1,6 +1,36 @@
 {
     "Routes": [
         {
+            "UpstreamPathTemplate": "/user/swagger",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${USER_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/user/swagger/{everything}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger/{everything}",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${USER_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
             "UpstreamPathTemplate": "/delivery/swagger",
             "UpstreamHttpMethod": [
                 "GET",
