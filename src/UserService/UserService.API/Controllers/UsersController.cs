@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UserService.API.DTOs;
 using UserService.API.Services;
+using System.Security.Claims;
 
 namespace UserService.API.Controllers;
 
@@ -36,6 +37,21 @@ public class UsersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id)
     {
+        var userIdClaim = User.FindFirst("sub")?.Value
+                       ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!int.TryParse(userIdClaim, out var currentUserId))
+        {
+            return Unauthorized();
+        }
+
+        var isAdmin = User.IsInRole("Admin");
+
+        if (!isAdmin && currentUserId != id)
+        {
+            return Forbid();
+        }
+
         var user = await _userService.GetByIdAsync(id);
         if (user is null) return NotFound();
         return Ok(user);
