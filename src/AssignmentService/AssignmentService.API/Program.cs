@@ -50,7 +50,7 @@ builder.Services.AddGrpcClient<DriverGrpc.DriverGrpcClient>(o =>
 // Configure HttpClient for DeliveryService
 builder.Services.AddHttpClient("DeliveryService", client =>
 {
-    client.BaseAddress = new Uri("http://localhost:6001");
+    client.BaseAddress = new Uri(builder.Configuration["Services:DeliveryServiceUrl"]!);
 });
 
 // JWT Authentication

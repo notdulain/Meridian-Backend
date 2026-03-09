@@ -395,7 +395,12 @@ create_app_if_missing ca-assignment-service \
     --transport auto \
     --min-replicas 1 \
     --max-replicas 5 \
-    --env-vars "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" "${SHARED_ENV[@]}"
+    --env-vars \
+        "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" \
+        "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
+        "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_HOST" \
+        "Services__DeliveryServiceUrl=https://$DELIVERY_SERVICE_HOST" \
+        "${SHARED_ENV[@]}"
 
 # --- Route Service ---
 create_app_if_missing ca-route-service \
@@ -409,7 +414,8 @@ create_app_if_missing ca-route-service \
     --max-replicas 5 \
     --env-vars \
         "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
-        "ConnectionStrings__Redis=$REDIS_CONN" \
+        "ConnectionStrings__RedisCache=$REDIS_CONN" \
+        "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
         "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
         "${SHARED_ENV[@]}"
 
