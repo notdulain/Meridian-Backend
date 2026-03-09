@@ -202,17 +202,85 @@ create_app_if_missing() {
     shift
     
     if az containerapp show --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
-        echo "🔄 Container App '$APP_NAME' already exists. Updating its image and environment..."
-        
-        # Extract the image from arguments arguments to update the app cleanly
-        for ((i=1; i<=$#; i++)); do
-            if [ "${!i}" == "--image" ]; then
-                local next_idx=$((i+1))
-                local IMAGE_VAL="${!next_idx}"
-                az containerapp update --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --image "$IMAGE_VAL" > /dev/null
-                break
-            fi
+        echo "🔄 Container App '$APP_NAME' already exists. Updating image, env, scale, and ingress..."
+
+        local IMAGE_VAL=""
+        local MIN_REPLICAS=""
+        local MAX_REPLICAS=""
+        local TARGET_PORT=""
+        local INGRESS_TYPE=""
+        local TRANSPORT=""
+        local -a ENV_VARS=()
+
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --image)
+                    IMAGE_VAL="$2"
+                    shift 2
+                    ;;
+                --min-replicas)
+                    MIN_REPLICAS="$2"
+                    shift 2
+                    ;;
+                --max-replicas)
+                    MAX_REPLICAS="$2"
+                    shift 2
+                    ;;
+                --target-port)
+                    TARGET_PORT="$2"
+                    shift 2
+                    ;;
+                --ingress)
+                    INGRESS_TYPE="$2"
+                    shift 2
+                    ;;
+                --transport)
+                    TRANSPORT="$2"
+                    shift 2
+                    ;;
+                --env-vars)
+                    shift
+                    while [ $# -gt 0 ] && [[ "$1" != --* ]]; do
+                        ENV_VARS+=("$1")
+                        shift
+                    done
+                    ;;
+                *)
+                    shift
+                    ;;
+            esac
         done
+
+        local -a UPDATE_ARGS=(--name "$APP_NAME" --resource-group "$RESOURCE_GROUP")
+        if [ -n "$IMAGE_VAL" ]; then
+            UPDATE_ARGS+=(--image "$IMAGE_VAL")
+        fi
+        if [ -n "$MIN_REPLICAS" ]; then
+            UPDATE_ARGS+=(--min-replicas "$MIN_REPLICAS")
+        fi
+        if [ -n "$MAX_REPLICAS" ]; then
+            UPDATE_ARGS+=(--max-replicas "$MAX_REPLICAS")
+        fi
+        if [ ${#ENV_VARS[@]} -gt 0 ]; then
+            UPDATE_ARGS+=(--set-env-vars "${ENV_VARS[@]}")
+        fi
+
+        az containerapp update "${UPDATE_ARGS[@]}" > /dev/null
+
+        local -a INGRESS_ARGS=(--name "$APP_NAME" --resource-group "$RESOURCE_GROUP")
+        if [ -n "$TARGET_PORT" ]; then
+            INGRESS_ARGS+=(--target-port "$TARGET_PORT")
+        fi
+        if [ -n "$INGRESS_TYPE" ]; then
+            INGRESS_ARGS+=(--type "$INGRESS_TYPE")
+        fi
+        if [ -n "$TRANSPORT" ]; then
+            INGRESS_ARGS+=(--transport "$TRANSPORT")
+        fi
+
+        if [ ${#INGRESS_ARGS[@]} -gt 4 ]; then
+            az containerapp ingress update "${INGRESS_ARGS[@]}" > /dev/null
+        fi
     else
         echo "🚢 Creating Container App: $APP_NAME"
         az containerapp create --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" "$@"
