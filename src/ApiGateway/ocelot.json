@@ -11,11 +11,11 @@
                 "OPTIONS"
             ],
             "DownstreamPathTemplate": "/{everything}",
-            "DownstreamScheme": "http",
+            "DownstreamScheme": "https",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "localhost",
-                    "Port": 6001
+                    "Host": "${DELIVERY_SERVICE_HOST}",
+                    "Port": 443
                 }
             ]
         },
@@ -30,11 +30,11 @@
                 "OPTIONS"
             ],
             "DownstreamPathTemplate": "/{everything}",
-            "DownstreamScheme": "http",
+            "DownstreamScheme": "https",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "vehicle-service",
-                    "Port": 6002
+                    "Host": "${VEHICLE_SERVICE_HOST}",
+                    "Port": 443
                 }
             ],
             "AuthenticationOptions": {
@@ -53,11 +53,11 @@
                 "OPTIONS"
             ],
             "DownstreamPathTemplate": "/{everything}",
-            "DownstreamScheme": "http",
+            "DownstreamScheme": "https",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "driver-service",
-                    "Port": 6003
+                    "Host": "${DRIVER_SERVICE_HOST}",
+                    "Port": 443
                 }
             ],
             "AuthenticationOptions": {
@@ -76,11 +76,11 @@
                 "OPTIONS"
             ],
             "DownstreamPathTemplate": "/{everything}",
-            "DownstreamScheme": "http",
+            "DownstreamScheme": "https",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "assignment-service",
-                    "Port": 6004
+                    "Host": "${ASSIGNMENT_SERVICE_HOST}",
+                    "Port": 443
                 }
             ],
             "AuthenticationOptions": {
@@ -99,11 +99,11 @@
                 "OPTIONS"
             ],
             "DownstreamPathTemplate": "/{everything}",
-            "DownstreamScheme": "http",
+            "DownstreamScheme": "https",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "route-service",
-                    "Port": 6005
+                    "Host": "${ROUTE_SERVICE_HOST}",
+                    "Port": 443
                 }
             ],
             "AuthenticationOptions": {
@@ -122,11 +122,11 @@
                 "OPTIONS"
             ],
             "DownstreamPathTemplate": "/hubs/tracking",
-            "DownstreamScheme": "ws",
+            "DownstreamScheme": "wss",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "tracking-service",
-                    "Port": 6006
+                    "Host": "${TRACKING_SERVICE_HOST}",
+                    "Port": 443
                 }
             ],
             "AuthenticationOptions": {
@@ -145,11 +145,11 @@
                 "OPTIONS"
             ],
             "DownstreamPathTemplate": "/{everything}",
-            "DownstreamScheme": "http",
+            "DownstreamScheme": "https",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "tracking-service",
-                    "Port": 6006
+                    "Host": "${TRACKING_SERVICE_HOST}",
+                    "Port": 443
                 }
             ],
             "AuthenticationOptions": {
@@ -163,11 +163,11 @@
                 "POST"
             ],
             "DownstreamPathTemplate": "/api/auth/{everything}",
-            "DownstreamScheme": "http",
+            "DownstreamScheme": "https",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "user-service",
-                    "Port": 6007
+                    "Host": "${USER_SERVICE_HOST}",
+                    "Port": 443
                 }
             ]
         },
@@ -180,11 +180,11 @@
                 "DELETE"
             ],
             "DownstreamPathTemplate": "/api/users/{everything}",
-            "DownstreamScheme": "http",
+            "DownstreamScheme": "https",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "user-service",
-                    "Port": 6007
+                    "Host": "${USER_SERVICE_HOST}",
+                    "Port": 443
                 }
             ],
             "AuthenticationOptions": {
@@ -198,11 +198,11 @@
                 "GET"
             ],
             "DownstreamPathTemplate": "/api/roles/{everything}",
-            "DownstreamScheme": "http",
+            "DownstreamScheme": "https",
             "DownstreamHostAndPorts": [
                 {
-                    "Host": "user-service",
-                    "Port": 6007
+                    "Host": "${USER_SERVICE_HOST}",
+                    "Port": 443
                 }
             ],
             "AuthenticationOptions": {
@@ -212,6 +212,6 @@
         }
     ],
     "GlobalConfiguration": {
-        "BaseUrl": "http://localhost:5050"
+        "BaseUrl": "${OCELOT_BASE_URL}"
     }
 }

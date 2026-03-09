@@ -106,12 +106,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DeliveryService v1");
+        c.SwaggerEndpoint("v1/swagger.json", "DeliveryService v1");
         c.RoutePrefix = "swagger";
     });
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection(); // Removed to prevent internal 301 loop with API Gateway
 app.UseCors("AllowedOrigins");
 app.UseAuthentication();
 

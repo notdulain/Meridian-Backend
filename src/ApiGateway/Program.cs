@@ -7,10 +7,19 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // ─────────────────────────────────────────────
-// Configuration
+// Configuration (Dynamic Ocelot Environment Variables)
 // ─────────────────────────────────────────────
-builder.Configuration
-    .AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
+var ocelotJsonText = System.IO.File.ReadAllText("ocelot.json");
+ocelotJsonText = ocelotJsonText.Replace("${DELIVERY_SERVICE_HOST}", Environment.GetEnvironmentVariable("DELIVERY_SERVICE_HOST") ?? "ca-delivery-service");
+ocelotJsonText = ocelotJsonText.Replace("${VEHICLE_SERVICE_HOST}", Environment.GetEnvironmentVariable("VEHICLE_SERVICE_HOST") ?? "ca-vehicle-service");
+ocelotJsonText = ocelotJsonText.Replace("${DRIVER_SERVICE_HOST}", Environment.GetEnvironmentVariable("DRIVER_SERVICE_HOST") ?? "ca-driver-service");
+ocelotJsonText = ocelotJsonText.Replace("${ASSIGNMENT_SERVICE_HOST}", Environment.GetEnvironmentVariable("ASSIGNMENT_SERVICE_HOST") ?? "ca-assignment-service");
+ocelotJsonText = ocelotJsonText.Replace("${ROUTE_SERVICE_HOST}", Environment.GetEnvironmentVariable("ROUTE_SERVICE_HOST") ?? "ca-route-service");
+ocelotJsonText = ocelotJsonText.Replace("${TRACKING_SERVICE_HOST}", Environment.GetEnvironmentVariable("TRACKING_SERVICE_HOST") ?? "ca-tracking-service");
+ocelotJsonText = ocelotJsonText.Replace("${USER_SERVICE_HOST}", Environment.GetEnvironmentVariable("USER_SERVICE_HOST") ?? "ca-user-service");
+ocelotJsonText = ocelotJsonText.Replace("${OCELOT_BASE_URL}", Environment.GetEnvironmentVariable("OCELOT_BASE_URL") ?? "http://localhost:5050");
+
+builder.Configuration.AddJsonStream(new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ocelotJsonText)));
 
 var jwtSecret = builder.Configuration["Jwt:Secret"]
     ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
@@ -69,6 +78,23 @@ app.UseCors("ReactFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Azure Container Apps health probe endpoint
+app.MapGet("/", () => Results.Ok("Meridian API Gateway is running."));
+
+app.MapGet("/diagnostics", async () => {
+    try {
+        var client = new System.Net.Http.HttpClient();
+        client.Timeout = TimeSpan.FromSeconds(10);
+        var host = Environment.GetEnvironmentVariable("DELIVERY_SERVICE_HOST") ?? "ca-delivery-service";
+        var url = $"https://{host}/swagger/index.html";
+        var response = await client.GetAsync(url);
+        var content = await response.Content.ReadAsStringAsync();
+        return Results.Ok($"Connected to {url}. Status: {response.StatusCode}. Content length: {content.Length}");
+    } catch (Exception ex) {
+        return Results.Problem(ex.ToString());
+    }
+});
 
 await app.UseOcelot();
 
