@@ -1,6 +1,186 @@
 {
     "Routes": [
         {
+            "UpstreamPathTemplate": "/delivery/swagger",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${DELIVERY_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/delivery/swagger/{everything}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger/{everything}",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${DELIVERY_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/vehicle/swagger",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${VEHICLE_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/vehicle/swagger/{everything}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger/{everything}",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${VEHICLE_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/driver/swagger",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${DRIVER_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/driver/swagger/{everything}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger/{everything}",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${DRIVER_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/assignment/swagger",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${ASSIGNMENT_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/assignment/swagger/{everything}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger/{everything}",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${ASSIGNMENT_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/route/swagger",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${ROUTE_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/route/swagger/{everything}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger/{everything}",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${ROUTE_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/tracking/swagger",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${TRACKING_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/tracking/swagger/{everything}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "OPTIONS"
+            ],
+            "DownstreamPathTemplate": "/swagger/{everything}",
+            "DownstreamScheme": "https",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "${TRACKING_SERVICE_HOST}",
+                    "Port": 443
+                }
+            ]
+        },
+        {
             "UpstreamPathTemplate": "/delivery/{everything}",
             "UpstreamHttpMethod": [
                 "GET",
