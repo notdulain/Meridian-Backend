@@ -118,28 +118,31 @@ builder.Services.AddScoped<IUserService, UserService.API.Services.UserService>()
 // ─────────────────────────────────────────────
 var app = builder.Build();
 
-// Run DbUp Migrations
-var connectionString = builder.Configuration.GetConnectionString("UserDb")
-    ?? throw new InvalidOperationException("ConnectionStrings:UserDb is not configured.");
-EnsureDatabase.For.SqlDatabase(connectionString);
-
-var upgrader = DeployChanges.To
-    .SqlDatabase(connectionString)
-    .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
-    .LogToConsole()
-    .Build();
-
-var result = upgrader.PerformUpgrade();
-if (!result.Successful)
+// Run DbUp Migrations (skipped in Testing environment)
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine(result.Error);
+    var connectionString = builder.Configuration.GetConnectionString("UserDb")
+        ?? throw new InvalidOperationException("ConnectionStrings:UserDb is not configured.");
+    EnsureDatabase.For.SqlDatabase(connectionString);
+
+    var upgrader = DeployChanges.To
+        .SqlDatabase(connectionString)
+        .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
+        .LogToConsole()
+        .Build();
+
+    var result = upgrader.PerformUpgrade();
+    if (!result.Successful)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine(result.Error);
+        Console.ResetColor();
+        throw new Exception("Database migration failed", result.Error);
+    }
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine("Database migration successful!");
     Console.ResetColor();
-    throw new Exception("Database migration failed", result.Error);
 }
-Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine("Database migration successful!");
-Console.ResetColor();
 
 app.UseCors("ReactFrontend");
 
@@ -159,3 +162,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }
