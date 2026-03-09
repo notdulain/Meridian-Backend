@@ -193,7 +193,7 @@ fi
 echo "🛳️  Deploying Microservices to Container Apps..."
 
 REGISTRY_FLAGS="--registry-server $ACR_LOGIN_SERVER --registry-username $ACR_NAME --registry-password $ACR_PASSWORD"
-SHARED_ENV="ASPNETCORE_ENVIRONMENT=Development Jwt__Issuer=meridian-gateway Jwt__Audience=meridian-api Jwt__SecretKey=$JWT_SECRET Jwt__Secret=$JWT_SECRET"
+SHARED_ENV="ASPNETCORE_ENVIRONMENT=QA Swagger__Enabled=true Jwt__Issuer=meridian-gateway Jwt__Audience=meridian-api Jwt__SecretKey=$JWT_SECRET Jwt__Secret=$JWT_SECRET"
 IMAGE_TAG="${IMAGE_TAG:-v2}"
 
 # Helper: create or update a container app

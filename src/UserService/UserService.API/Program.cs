@@ -152,7 +152,7 @@ Console.ResetColor();
 
 app.UseCors("ReactFrontend");
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
