@@ -7,6 +7,7 @@
 #   - az login
 #   - export JWT_SECRET="<your-jwt-secret>"
 #   - export DB_PASSWORD="<your-db-password>"
+#   - export GOOGLE_MAPS_API_KEY="<your-google-maps-api-key>"
 # Safe to re-run — skips any resource that already exists.
 # ==============================================================================
 
@@ -15,6 +16,7 @@ set -euo pipefail
 # ---------- Validate required secrets ----------
 : "${JWT_SECRET:?Please export JWT_SECRET before running this script}"
 : "${DB_PASSWORD:?Please export DB_PASSWORD before running this script}"
+: "${GOOGLE_MAPS_API_KEY:?Please export GOOGLE_MAPS_API_KEY before running this script}"
 
 # ---------- Configuration ----------
 ENV="qa"
@@ -408,6 +410,7 @@ create_app_if_missing ca-route-service \
     --env-vars \
         "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
         "ConnectionStrings__Redis=$REDIS_CONN" \
+        "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
         "${SHARED_ENV[@]}"
 
 # --- Tracking Service ---
