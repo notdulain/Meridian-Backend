@@ -17,6 +17,7 @@ RUN dotnet publish src/RouteService/RouteService.API/RouteService.API.csproj -c 
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+ENV ASPNETCORE_URLS=http://+:8080
 COPY --from=build /app/publish .
-EXPOSE 6005
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "RouteService.API.dll"]

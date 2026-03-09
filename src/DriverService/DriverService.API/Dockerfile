@@ -17,6 +17,7 @@ RUN dotnet publish src/DriverService/DriverService.API/DriverService.API.csproj 
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+ENV ASPNETCORE_URLS=http://+:8080
 COPY --from=build /app/publish .
-EXPOSE 6003
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "DriverService.API.dll"]
