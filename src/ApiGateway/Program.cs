@@ -6,7 +6,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-string ResolveGatewaySetting(string envName, string developmentFallback)
+string ResolveRequiredGatewaySetting(string envName)
 {
     var value = Environment.GetEnvironmentVariable(envName);
     if (!string.IsNullOrWhiteSpace(value))
@@ -14,35 +14,46 @@ string ResolveGatewaySetting(string envName, string developmentFallback)
         return value;
     }
 
-    if (builder.Environment.IsDevelopment())
-    {
-        return developmentFallback;
-    }
-
-    throw new InvalidOperationException($"{envName} must be configured outside Development.");
+    throw new InvalidOperationException($"{envName} must be configured for {builder.Environment.EnvironmentName}.");
 }
 
-// ─────────────────────────────────────────────
-// Configuration (Dynamic Ocelot Environment Variables)
-// ─────────────────────────────────────────────
-var deliveryServiceHost = ResolveGatewaySetting("DELIVERY_SERVICE_HOST", "ca-delivery-service");
-var vehicleServiceHost = ResolveGatewaySetting("VEHICLE_SERVICE_HOST", "ca-vehicle-service");
-var driverServiceHost = ResolveGatewaySetting("DRIVER_SERVICE_HOST", "ca-driver-service");
-var assignmentServiceHost = ResolveGatewaySetting("ASSIGNMENT_SERVICE_HOST", "ca-assignment-service");
-var routeServiceHost = ResolveGatewaySetting("ROUTE_SERVICE_HOST", "ca-route-service");
-var trackingServiceHost = ResolveGatewaySetting("TRACKING_SERVICE_HOST", "ca-tracking-service");
-var userServiceHost = ResolveGatewaySetting("USER_SERVICE_HOST", "ca-user-service");
-var ocelotBaseUrl = ResolveGatewaySetting("OCELOT_BASE_URL", "http://localhost:5050");
+var ocelotFileName = builder.Environment.IsDevelopment()
+    ? "ocelot.Development.json"
+    : $"ocelot.{builder.Environment.EnvironmentName}.json";
 
-var ocelotJsonText = System.IO.File.ReadAllText("ocelot.json");
-ocelotJsonText = ocelotJsonText.Replace("${DELIVERY_SERVICE_HOST}", deliveryServiceHost);
-ocelotJsonText = ocelotJsonText.Replace("${VEHICLE_SERVICE_HOST}", vehicleServiceHost);
-ocelotJsonText = ocelotJsonText.Replace("${DRIVER_SERVICE_HOST}", driverServiceHost);
-ocelotJsonText = ocelotJsonText.Replace("${ASSIGNMENT_SERVICE_HOST}", assignmentServiceHost);
-ocelotJsonText = ocelotJsonText.Replace("${ROUTE_SERVICE_HOST}", routeServiceHost);
-ocelotJsonText = ocelotJsonText.Replace("${TRACKING_SERVICE_HOST}", trackingServiceHost);
-ocelotJsonText = ocelotJsonText.Replace("${USER_SERVICE_HOST}", userServiceHost);
-ocelotJsonText = ocelotJsonText.Replace("${OCELOT_BASE_URL}", ocelotBaseUrl);
+if (!File.Exists(ocelotFileName))
+{
+    ocelotFileName = "ocelot.json";
+}
+
+var ocelotJsonText = File.ReadAllText(ocelotFileName);
+string? diagnosticsDeliverySwaggerUrl;
+
+if (builder.Environment.IsDevelopment())
+{
+    diagnosticsDeliverySwaggerUrl = "http://localhost:6001/swagger/index.html";
+}
+else
+{
+    var replacements = new Dictionary<string, string>
+    {
+        ["${DELIVERY_SERVICE_HOST}"] = ResolveRequiredGatewaySetting("DELIVERY_SERVICE_HOST"),
+        ["${VEHICLE_SERVICE_HOST}"] = ResolveRequiredGatewaySetting("VEHICLE_SERVICE_HOST"),
+        ["${DRIVER_SERVICE_HOST}"] = ResolveRequiredGatewaySetting("DRIVER_SERVICE_HOST"),
+        ["${ASSIGNMENT_SERVICE_HOST}"] = ResolveRequiredGatewaySetting("ASSIGNMENT_SERVICE_HOST"),
+        ["${ROUTE_SERVICE_HOST}"] = ResolveRequiredGatewaySetting("ROUTE_SERVICE_HOST"),
+        ["${TRACKING_SERVICE_HOST}"] = ResolveRequiredGatewaySetting("TRACKING_SERVICE_HOST"),
+        ["${USER_SERVICE_HOST}"] = ResolveRequiredGatewaySetting("USER_SERVICE_HOST"),
+        ["${OCELOT_BASE_URL}"] = ResolveRequiredGatewaySetting("OCELOT_BASE_URL")
+    };
+
+    foreach (var replacement in replacements)
+    {
+        ocelotJsonText = ocelotJsonText.Replace(replacement.Key, replacement.Value);
+    }
+
+    diagnosticsDeliverySwaggerUrl = $"https://{replacements["${DELIVERY_SERVICE_HOST}"]}/swagger/index.html";
+}
 
 builder.Configuration.AddJsonStream(new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ocelotJsonText)));
 
@@ -111,10 +122,9 @@ app.MapGet("/diagnostics", async () => {
     try {
         var client = new System.Net.Http.HttpClient();
         client.Timeout = TimeSpan.FromSeconds(10);
-        var url = $"https://{deliveryServiceHost}/swagger/index.html";
-        var response = await client.GetAsync(url);
+        var response = await client.GetAsync(diagnosticsDeliverySwaggerUrl);
         var content = await response.Content.ReadAsStringAsync();
-        return Results.Ok($"Connected to {url}. Status: {response.StatusCode}. Content length: {content.Length}");
+        return Results.Ok($"Connected to {diagnosticsDeliverySwaggerUrl}. Status: {response.StatusCode}. Content length: {content.Length}");
     } catch (Exception ex) {
         return Results.Problem(ex.ToString());
     }
