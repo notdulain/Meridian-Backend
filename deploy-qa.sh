@@ -109,7 +109,7 @@ SHARED_ENV=(
     "Jwt__SecretKey=$JWT_SECRET"
     "Jwt__Secret=$JWT_SECRET"
 )
-IMAGE_TAG="${IMAGE_TAG:-v2}"
+IMAGE_TAG="${IMAGE_TAG:-v1}"
 
 # Helper: create or update a container app
 create_app_if_missing() {

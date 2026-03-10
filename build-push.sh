@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-ACR_NAME="${ACR_NAME:?ACR_NAME env var is required (e.g. acrmeridianqa)}"
+ACR_NAME="${ACR_NAME:-acrmeridianqa}"
 RESOURCE_GROUP="${RESOURCE_GROUP:-rg-meridian-qa}"
 LOCATION="${LOCATION:-eastasia}"
 TAG="${TAG:-v1}"

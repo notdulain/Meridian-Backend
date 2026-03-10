@@ -1,0 +1,433 @@
+name: QA CI/CD
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional image tag override
+        required: false
+        type: string
+
+concurrency:
+  group: qa-cicd
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  ACR_NAME: acrmeridianqa
+  RESOURCE_GROUP: rg-meridian-qa
+  LOCATION: eastasia
+  CAE_NAME: cae-meridian-qa
+  SQL_SERVER: sql-meridian-qa001
+  DB_ADMIN: meridianadmin
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      acr_login_server: ${{ steps.acr.outputs.login_server }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine image tag
+        id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "image_tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Register required providers for build resources
+        shell: bash
+        run: |
+          az provider register --namespace Microsoft.ContainerRegistry --wait
+
+      - name: Ensure resource group and ACR
+        id: acr
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az group create \
+            --name "$RESOURCE_GROUP" \
+            --location "$LOCATION" \
+            --output none
+
+          if az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
+            echo "ACR $ACR_NAME already exists."
+          else
+            az acr create \
+              --name "$ACR_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --location "$LOCATION" \
+              --sku Basic \
+              --admin-enabled true \
+              --tags Project=Meridian Environment=QA \
+              --output none
+          fi
+
+          az acr update --name "$ACR_NAME" --admin-enabled true --output none
+          login_server=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
+          echo "login_server=$login_server" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log Docker into ACR
+        shell: bash
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and push images
+        shell: bash
+        env:
+          TAG: ${{ steps.meta.outputs.image_tag }}
+          ACR_LOGIN_SERVER: ${{ steps.acr.outputs.login_server }}
+        run: |
+          set -euo pipefail
+
+          build_and_push() {
+            local service_name="$1"
+            local image_name="$2"
+            local dockerfile_path="$3"
+            local build_context="$4"
+
+            echo "Building $service_name..."
+            docker buildx build \
+              --platform linux/amd64 \
+              --tag "$ACR_LOGIN_SERVER/$image_name:$TAG" \
+              --file "$dockerfile_path" \
+              --push \
+              "$build_context"
+          }
+
+          build_and_push "API Gateway" "meridian-apigateway" "src/ApiGateway/Dockerfile" "src/ApiGateway"
+          build_and_push "User Service" "meridian-userservice" "src/UserService/UserService.API/Dockerfile" "src/UserService/UserService.API"
+          build_and_push "Delivery Service" "meridian-deliveryservice" "src/DeliveryService/DeliveryService.API/Dockerfile" "src/DeliveryService/DeliveryService.API"
+          build_and_push "Vehicle Service" "meridian-vehicleservice" "src/VehicleService/VehicleService.API/Dockerfile" "."
+          build_and_push "Driver Service" "meridian-driverservice" "src/DriverService/DriverService.API/Dockerfile" "."
+          build_and_push "Assignment Service" "meridian-assignmentservice" "src/AssignmentService/AssignmentService.API/Dockerfile" "."
+          build_and_push "Route Service" "meridian-routeservice" "src/RouteService/RouteService.API/Dockerfile" "."
+          build_and_push "Tracking Service" "meridian-trackingservice" "src/TrackingService/TrackingService.API/Dockerfile" "src/TrackingService/TrackingService.API"
+
+  deploy-qa:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: qa
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install or upgrade Container Apps extension
+        shell: bash
+        run: az extension add --name containerapp --upgrade
+
+      - name: Register required Azure providers
+        shell: bash
+        run: |
+          az provider register --namespace Microsoft.ContainerRegistry --wait
+          az provider register --namespace Microsoft.Sql --wait
+          az provider register --namespace Microsoft.App --wait
+
+      - name: Ensure Azure infrastructure
+        shell: bash
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          az group create \
+            --name "$RESOURCE_GROUP" \
+            --location "$LOCATION" \
+            --output none
+
+          if az sql server show --name "$SQL_SERVER" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
+            echo "SQL Server $SQL_SERVER already exists."
+          else
+            az sql server create \
+              --name "$SQL_SERVER" \
+              --resource-group "$RESOURCE_GROUP" \
+              --location "$LOCATION" \
+              --admin-user "$DB_ADMIN" \
+              --admin-password "$DB_PASSWORD" \
+              --output none
+          fi
+
+          az sql server firewall-rule create \
+            --resource-group "$RESOURCE_GROUP" \
+            --server "$SQL_SERVER" \
+            --name AllowAzureServices \
+            --start-ip-address 0.0.0.0 \
+            --end-ip-address 0.0.0.0 \
+            --output none
+
+          if az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
+            echo "ACR $ACR_NAME already exists."
+          else
+            az acr create \
+              --name "$ACR_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --location "$LOCATION" \
+              --sku Basic \
+              --admin-enabled true \
+              --output none
+          fi
+
+          az acr update --name "$ACR_NAME" --admin-enabled true --output none
+
+          if az containerapp env show --name "$CAE_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
+            echo "Container Apps environment $CAE_NAME already exists."
+          else
+            az containerapp env create \
+              --name "$CAE_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --location "$LOCATION" \
+              --logs-destination none \
+              --output none
+          fi
+
+      - name: Deploy Container Apps
+        id: deploy
+        shell: bash
+        env:
+          ACR_LOGIN_SERVER: ${{ needs.build-and-push.outputs.acr_login_server }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          SQL_HOST="$SQL_SERVER.database.windows.net"
+          CONN_BASE="Server=$SQL_HOST;User ID=$DB_ADMIN;Password=$DB_PASSWORD;Trust Server Certificate=True"
+          ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
+
+          create_or_update_app() {
+            local app_name="$1"
+            shift
+
+            if az containerapp show --name "$app_name" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
+              echo "Updating $app_name..."
+              local image_val=""
+              local min_replicas=""
+              local max_replicas=""
+              local -a env_vars=()
+
+              while [ $# -gt 0 ]; do
+                case "$1" in
+                  --image)
+                    image_val="$2"
+                    shift 2
+                    ;;
+                  --min-replicas)
+                    min_replicas="$2"
+                    shift 2
+                    ;;
+                  --max-replicas)
+                    max_replicas="$2"
+                    shift 2
+                    ;;
+                  --set-env-vars)
+                    shift
+                    while [ $# -gt 0 ] && [[ "$1" != --* ]]; do
+                      env_vars+=("$1")
+                      shift
+                    done
+                    ;;
+                  *)
+                    if [[ "$1" == --* ]]; then
+                      shift
+                      if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
+                        shift
+                      fi
+                    else
+                      shift
+                    fi
+                    ;;
+                esac
+              done
+
+              local -a update_args=(--name "$app_name" --resource-group "$RESOURCE_GROUP")
+              if [ -n "$image_val" ]; then
+                update_args+=(--image "$image_val")
+              fi
+              if [ -n "$min_replicas" ]; then
+                update_args+=(--min-replicas "$min_replicas")
+              fi
+              if [ -n "$max_replicas" ]; then
+                update_args+=(--max-replicas "$max_replicas")
+              fi
+              if [ ${#env_vars[@]} -gt 0 ]; then
+                update_args+=(--set-env-vars "${env_vars[@]}")
+              fi
+
+              az containerapp update "${update_args[@]}" --output none
+            else
+              echo "Creating $app_name..."
+              az containerapp create --name "$app_name" --resource-group "$RESOURCE_GROUP" "$@" --output none
+            fi
+          }
+
+          create_or_update_ingress() {
+            local app_name="$1"
+            local target_port="$2"
+            local ingress_type="$3"
+            local transport="$4"
+
+            local args=(--name "$app_name" --resource-group "$RESOURCE_GROUP" --target-port "$target_port" --type "$ingress_type")
+            if [ -n "$transport" ]; then
+              args+=(--transport "$transport")
+            fi
+
+            az containerapp ingress update "${args[@]}" --output none
+          }
+
+          ACA_DOMAIN=$(az containerapp env show --name "$CAE_NAME" --resource-group "$RESOURCE_GROUP" --query "properties.defaultDomain" -o tsv)
+          USER_SERVICE_HOST="ca-user-service.internal.$ACA_DOMAIN"
+          DELIVERY_SERVICE_HOST="ca-delivery-service.internal.$ACA_DOMAIN"
+          VEHICLE_SERVICE_HOST="ca-vehicle-service.internal.$ACA_DOMAIN"
+          DRIVER_SERVICE_HOST="ca-driver-service.internal.$ACA_DOMAIN"
+          ASSIGNMENT_SERVICE_HOST="ca-assignment-service.internal.$ACA_DOMAIN"
+          ROUTE_SERVICE_HOST="ca-route-service.internal.$ACA_DOMAIN"
+          TRACKING_SERVICE_HOST="ca-tracking-service.internal.$ACA_DOMAIN"
+
+          REGISTRY_ARGS=(
+            --registry-server "$ACR_LOGIN_SERVER"
+            --registry-username "$ACR_NAME"
+            --registry-password "$ACR_PASSWORD"
+          )
+
+          SHARED_ENV=(
+            "ASPNETCORE_ENVIRONMENT=QA"
+            "Swagger__Enabled=true"
+            "Jwt__Issuer=meridian-gateway"
+            "Jwt__Audience=meridian-api"
+            "Jwt__SecretKey=$JWT_SECRET"
+            "Jwt__Secret=$JWT_SECRET"
+          )
+
+          GATEWAY_ENV=(
+            "OCELOT_BASE_URL=https://placeholder"
+            "USER_SERVICE_HOST=$USER_SERVICE_HOST"
+            "DELIVERY_SERVICE_HOST=$DELIVERY_SERVICE_HOST"
+            "VEHICLE_SERVICE_HOST=$VEHICLE_SERVICE_HOST"
+            "DRIVER_SERVICE_HOST=$DRIVER_SERVICE_HOST"
+            "ASSIGNMENT_SERVICE_HOST=$ASSIGNMENT_SERVICE_HOST"
+            "ROUTE_SERVICE_HOST=$ROUTE_SERVICE_HOST"
+            "TRACKING_SERVICE_HOST=$TRACKING_SERVICE_HOST"
+          )
+
+          create_or_update_app ca-api-gateway \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-apigateway:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars "${GATEWAY_ENV[@]}" "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-api-gateway 8080 external ""
+
+          create_or_update_app ca-user-service \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-userservice:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-user-service 8080 internal ""
+
+          create_or_update_app ca-delivery-service \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-deliveryservice:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-delivery-service 8080 internal auto
+
+          create_or_update_app ca-vehicle-service \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-vehicleservice:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-vehicle-service 8080 internal auto
+
+          create_or_update_app ca-driver-service \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-driverservice:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-driver-service 8080 internal auto
+
+          create_or_update_app ca-assignment-service \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-assignmentservice:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars \
+              "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" \
+              "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
+              "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_HOST" \
+              "Services__DeliveryServiceUrl=https://$DELIVERY_SERVICE_HOST" \
+              "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-assignment-service 8080 internal auto
+
+          create_or_update_app ca-route-service \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-routeservice:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars \
+              "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
+              "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
+              "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
+              "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-route-service 8080 internal auto
+
+          create_or_update_app ca-tracking-service \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-trackingservice:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars \
+              "ConnectionStrings__TrackingDb=$CONN_BASE;Initial Catalog=meridian_tracking;" \
+              "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-tracking-service 8080 internal auto
+
+          GATEWAY_FQDN=$(az containerapp show --resource-group "$RESOURCE_GROUP" --name ca-api-gateway --query "properties.configuration.ingress.fqdn" -o tsv)
+          az containerapp update \
+            --name ca-api-gateway \
+            --resource-group "$RESOURCE_GROUP" \
+            --set-env-vars "OCELOT_BASE_URL=https://$GATEWAY_FQDN" \
+            --output none
+
+          echo "gateway_url=https://$GATEWAY_FQDN" >> "$GITHUB_OUTPUT"
+
+      - name: Show gateway URL
+        shell: bash
+        run: |
+          echo "QA gateway: ${{ steps.deploy.outputs.gateway_url }}"
