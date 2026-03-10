@@ -265,7 +265,7 @@ create_app_if_missing ca-delivery-service \
     --transport auto \
     --min-replicas 0 \
     --max-replicas 3 \
-    --env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" "${SHARED_ENV[@]}"
+    --env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" "Swagger__ServerBasePath=/delivery" "${SHARED_ENV[@]}"
 
 # --- Vehicle Service ---
 create_app_if_missing ca-vehicle-service \
@@ -277,7 +277,7 @@ create_app_if_missing ca-vehicle-service \
     --transport auto \
     --min-replicas 0 \
     --max-replicas 3 \
-    --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "${SHARED_ENV[@]}"
+    --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Swagger__ServerBasePath=/vehicle" "${SHARED_ENV[@]}"
 
 # --- Driver Service ---
 create_app_if_missing ca-driver-service \
@@ -289,7 +289,7 @@ create_app_if_missing ca-driver-service \
     --transport auto \
     --min-replicas 0 \
     --max-replicas 3 \
-    --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "${SHARED_ENV[@]}"
+    --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Swagger__ServerBasePath=/driver" "${SHARED_ENV[@]}"
 
 # --- Assignment Service ---
 create_app_if_missing ca-assignment-service \
@@ -306,6 +306,7 @@ create_app_if_missing ca-assignment-service \
         "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
         "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_HOST" \
         "Services__DeliveryServiceUrl=https://$DELIVERY_SERVICE_HOST" \
+        "Swagger__ServerBasePath=/assignment" \
         "${SHARED_ENV[@]}"
 
 # --- Route Service ---
@@ -322,6 +323,7 @@ create_app_if_missing ca-route-service \
         "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
         "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
         "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
+        "Swagger__ServerBasePath=/route" \
         "${SHARED_ENV[@]}"
 
 # --- Tracking Service ---
@@ -336,6 +338,7 @@ create_app_if_missing ca-tracking-service \
     --max-replicas 3 \
     --env-vars \
         "ConnectionStrings__TrackingDb=$CONN_BASE;Initial Catalog=meridian_tracking;" \
+        "Swagger__ServerBasePath=/tracking" \
         "${SHARED_ENV[@]}"
 
 echo ""

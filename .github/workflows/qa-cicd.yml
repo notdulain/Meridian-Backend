@@ -364,7 +364,7 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" "Swagger__ServerBasePath=/delivery" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-delivery-service 8080 internal auto
 
           create_or_update_app ca-vehicle-service \
@@ -373,7 +373,7 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Swagger__ServerBasePath=/vehicle" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-vehicle-service 8080 internal auto
 
           create_or_update_app ca-driver-service \
@@ -382,7 +382,7 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Swagger__ServerBasePath=/driver" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-driver-service 8080 internal auto
 
           create_or_update_app ca-assignment-service \
@@ -396,6 +396,7 @@ jobs:
               "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
               "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_HOST" \
               "Services__DeliveryServiceUrl=https://$DELIVERY_SERVICE_HOST" \
+              "Swagger__ServerBasePath=/assignment" \
               "${SHARED_ENV[@]}"
           create_or_update_ingress ca-assignment-service 8080 internal auto
 
@@ -409,6 +410,7 @@ jobs:
               "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
               "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
               "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
+              "Swagger__ServerBasePath=/route" \
               "${SHARED_ENV[@]}"
           create_or_update_ingress ca-route-service 8080 internal auto
 
@@ -420,6 +422,7 @@ jobs:
             --max-replicas 3 \
             --set-env-vars \
               "ConnectionStrings__TrackingDb=$CONN_BASE;Initial Catalog=meridian_tracking;" \
+              "Swagger__ServerBasePath=/tracking" \
               "${SHARED_ENV[@]}"
           create_or_update_ingress ca-tracking-service 8080 internal auto
 

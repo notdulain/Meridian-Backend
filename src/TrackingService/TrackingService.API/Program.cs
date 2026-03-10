@@ -83,7 +83,17 @@ app.UseSerilogRequestLogging();
 
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
-    app.UseSwagger();
+    app.UseSwagger(c =>
+    {
+        c.PreSerializeFilters.Add((swagger, _) =>
+        {
+            var serverBasePath = app.Configuration["Swagger:ServerBasePath"];
+            if (!string.IsNullOrWhiteSpace(serverBasePath))
+            {
+                swagger.Servers = new List<OpenApiServer> { new() { Url = serverBasePath } };
+            }
+        });
+    });
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("v1/swagger.json", "TrackingService v1");
