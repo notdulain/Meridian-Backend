@@ -69,12 +69,27 @@ builder.Services.AddHttpContextAccessor();
 // ─────────────────────────────────────────────
 // JWT Authentication — symmetric signing key
 // ─────────────────────────────────────────────
-var jwtSecret = builder.Configuration["Jwt:Secret"]
-    ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"]
-    ?? throw new InvalidOperationException("Jwt:Issuer is not configured.");
-var jwtAudience = builder.Configuration["Jwt:Audience"]
-    ?? throw new InvalidOperationException("Jwt:Audience is not configured.");
+var isTesting = builder.Environment.IsEnvironment("Testing");
+
+string jwtSecret;
+string jwtIssuer;
+string jwtAudience;
+
+if (isTesting)
+{
+    jwtSecret = "super-secret-test-key-1234567890123456";
+    jwtIssuer = "TestIssuer";
+    jwtAudience = "TestAudience";
+}
+else
+{
+    jwtSecret = builder.Configuration["Jwt:Secret"]
+        ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+    jwtIssuer = builder.Configuration["Jwt:Issuer"]
+        ?? throw new InvalidOperationException("Jwt:Issuer is not configured.");
+    jwtAudience = builder.Configuration["Jwt:Audience"]
+        ?? throw new InvalidOperationException("Jwt:Audience is not configured.");
+}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

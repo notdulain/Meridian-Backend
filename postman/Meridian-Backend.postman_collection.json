@@ -1,0 +1,532 @@
+{
+  "info": {
+    "_postman_id": "9e1d8d5b-7c7b-4d9e-9c8b-1b0b6a2c0001",
+    "name": "Meridian Backend (All Services)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection for Meridian API Gateway + all microservices: UserService, DeliveryService, VehicleService, DriverService, AssignmentService, RouteService, TrackingService. Routes are primarily exercised via the API Gateway (default http://localhost:5050)."
+  },
+  "item": [
+    {
+      "name": "UserService (via Gateway)",
+      "item": [
+        {
+          "name": "Register (POST /api/auth/register)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Postman Admin\",\n  \"email\": \"postman.admin@example.com\",\n  \"password\": \"P@ssw0rd!\",\n  \"role\": \"Admin\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/auth/register",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "api", "auth", "register" ]
+            }
+          }
+        },
+        {
+          "name": "Login (POST /api/auth/login) — sets tokens",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.accessToken) pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "  if (json && json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"postman.admin@example.com\",\n  \"password\": \"P@ssw0rd!\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/auth/login",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "api", "auth", "login" ]
+            }
+          }
+        },
+        {
+          "name": "Refresh (POST /api/auth/refresh) — sets tokens",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.accessToken) pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "  if (json && json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/auth/refresh",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "api", "auth", "refresh" ]
+            }
+          }
+        },
+        {
+          "name": "Revoke (POST /api/auth/revoke) [Authorize]",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/auth/revoke",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "api", "auth", "revoke" ]
+            }
+          }
+        },
+        {
+          "name": "Users: Get Me (GET /api/users/me) [Authorize]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/users/me",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "api", "users", "me" ]
+            }
+          }
+        },
+        {
+          "name": "Users: Get All (GET /api/users) [Admin]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/users",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "api", "users" ]
+            }
+          }
+        },
+        {
+          "name": "Users: Get By Id (GET /api/users/{{userId}}) [Authorize]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/users/{{userId}}",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "api", "users", "{{userId}}" ]
+            }
+          }
+        },
+        {
+          "name": "Roles: List (GET /api/roles) [Authorize]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/roles",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "api", "roles" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "DeliveryService (via Gateway: /delivery)",
+      "item": [
+        {
+          "name": "Deliveries: List (GET /delivery/api/deliveries) [Admin/Dispatcher]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/delivery/api/deliveries?page=1&pageSize=50",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "delivery", "api", "deliveries" ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Deliveries: List w/ Filters (status/destination/date/orderNumber)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/delivery/api/deliveries?status=Pending&destination=Colombo&page=1&pageSize=10",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "delivery", "api", "deliveries" ],
+              "query": [
+                { "key": "status", "value": "Pending" },
+                { "key": "destination", "value": "Colombo" },
+                { "key": "date", "value": "{{deliveryDate}}" },
+                { "key": "orderNumber", "value": "{{orderNumber}}" },
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Deliveries: Get By Id (GET /delivery/api/deliveries/{{deliveryId}}) [Admin/Dispatcher]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/delivery/api/deliveries/{{deliveryId}}",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "delivery", "api", "deliveries", "{{deliveryId}}" ]
+            }
+          }
+        },
+        {
+          "name": "Deliveries: Create (POST /delivery/api/deliveries) [Admin/Dispatcher]",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupAddress\": \"123 Main St\",\n  \"deliveryAddress\": \"456 Elm St\",\n  \"packageWeightKg\": 2.5,\n  \"packageVolumeM3\": 0.1,\n  \"deadline\": \"{{deadlineUtc}}\",\n  \"createdBy\": \"{{createdBy}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/delivery/api/deliveries",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "delivery", "api", "deliveries" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "VehicleService (via Gateway: /vehicle)",
+      "item": [
+        {
+          "name": "Vehicles: List (GET /vehicle/api/vehicles) [Auth via Gateway]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/vehicle/api/vehicles?page=1&pageSize=10",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "vehicle", "api", "vehicles" ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10" },
+                { "key": "status", "value": "{{vehicleStatus}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Vehicles: Get By Id (GET /vehicle/api/vehicles/{{vehicleId}})",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/vehicle/api/vehicles/{{vehicleId}}",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "vehicle", "api", "vehicles", "{{vehicleId}}" ]
+            }
+          }
+        },
+        {
+          "name": "Vehicles: Available (GET /vehicle/api/vehicles/available)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/vehicle/api/vehicles/available",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "vehicle", "api", "vehicles", "available" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "DriverService (via Gateway: /driver)",
+      "item": [
+        {
+          "name": "Drivers: List (GET /driver/api/drivers) [Auth via Gateway]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/driver/api/drivers?page=1&pageSize=10",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "driver", "api", "drivers" ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Drivers: Get By Id (GET /driver/api/drivers/{{driverId}})",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/driver/api/drivers/{{driverId}}",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "driver", "api", "drivers", "{{driverId}}" ]
+            }
+          }
+        },
+        {
+          "name": "Drivers: Me (GET /driver/api/drivers/me) [Driver role]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/driver/api/drivers/me",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "driver", "api", "drivers", "me" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AssignmentService (via Gateway: /assignment)",
+      "item": [
+        {
+          "name": "Assignments: List (GET /assignment/api/assignments) [Auth via Gateway]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/assignment/api/assignments?page=1&pageSize=10",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "assignment", "api", "assignments" ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Assignments: Get By Id (GET /assignment/api/assignments/{{assignmentId}})",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/assignment/api/assignments/{{assignmentId}}",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "assignment", "api", "assignments", "{{assignmentId}}" ]
+            }
+          }
+        },
+        {
+          "name": "Assignments: Create (POST /assignment/api/assignments)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deliveryId\": {{deliveryId}},\n  \"vehicleId\": {{vehicleId}},\n  \"driverId\": {{driverId}},\n  \"notes\": \"Assigned via Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/assignment/api/assignments",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "assignment", "api", "assignments" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "RouteService (via Gateway: /route)",
+      "item": [
+        {
+          "name": "Routes: Optimize (POST /route/api/routes/optimize) [Auth via Gateway]",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origin\": \"Colombo\",\n  \"destination\": \"Galle\",\n  \"vehicleId\": {{vehicleId}}\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/route/api/routes/optimize",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "route", "api", "routes", "optimize" ]
+            }
+          }
+        },
+        {
+          "name": "Routes: Get By Id (GET /route/api/routes/{{routeId}}) [Auth via Gateway]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/route/api/routes/{{routeId}}",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "route", "api", "routes", "{{routeId}}" ]
+            }
+          }
+        },
+        {
+          "name": "Routes: Fuel Cost (POST /route/api/routes/fuel-cost) [Auth via Gateway]",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/route/api/routes/fuel-cost",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "route", "api", "routes", "fuel-cost" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TrackingService (via Gateway: /tracking)",
+      "item": [
+        {
+          "name": "Tracking: Post Location (POST /tracking/api/tracking/location) [Auth via Gateway]",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assignmentId\": {{assignmentId}},\n  \"driverId\": {{driverId}},\n  \"latitude\": 6.9271,\n  \"longitude\": 79.8612\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/tracking/api/tracking/location",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "tracking", "api", "tracking", "location" ]
+            }
+          }
+        },
+        {
+          "name": "Tracking: Assignment History (GET /tracking/api/tracking/assignment/{{assignmentId}}/history) [Auth via Gateway]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/tracking/api/tracking/assignment/{{assignmentId}}/history",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "tracking", "api", "tracking", "assignment", "{{assignmentId}}", "history" ]
+            }
+          }
+        },
+        {
+          "name": "Tracking: Driver Last Known (GET /tracking/api/tracking/driver/{{driverId}}/last-known) [Auth via Gateway]",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/tracking/api/tracking/driver/{{driverId}}/last-known",
+              "host": [ "{{gatewayBaseUrl}}" ],
+              "path": [ "tracking", "api", "tracking", "driver", "{{driverId}}", "last-known" ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "gatewayBaseUrl", "value": "http://localhost:5050", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "userId", "value": "1", "type": "string" },
+    { "key": "deliveryId", "value": "1", "type": "string" },
+    { "key": "vehicleId", "value": "1", "type": "string" },
+    { "key": "driverId", "value": "1", "type": "string" },
+    { "key": "assignmentId", "value": "1", "type": "string" },
+    { "key": "routeId", "value": "R1", "type": "string" },
+    { "key": "vehicleStatus", "value": "", "type": "string" },
+    { "key": "deliveryDate", "value": "2026-02-27", "type": "string" },
+    { "key": "orderNumber", "value": "", "type": "string" },
+    { "key": "deadlineUtc", "value": "2026-12-31T23:59:59Z", "type": "string" },
+    { "key": "createdBy", "value": "postman", "type": "string" }
+  ]
+}
+

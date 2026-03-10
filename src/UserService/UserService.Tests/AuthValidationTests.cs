@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,7 @@ public class UserServiceApplicationFactory : WebApplicationFactory<Program>
     public static readonly string TestJwtIssuer = JwtIssuer;
     public static readonly string TestJwtAudience = JwtAudience;
 
-    protected override IHost CreateHost(IHostBuilder builder)
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
 
@@ -45,8 +46,6 @@ public class UserServiceApplicationFactory : WebApplicationFactory<Program>
             // Replace IUserService with a test double that does not hit a real database
             services.AddScoped<IUserService, FakeUserService>();
         });
-
-        return base.CreateHost(builder);
     }
 }
 
