@@ -72,7 +72,7 @@ public sealed class RoutesApiError
 public sealed class RoutesApiRoute
 {
     [JsonPropertyName("distanceMeters")]
-    public int DistanceMeters { get; set; }
+    public double? DistanceMeters { get; set; }
 
     /// <summary>Duration in protobuf format, e.g. "8100s" for 8100 seconds.</summary>
     [JsonPropertyName("duration")]
