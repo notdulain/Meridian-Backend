@@ -5,6 +5,7 @@
 # ==============================================================================
 # Prerequisites:
 #   - az login
+#   - optional: export ACR_NAME="<existing-registry-name>"
 #   - export JWT_SECRET="<your-jwt-secret>"
 #   - export DB_PASSWORD="<your-db-password>"
 #   - export GOOGLE_MAPS_API_KEY="<your-google-maps-api-key>"
@@ -23,19 +24,13 @@ ENV="qa"
 LOCATION="eastasia"
 
 RESOURCE_GROUP="rg-meridian-$ENV"
-LOG_ANALYTICS="law-meridian-$ENV"
-APP_INSIGHTS="appi-meridian-$ENV"
 
 SUFFIX="${ENV:0:3}001"
-REDIS_NAME="redis-meridian-$SUFFIX"
-KEYVAULT_NAME="kv-meridian-$SUFFIX"
 SQL_SERVER="sql-meridian-$SUFFIX"
 CAE_NAME="cae-meridian-$ENV"
 
 DB_ADMIN="meridianadmin"
-ACR_NAME="acrmeridian$ENV"
-
-SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+ACR_NAME="${ACR_NAME:-acrmeridian$ENV}"
 
 echo "🚀 Deploying Meridian Platform ($ENV Environment)..."
 
@@ -47,40 +42,7 @@ else
     az group create --name "$RESOURCE_GROUP" --location "$LOCATION"
 fi
 
-# ---------- 2. Log Analytics ----------
-if az monitor log-analytics workspace show --resource-group "$RESOURCE_GROUP" --workspace-name "$LOG_ANALYTICS" &>/dev/null; then
-    echo "⏭️  Log Analytics '$LOG_ANALYTICS' already exists, fetching keys..."
-else
-    echo "📊 Creating Log Analytics Workspace: $LOG_ANALYTICS"
-    az monitor log-analytics workspace create \
-        --resource-group "$RESOURCE_GROUP" \
-        --workspace-name "$LOG_ANALYTICS"
-fi
-
-WORKSPACE_ID=$(az monitor log-analytics workspace show \
-    --resource-group "$RESOURCE_GROUP" \
-    --workspace-name "$LOG_ANALYTICS" \
-    --query customerId -o tsv)
-
-WORKSPACE_SECRET=$(az monitor log-analytics workspace get-shared-keys \
-    --resource-group "$RESOURCE_GROUP" \
-    --workspace-name "$LOG_ANALYTICS" \
-    --query primarySharedKey -o tsv)
-
-# ---------- 2b. App Insights ----------
-if az monitor app-insights component show --app "$APP_INSIGHTS" -g "$RESOURCE_GROUP" &>/dev/null; then
-    echo "⏭️  App Insights '$APP_INSIGHTS' already exists, skipping."
-else
-    echo "📊 Creating App Insights: $APP_INSIGHTS"
-    az monitor app-insights component create \
-        --app "$APP_INSIGHTS" \
-        --location "$LOCATION" \
-        --kind web \
-        -g "$RESOURCE_GROUP" \
-        --application-type web
-fi
-
-# ---------- 3. SQL Server ----------
+# ---------- 2. SQL Server ----------
 if az sql server show --name "$SQL_SERVER" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
     echo "⏭️  SQL Server '$SQL_SERVER' already exists, skipping."
 else
@@ -104,62 +66,7 @@ az sql server firewall-rule create \
 SQL_HOST="$SQL_SERVER.database.windows.net"
 CONN_BASE="Server=$SQL_HOST;User ID=$DB_ADMIN;Password=$DB_PASSWORD;Trust Server Certificate=True"
 
-# ---------- 4. Redis Cache ----------
-if az redis show --name "$REDIS_NAME" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
-    echo "⏭️  Redis '$REDIS_NAME' already exists, fetching keys..."
-else
-    echo "⚡ Creating Redis Cache: $REDIS_NAME..."
-    az redis create \
-        --name "$REDIS_NAME" \
-        --resource-group "$RESOURCE_GROUP" \
-        --location "$LOCATION" \
-        --sku Basic \
-        --vm-size c0
-fi
-
-REDIS_HOST=$(az redis show --name "$REDIS_NAME" --resource-group "$RESOURCE_GROUP" --query hostName -o tsv)
-REDIS_KEY=$(az redis list-keys --name "$REDIS_NAME" --resource-group "$RESOURCE_GROUP" --query primaryKey -o tsv)
-REDIS_CONN="$REDIS_HOST:6380,password=$REDIS_KEY,ssl=True,abortConnect=False"
-
-# ---------- 5. Key Vault ----------
-if az keyvault show --name "$KEYVAULT_NAME" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
-    echo "⏭️  Key Vault '$KEYVAULT_NAME' already exists, skipping creation."
-else
-    echo "🔐 Creating Key Vault: $KEYVAULT_NAME..."
-    az keyvault create \
-        --name "$KEYVAULT_NAME" \
-        --resource-group "$RESOURCE_GROUP" \
-        --location "$LOCATION"
-fi
-
-# Ensure the current user has the Secrets Officer role (idempotent)
-CURRENT_USER_OID=$(az ad signed-in-user show --query id -o tsv)
-KV_RESOURCE_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME"
-
-ROLE_EXISTS=$(az role assignment list \
-    --assignee "$CURRENT_USER_OID" \
-    --role "Key Vault Secrets Officer" \
-    --scope "$KV_RESOURCE_ID" \
-    --query "length(@)" -o tsv)
-
-if [ "$ROLE_EXISTS" -gt 0 ]; then
-    echo "⏭️  Key Vault Secrets Officer role already assigned, skipping."
-else
-    echo "🔑 Granting Key Vault Secrets Officer to current user..."
-    az role assignment create \
-        --role "Key Vault Secrets Officer" \
-        --assignee "$CURRENT_USER_OID" \
-        --scope "$KV_RESOURCE_ID"
-    echo "⏳ Waiting 15s for role assignment to propagate..."
-    sleep 15
-fi
-
-# Write/update secrets (az keyvault secret set is always idempotent)
-az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "JwtSecretKey"    --value "$JWT_SECRET"
-az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "DbPassword"      --value "$DB_PASSWORD"
-az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "RedisConnString" --value "$REDIS_CONN"
-
-# ---------- 6. Azure Container Registry ----------
+# ---------- 3. Azure Container Registry ----------
 if az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
     echo "⏭️  ACR '$ACR_NAME' already exists, skipping."
 else
@@ -178,7 +85,7 @@ az acr update --name "$ACR_NAME" --admin-enabled true
 ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
 ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
 
-# ---------- 7. Container Apps Environment ----------
+# ---------- 4. Container Apps Environment ----------
 if az containerapp env show --name "$CAE_NAME" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
     echo "⏭️  Container Apps Environment '$CAE_NAME' already exists, skipping."
 else
@@ -187,11 +94,10 @@ else
         --name "$CAE_NAME" \
         --resource-group "$RESOURCE_GROUP" \
         --location "$LOCATION" \
-        --logs-workspace-id "$WORKSPACE_ID" \
-        --logs-workspace-key "$WORKSPACE_SECRET"
+        --logs-destination none
 fi
 
-# ---------- 8. Container Apps ----------
+# ---------- 5. Container Apps ----------
 echo "🛳️  Deploying Microservices to Container Apps..."
 
 REGISTRY_FLAGS="--registry-server $ACR_LOGIN_SERVER --registry-username $ACR_NAME --registry-password $ACR_PASSWORD"
@@ -323,7 +229,7 @@ create_app_if_missing ca-api-gateway \
     $REGISTRY_FLAGS \
     --target-port 8080 \
     --ingress external \
-    --min-replicas 1 \
+    --min-replicas 0 \
     --max-replicas 3 \
     --env-vars \
         "${GATEWAY_ENV[@]}" \
@@ -345,8 +251,8 @@ create_app_if_missing ca-user-service \
     $REGISTRY_FLAGS \
     --target-port 8080 \
     --ingress internal \
-    --min-replicas 1 \
-    --max-replicas 5 \
+    --min-replicas 0 \
+    --max-replicas 3 \
     --env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" "${SHARED_ENV[@]}"
 
 # --- Delivery Service ---
@@ -357,8 +263,8 @@ create_app_if_missing ca-delivery-service \
     --target-port 8080 \
     --ingress internal \
     --transport auto \
-    --min-replicas 1 \
-    --max-replicas 5 \
+    --min-replicas 0 \
+    --max-replicas 3 \
     --env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" "${SHARED_ENV[@]}"
 
 # --- Vehicle Service ---
@@ -369,8 +275,8 @@ create_app_if_missing ca-vehicle-service \
     --target-port 8080 \
     --ingress internal \
     --transport auto \
-    --min-replicas 1 \
-    --max-replicas 5 \
+    --min-replicas 0 \
+    --max-replicas 3 \
     --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "${SHARED_ENV[@]}"
 
 # --- Driver Service ---
@@ -381,8 +287,8 @@ create_app_if_missing ca-driver-service \
     --target-port 8080 \
     --ingress internal \
     --transport auto \
-    --min-replicas 1 \
-    --max-replicas 5 \
+    --min-replicas 0 \
+    --max-replicas 3 \
     --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "${SHARED_ENV[@]}"
 
 # --- Assignment Service ---
@@ -393,8 +299,8 @@ create_app_if_missing ca-assignment-service \
     --target-port 8080 \
     --ingress internal \
     --transport auto \
-    --min-replicas 1 \
-    --max-replicas 5 \
+    --min-replicas 0 \
+    --max-replicas 3 \
     --env-vars \
         "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" \
         "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
@@ -410,11 +316,10 @@ create_app_if_missing ca-route-service \
     --target-port 8080 \
     --ingress internal \
     --transport auto \
-    --min-replicas 1 \
-    --max-replicas 5 \
+    --min-replicas 0 \
+    --max-replicas 3 \
     --env-vars \
         "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
-        "ConnectionStrings__RedisCache=$REDIS_CONN" \
         "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
         "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
         "${SHARED_ENV[@]}"
@@ -427,11 +332,10 @@ create_app_if_missing ca-tracking-service \
     --target-port 8080 \
     --ingress internal \
     --transport auto \
-    --min-replicas 1 \
-    --max-replicas 5 \
+    --min-replicas 0 \
+    --max-replicas 3 \
     --env-vars \
         "ConnectionStrings__TrackingDb=$CONN_BASE;Initial Catalog=meridian_tracking;" \
-        "ConnectionStrings__Redis=$REDIS_CONN" \
         "${SHARED_ENV[@]}"
 
 echo ""

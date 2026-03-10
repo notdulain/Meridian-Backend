@@ -14,7 +14,7 @@ set -e
 ACR_NAME="${ACR_NAME:?ACR_NAME env var is required (e.g. acrmeridianqa)}"
 RESOURCE_GROUP="${RESOURCE_GROUP:-rg-meridian-qa}"
 LOCATION="${LOCATION:-eastasia}"
-TAG="${TAG:-v2}"
+TAG="${TAG:-v1}"
 
 # ---------- Provision Resource Group (idempotent) ----------
 echo "📦 Ensuring Resource Group exists: $RESOURCE_GROUP"
