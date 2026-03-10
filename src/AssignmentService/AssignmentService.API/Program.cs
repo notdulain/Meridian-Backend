@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Meridian.VehicleGrpc;
 using Meridian.DriverGrpc;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,16 +50,28 @@ builder.Services.AddGrpcClient<DriverGrpc.DriverGrpcClient>(o =>
 // Configure HttpClient for DeliveryService
 builder.Services.AddHttpClient("DeliveryService", client =>
 {
-    client.BaseAddress = new Uri("http://localhost:6001");
+    client.BaseAddress = new Uri(builder.Configuration["Services:DeliveryServiceUrl"]!);
 });
 
-// Keycloak Authentication
+// JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = builder.Configuration["Keycloak:Authority"];
-        options.Audience = builder.Configuration["Keycloak:Audience"];
-        options.RequireHttpsMetadata = false; // dev only
+        options.RequireHttpsMetadata = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+            ClockSkew = TimeSpan.Zero
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -66,12 +80,12 @@ var app = builder.Build();
 
 app.UseSerilogRequestLogging();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "AssignmentService v1");
+        c.SwaggerEndpoint("v1/swagger.json", "AssignmentService v1");
         c.RoutePrefix = "swagger";
     });
 }

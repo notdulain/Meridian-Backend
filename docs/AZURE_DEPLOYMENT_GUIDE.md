@@ -2,6 +2,12 @@
 
 This guide outlines the steps required to deploy the Meridian microservices to Microsoft Azure. We will be using **Azure Container Apps** to host our Dockerized microservices, **Azure Container Registry (ACR)** to store Docker images, **Azure SQL Database** as our managed relational database, and **Azure Cache for Redis** for distributed caching.
 
+Important deployment notes:
+
+- All backend containers listen internally on port `8080` in Azure Container Apps.
+- Local `appsettings.Development.json` files are for local development only and should not be baked into container images.
+- Secrets such as JWT keys, database connection strings, Redis connection strings, and Google Maps API keys should be supplied through Container App environment variables or a secret store.
+
 ## Prerequisites
 
 1.  **Azure Account:** An active Microsoft Azure account.
@@ -163,7 +169,7 @@ az containerapp env create --name $CAE_NAME --resource-group $RESOURCE_GROUP --l
 # 8. Create Container Apps (Microservices)
 echo "🛳️ Deploying Microservices to Container Apps..."
 
-# API Gateway (Publicly accessible, HTTP ingress)
+# API Gateway (Publicly accessible ingress, container listens on 8080)
 az containerapp create \
     --name ca-api-gateway \
     --resource-group $RESOURCE_GROUP \
@@ -177,7 +183,7 @@ az containerapp create \
     --min-replicas 1 \
     --max-replicas 3
 
-# User Service (Internal, REST endpoints)
+# User Service (Internal ingress, container listens on 8080)
 az containerapp create \
     --name ca-user-service \
     --resource-group $RESOURCE_GROUP \
@@ -191,7 +197,7 @@ az containerapp create \
     --min-replicas 0 \
     --max-replicas 5
 
-# Delivery Service (Internal, gRPC support via http2)
+# Delivery Service (Internal ingress, container listens on 8080)
 az containerapp create \
     --name ca-delivery-service \
     --resource-group $RESOURCE_GROUP \
@@ -206,7 +212,7 @@ az containerapp create \
     --min-replicas 0 \
     --max-replicas 5
 
-# Vehicle Service (Internal, gRPC support via http2)
+# Vehicle Service (Internal ingress, container listens on 8080)
 az containerapp create \
     --name ca-vehicle-service \
     --resource-group $RESOURCE_GROUP \
@@ -221,7 +227,7 @@ az containerapp create \
     --min-replicas 0 \
     --max-replicas 5
 
-# Driver Service (Internal, gRPC support via http2)
+# Driver Service (Internal ingress, container listens on 8080)
 az containerapp create \
     --name ca-driver-service \
     --resource-group $RESOURCE_GROUP \
@@ -236,7 +242,7 @@ az containerapp create \
     --min-replicas 0 \
     --max-replicas 5
 
-# Assignment Service (Internal, gRPC/REST)
+# Assignment Service (Internal ingress, container listens on 8080)
 az containerapp create \
     --name ca-assignment-service \
     --resource-group $RESOURCE_GROUP \
@@ -251,7 +257,7 @@ az containerapp create \
     --min-replicas 0 \
     --max-replicas 5
 
-# Route Service (Internal, gRPC/REST)
+# Route Service (Internal ingress, container listens on 8080)
 az containerapp create \
     --name ca-route-service \
     --resource-group $RESOURCE_GROUP \
@@ -266,7 +272,7 @@ az containerapp create \
     --min-replicas 0 \
     --max-replicas 5
 
-# Tracking Service (Internal, SignalR WebSockets require http/1.1 or auto transport, not strictly gRPC http2)
+# Tracking Service (Internal ingress, container listens on 8080; SignalR uses auto transport)
 az containerapp create \
     --name ca-tracking-service \
     --resource-group $RESOURCE_GROUP \
@@ -291,3 +297,15 @@ Once manual deployment is confirmed via this script, configure GitHub Actions to
 1. Authenticating to ACR from GitHub Actions using `azure/docker-login` with ACR credentials stored as GitHub Secrets.
 2. Building and pushing images to ACR (`$ACR_LOGIN_SERVER`) on every commit.
 3. Integrating the `az containerapp update --image $ACR_LOGIN_SERVER/<service>:<tag>` command directly in the CI/CD pipeline to seamlessly deploy the latest image.
+
+## Swagger in Azure
+
+The API Gateway does not host a standalone aggregated Swagger UI. Instead, it proxies each service's Swagger endpoints. After deployment, Swagger should be reachable through the gateway FQDN on paths such as:
+
+- `/delivery/swagger`
+- `/vehicle/swagger`
+- `/driver/swagger`
+- `/assignment/swagger`
+- `/route/swagger`
+- `/tracking/swagger`
+- `/user/swagger`

@@ -47,8 +47,8 @@ The backend is organized into an API gateway and several microservices, followin
 * **API Gateway & Auth:** Ocelot-based gateway with symmetric JWT auth (`MeridianBearer`) and CORS configured for the frontend (`http://localhost:3000`).
 * **gRPC for internal calls:** `.proto` contracts and gRPC clients/servers set up for inter-service communication (e.g., Assignment → Delivery/Vehicle/Driver, Route → Vehicle).
 * **Database migrations:** Each service uses **DbUp** with SQL scripts under its `Migrations` folder, executed automatically on startup.
-* **SQL Server & Redis:** Local development uses Dockerized **SQL Server** and **Redis**. Connection strings and secrets live in git-ignored `appsettings.Development.json`.
-* **API documentation:** Swagger/OpenAPI is enabled in development for all HTTP services (e.g., `http://localhost:6001/swagger`, `http://localhost:6002/swagger`, `http://localhost:6003/swagger`, etc.).
+* **SQL Server & Redis:** Local development uses Dockerized **SQL Server** and **Redis**. Local secrets can live in git-ignored `appsettings.Development.json`, while Azure uses Container App environment variables.
+* **API documentation:** Swagger/OpenAPI is enabled in development and can be enabled in QA with `Swagger__Enabled=true`. Services expose Swagger directly on their local ports and through the gateway on routes such as `http://localhost:5050/delivery/swagger`.
 * **Real-time tracking:** A SignalR hub in `TrackingService` exposes `/hubs/tracking` via the gateway for live location updates.
 
 ## 🚀 How to Run Locally
@@ -106,6 +106,26 @@ The backend is organized into an API gateway and several microservices, followin
    ```
 
    The frontend talks to the API Gateway at `http://localhost:5050` and uses `ws://localhost:5050/hubs/tracking` for real-time updates.
+
+## Swagger Access
+
+- Local direct service Swagger:
+  - `http://localhost:6001/swagger`
+  - `http://localhost:6002/swagger`
+  - `http://localhost:6003/swagger`
+  - `http://localhost:6004/swagger`
+  - `http://localhost:6005/swagger`
+  - `http://localhost:6006/swagger`
+  - `http://localhost:6007/swagger`
+- Local gateway Swagger proxies:
+  - `http://localhost:5050/delivery/swagger`
+  - `http://localhost:5050/vehicle/swagger`
+  - `http://localhost:5050/driver/swagger`
+  - `http://localhost:5050/assignment/swagger`
+  - `http://localhost:5050/route/swagger`
+  - `http://localhost:5050/tracking/swagger`
+  - `http://localhost:5050/user/swagger`
+- In Azure Container Apps, all containers listen internally on `8080`, but the public entry point remains the API Gateway FQDN.
 
 ## 🗺️ Future Plans & Developer Roadmap
 

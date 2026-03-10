@@ -170,12 +170,12 @@ if (!app.Environment.IsEnvironment("Testing"))
 
 app.UseCors("ReactFrontend");
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "UserService v1");
+        c.SwaggerEndpoint("v1/swagger.json", "UserService v1");
         c.RoutePrefix = "swagger";
     });
 }

@@ -92,12 +92,12 @@ Console.ResetColor();
 
 app.UseSerilogRequestLogging();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "VehicleService v1");
+        c.SwaggerEndpoint("v1/swagger.json", "VehicleService v1");
         c.RoutePrefix = "swagger";
     });
 }

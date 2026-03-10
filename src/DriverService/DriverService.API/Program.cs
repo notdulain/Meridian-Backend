@@ -92,12 +92,12 @@ Console.ResetColor();
 
 app.UseSerilogRequestLogging();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DriverService v1");
+        c.SwaggerEndpoint("v1/swagger.json", "DriverService v1");
         c.RoutePrefix = "swagger";
     });
 }
@@ -111,4 +111,3 @@ app.MapGrpcService<DriverGrpcService>();
 app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
 
 app.Run();
-
