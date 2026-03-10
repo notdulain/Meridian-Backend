@@ -18,31 +18,83 @@ The workflow triggers on:
 
 Add these repository secrets before running the workflow:
 
-- `AZURE_CREDENTIALS`
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
 - `JWT_SECRET`
 - `DB_PASSWORD`
 - `GOOGLE_MAPS_API_KEY`
 
-## AZURE_CREDENTIALS format
+## Azure OIDC setup
 
-Use the JSON output from an Azure service principal, for example:
+This workflow uses Azure OIDC, not a JSON credential blob.
 
-```json
-{
-  "clientId": "<app-client-id>",
-  "clientSecret": "<client-secret>",
-  "subscriptionId": "<subscription-id>",
-  "tenantId": "<tenant-id>"
-}
+Microsoft documents two supported OIDC options:
+
+- Microsoft Entra application
+- user-assigned managed identity
+
+For your case, the practical option is a user-assigned managed identity with a federated credential for this GitHub repository.
+
+Official docs:
+
+- [Authenticate to Azure from GitHub Actions by OpenID Connect](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect)
+- [Create trust between a user-assigned managed identity and GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust-user-assigned-managed-identity)
+
+### GitHub secrets to create
+
+Create these GitHub Actions secrets:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+### How to get the values
+
+#### Subscription ID
+
+```bash
+az account show --query id -o tsv
 ```
 
-The service principal should have enough access to:
+#### Tenant ID
+
+```bash
+az account show --query tenantId -o tsv
+```
+
+#### Client ID
+
+If you are using a user-assigned managed identity:
+
+```bash
+az identity show \
+  --resource-group <resource-group> \
+  --name <managed-identity-name> \
+  --query clientId -o tsv
+```
+
+If you need to inspect all identity fields:
+
+```bash
+az identity show \
+  --resource-group <resource-group> \
+  --name <managed-identity-name>
+```
+
+### One-time Azure setup required
+
+You must create a user-assigned managed identity, assign it the required Azure role(s), and add a federated credential that trusts this GitHub repository/environment.
+
+At a minimum, the identity needs enough rights to:
 
 - create or update the resource group
 - create or update Azure Container Registry
 - create or update Azure SQL Server
 - create or update Azure Container Apps resources
 - register Azure resource providers
+
+The workflow uses these values with `azure/login@v2` and requests GitHub `id-token: write` permission for OIDC token exchange.
 
 ## Default deployment values
 
