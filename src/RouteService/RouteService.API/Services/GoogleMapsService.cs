@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using RouteService.API.Helpers;
 using RouteService.API.Models;
 
 namespace RouteService.API.Services;
@@ -11,11 +12,11 @@ public sealed class GoogleMapsService : IGoogleMapsService
     private const string RoutesApiUrl = "https://routes.googleapis.com/directions/v2:computeRoutes";
     private const string FieldMask = "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.routeLabels";
 
-    /// <summary>Placeholder: km per liter when vehicle info is unavailable.</summary>
+    /// <summary>Default km per liter when vehicle info is unavailable.</summary>
     private const double DefaultVehicleFuelEfficiencyKmPerLiter = 12;
 
-    /// <summary>Placeholder: fuel price in LKR when vehicle info is unavailable.</summary>
-    private const double DefaultFuelPriceLkr = 450;
+    /// <summary>Default fuel price in LKR when dynamic pricing is unavailable.</summary>
+    private const double DefaultFuelPriceLkr = 303;
 
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
@@ -123,27 +124,61 @@ public sealed class GoogleMapsService : IGoogleMapsService
             throw new RouteNotFoundException("No routes found for the provided origin and destination.");
         }
 
-        var routes = options.Select(o =>
-        {
-            var distanceKm = o.DistanceValue / 1000.0;
-            var durationSeconds = o.DurationValue;
-            var durationHours = durationSeconds / 3600.0;
-            var fuelConsumptionLitres = distanceKm / DefaultVehicleFuelEfficiencyKmPerLiter;
-            var fuelCostLkr = Math.Round(fuelConsumptionLitres * DefaultFuelPriceLkr, 2);
+        var (fuelEfficiency, fuelPrice) = ResolveFuelDefaults();
+        var routes = new List<RouteRankedOption>();
 
-            return new RouteRankedOption
+        foreach (var o in options)
+        {
+            try
             {
-                RouteId = Guid.NewGuid().ToString("N"),
-                Rank = 0,
-                Summary = o.Summary,
-                DistanceKm = Math.Round(distanceKm, 2),
-                DurationHours = Math.Round(durationHours, 2),
-                FuelConsumptionLitres = Math.Round(fuelConsumptionLitres, 2),
-                FuelCostLKR = fuelCostLkr,
-                PolylinePoints = o.PolylinePoints,
-                IsRecommended = false
-            };
-        }).ToList();
+                if (o.DistanceValue <= 0)
+                {
+                    _logger.LogWarning(
+                        "Google API returned invalid distanceMeters for route. RouteId: {RouteId}, DistanceMeters: {DistanceMeters}",
+                        o.RouteId, o.DistanceValue);
+                }
+
+                var metrics = FuelCostCalculator.CalculateFuelMetrics(
+                    o.DistanceValue,
+                    fuelEfficiency,
+                    fuelPrice
+                );
+                routes.Add(new RouteRankedOption
+                {
+                    RouteId = Guid.NewGuid().ToString("N"),
+                    Rank = 0,
+                    Summary = o.Summary,
+                    DistanceKm = metrics.DistanceKm,
+                    DurationHours = Math.Round(o.DurationValue / 3600d, 2, MidpointRounding.AwayFromZero),
+                    FuelConsumptionLitres = metrics.FuelConsumptionLitres,
+                    FuelCostLKR = metrics.FuelCostLKR,
+                    PolylinePoints = o.PolylinePoints,
+                    IsRecommended = false
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Route metrics cannot be calculated due to invalid inputs. RouteId: {RouteId}, DistanceMeters: {Distance}, DurationSeconds: {Duration}",
+                    o.RouteId, o.DistanceValue, o.DurationValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Route metrics cannot be calculated due to unexpected error. RouteId: {RouteId}, DistanceMeters: {Distance}, DurationSeconds: {Duration}",
+                    o.RouteId, o.DistanceValue, o.DurationValue);
+            }
+        }
+
+        if (routes.Count == 0)
+        {
+            _logger.LogWarning(
+                "No valid routes after fuel metrics calculation. Origin: {Origin}, Destination: {Destination}",
+                origin, destination);
+            throw new GoogleMapsServiceException("Google Maps returned route data, but it could not be processed.");
+        }
 
         var rankedRoutes = routes
             .OrderBy(r => r.FuelCostLKR)
@@ -260,8 +295,18 @@ public sealed class GoogleMapsService : IGoogleMapsService
         {
             var r = apiResponse.Routes[i];
             var durationSeconds = ParseDurationSeconds(r.Duration);
-            var distanceKm = r.DistanceMeters / 1000.0;
-            var fuelCost = CalculateFuelCost(r.DistanceMeters);
+            var distanceMeters = r.DistanceMeters ?? 0;
+            if (distanceMeters <= 0)
+            {
+                _logger.LogWarning(
+                    "Google Routes API route contains empty or zero distance. Origin: {Origin}, Destination: {Destination}, RouteIndex: {RouteIndex}",
+                    origin, destination, i);
+            }
+            var distanceKm = distanceMeters / 1000.0;
+            var fuelCost = FuelCostCalculator.CalculateFuelMetrics(
+                distanceMeters,
+                DefaultVehicleFuelEfficiencyKmPerLiter,
+                DefaultFuelPriceLkr).FuelCostLKR;
 
             var summary = i == 0 ? "Primary Route" : "Alternative Route";
             if (r.RouteLabels is { Count: > 0 })
@@ -278,7 +323,7 @@ public sealed class GoogleMapsService : IGoogleMapsService
                 RouteId = Guid.NewGuid().ToString("N"),
                 Summary = summary,
                 Distance = FormatDistanceKm(distanceKm),
-                DistanceValue = r.DistanceMeters,
+                DistanceValue = distanceMeters,
                 Duration = FormatDurationMinutes(durationSeconds),
                 DurationValue = durationSeconds,
                 FuelCost = fuelCost,
@@ -325,12 +370,12 @@ public sealed class GoogleMapsService : IGoogleMapsService
                && double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out longitude);
     }
 
-    private static int ParseDurationSeconds(string? duration)
+    private static double ParseDurationSeconds(string? duration)
     {
         if (string.IsNullOrWhiteSpace(duration)) return 0;
         var m = DurationSecondsRegex.Match(duration.Trim());
         if (m.Success && double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var sec))
-            return (int)Math.Round(sec);
+            return sec;
         return 0;
     }
 
@@ -341,7 +386,7 @@ public sealed class GoogleMapsService : IGoogleMapsService
     }
 
     /// <summary>Converts duration (seconds from API "123s" string) to hours and minutes for RouteOption and API responses.</summary>
-    private static string FormatDurationMinutes(int totalSeconds)
+    private static string FormatDurationMinutes(double totalSeconds)
     {
         var totalMinutes = (int)Math.Round(totalSeconds / 60.0);
         var hours = totalMinutes / 60;
@@ -353,12 +398,6 @@ public sealed class GoogleMapsService : IGoogleMapsService
         return $"{hours} hr {minutes} min";
     }
 
-    private static double CalculateFuelCost(int distanceMeters)
-    {
-        var distanceKm = distanceMeters / 1000.0;
-        return Math.Round((distanceKm / DefaultVehicleFuelEfficiencyKmPerLiter) * DefaultFuelPriceLkr, 2);
-    }
-
     private static List<RouteOption> RankRoutes(List<RouteOption> routes)
     {
         return routes
@@ -366,6 +405,32 @@ public sealed class GoogleMapsService : IGoogleMapsService
             .ThenBy(x => x.DistanceValue)
             .ThenBy(x => x.FuelCost)
             .ToList();
+    }
+
+    private (double FuelEfficiency, double FuelPrice) ResolveFuelDefaults()
+    {
+        var fuelEfficiency = _configuration.GetValue<double?>("RouteOptimization:FuelEfficiencyKmPerLitre")
+            ?? DefaultVehicleFuelEfficiencyKmPerLiter;
+        var fuelPrice = _configuration.GetValue<double?>("RouteOptimization:FuelPriceLkr")
+            ?? DefaultFuelPriceLkr;
+
+        if (fuelEfficiency <= 0 || !double.IsFinite(fuelEfficiency))
+        {
+            _logger.LogError(
+                "Invalid fuelEfficiency configuration. RouteOptimization:FuelEfficiencyKmPerLitre={FuelEfficiency}",
+                fuelEfficiency);
+            throw new GoogleMapsServiceException("Fuel efficiency configuration is invalid.");
+        }
+
+        if (fuelPrice < 0 || !double.IsFinite(fuelPrice))
+        {
+            _logger.LogError(
+                "Invalid fuelPrice configuration. RouteOptimization:FuelPriceLkr={FuelPrice}",
+                fuelPrice);
+            throw new GoogleMapsServiceException("Fuel price configuration is invalid.");
+        }
+
+        return (fuelEfficiency, fuelPrice);
     }
 }
 

@@ -451,7 +451,7 @@ public class GoogleMapsServiceRankingTests
 
         Assert.True(response.Success);
         var route = Assert.Single(response.Routes);
-        Assert.Equal(4500, route.FuelCostLKR);
+        Assert.Equal(3030, route.FuelCostLKR);
     }
 
     [Fact]
@@ -467,9 +467,9 @@ public class GoogleMapsServiceRankingTests
         var routeA = response.Routes.First(r => r.DistanceKm == 60);
         var routeB = response.Routes.First(r => r.DistanceKm == 120);
         Assert.Equal(5, routeA.FuelConsumptionLitres);
-        Assert.Equal(2250, routeA.FuelCostLKR);
+        Assert.Equal(1515, routeA.FuelCostLKR);
         Assert.Equal(10, routeB.FuelConsumptionLitres);
-        Assert.Equal(4500, routeB.FuelCostLKR);
+        Assert.Equal(3030, routeB.FuelCostLKR);
     }
 
     [Fact]
