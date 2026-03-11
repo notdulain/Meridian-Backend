@@ -60,12 +60,35 @@ public class DriverRepository : IDriverRepository
         return (drivers, totalCount);
     }
 
+    public async Task<(IEnumerable<Driver> Drivers, int TotalCount)> GetDeletedAsync(int page, int pageSize)
+    {
+        using var connection = GetConnection();
+        await connection.OpenAsync();
+
+        var countQuery = "SELECT COUNT(*) FROM Drivers WHERE IsActive = 0";
+        using var countCommand = new SqlCommand(countQuery, connection);
+        var totalCount = (int)await countCommand.ExecuteScalarAsync()!;
+
+        var offset = (page - 1) * pageSize;
+        var query = "SELECT * FROM Drivers WHERE IsActive = 0 ORDER BY DriverId DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@Offset", offset);
+        command.Parameters.AddWithValue("@PageSize", pageSize);
+
+        var drivers = new List<Driver>();
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+            drivers.Add(MapToDriver(reader));
+
+        return (drivers, totalCount);
+    }
+
     public async Task<Driver?> GetByIdAsync(int id)
     {
         using var connection = GetConnection();
         await connection.OpenAsync();
 
-        var query = "SELECT * FROM Drivers WHERE DriverId = @DriverId";
+        var query = "SELECT * FROM Drivers WHERE DriverId = @DriverId AND IsActive = 1";
         using var command = new SqlCommand(query, connection);
         command.Parameters.AddWithValue("@DriverId", id);
 
@@ -98,7 +121,7 @@ public class DriverRepository : IDriverRepository
                 UserId = @UserId, FullName = @FullName, LicenseNumber = @LicenseNumber,
                 LicenseExpiry = @LicenseExpiry, PhoneNumber = @PhoneNumber,
                 MaxWorkingHoursPerDay = @MaxWorkingHoursPerDay, UpdatedAt = GETUTCDATE()
-            WHERE DriverId = @DriverId";
+            WHERE DriverId = @DriverId AND IsActive = 1";
 
         using var command = new SqlCommand(query, connection);
         command.Parameters.AddWithValue("@DriverId", driver.DriverId);

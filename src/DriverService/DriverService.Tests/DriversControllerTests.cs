@@ -104,6 +104,24 @@ public class DriversControllerTests
         Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
     }
 
+    [Fact]
+    public async Task GetDeletedDrivers_Returns200_WithPaginatedResults()
+    {
+        // Arrange
+        var drivers = new List<Driver> { CreateValidDriver() };
+        _serviceMock
+            .Setup(s => s.GetDeletedDriversAsync(1, 10))
+            .ReturnsAsync((drivers, 1));
+
+        // Act
+        var result = await _controller.GetDeletedDrivers(1, 10);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
+        Assert.NotNull(GetPropertyValue<object>(ok.Value, "meta"));
+    }
+
     // ---------- GET /api/Drivers/{id} ----------
 
     [Fact]
@@ -130,6 +148,19 @@ public class DriversControllerTests
 
         // Act
         var result = await _controller.GetDriver(999);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task GetDriver_Returns404_WhenDriverIsSoftDeleted()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(5)).ReturnsAsync((Driver?)null);
+
+        // Act
+        var result = await _controller.GetDriver(5);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
@@ -167,6 +198,20 @@ public class DriversControllerTests
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task UpdateDriver_Returns404_WhenDriverIsSoftDeleted()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(7)).ReturnsAsync((Driver?)null);
+
+        // Act
+        var result = await _controller.UpdateDriver(7, CreateValidDriver());
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+        _serviceMock.Verify(s => s.UpdateDriverAsync(It.IsAny<int>(), It.IsAny<Driver>()), Times.Never);
     }
 
     [Fact]
