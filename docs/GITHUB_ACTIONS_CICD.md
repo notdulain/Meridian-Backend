@@ -14,9 +14,23 @@ The workflow triggers on:
 - pushes to `develop`
 - manual `workflow_dispatch`
 
-## Required GitHub secrets
+## Repository secrets
 
-Add these repository secrets before running the workflow:
+The repository currently has these GitHub Actions secrets configured:
+
+- `ACR_LOGIN_SERVER`
+- `ACR_PASSWORD`
+- `ACR_USERNAME`
+- `AZURE_CLIENT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_TENANT_ID`
+- `DB_PASSWORD`
+- `GOOGLE_MAPS_API_KEY`
+- `JWT_SECRET`
+
+## Secrets used by the current workflow
+
+The current `.github/workflows/qa-cicd.yml` directly uses these secrets:
 
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
@@ -24,6 +38,20 @@ Add these repository secrets before running the workflow:
 - `JWT_SECRET`
 - `DB_PASSWORD`
 - `GOOGLE_MAPS_API_KEY`
+
+## Secrets currently not consumed by the workflow
+
+These secrets exist in the repo, but the current OIDC-based workflow does not read them:
+
+- `ACR_LOGIN_SERVER`
+- `ACR_USERNAME`
+- `ACR_PASSWORD`
+
+They are still useful as operational fallback values for:
+
+- manual Docker login and push to ACR
+- local recovery/bootstrap work
+- future workflow changes if you decide to log Docker in with registry credentials instead of `az acr login`
 
 ## Azure OIDC setup
 
@@ -41,13 +69,29 @@ Official docs:
 - [Authenticate to Azure from GitHub Actions by OpenID Connect](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect)
 - [Create trust between a user-assigned managed identity and GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust-user-assigned-managed-identity)
 
-### GitHub secrets to create
+### GitHub secrets required for OIDC login
 
 Create these GitHub Actions secrets:
 
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+
+### Application and deployment secrets
+
+Create these GitHub Actions secrets for the backend deployment itself:
+
+- `JWT_SECRET`
+- `DB_PASSWORD`
+- `GOOGLE_MAPS_API_KEY`
+
+### Optional ACR secrets
+
+These are not required by the current workflow, but may still be stored in the repo for manual use:
+
+- `ACR_LOGIN_SERVER`
+- `ACR_USERNAME`
+- `ACR_PASSWORD`
 
 ### How to get the values
 
@@ -119,3 +163,4 @@ The deploy job uses that same tag when updating Azure Container Apps, so the dep
 
 - The workflow is self-contained and does not call `build-push.sh` or `deploy-qa.sh`.
 - The local bash scripts remain useful for manual bootstrap or local operator workflows, but GitHub Actions does not depend on them.
+- The current workflow authenticates Docker to ACR via `az acr login`, so ACR username/password secrets are not required for the workflow to pass.
