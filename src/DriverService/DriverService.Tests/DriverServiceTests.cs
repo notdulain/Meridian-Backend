@@ -70,6 +70,17 @@ public class DriverServiceTests
     }
 
     [Fact]
+    public async Task CreateDriverAsync_ThrowsArgumentException_WhenUserIdIsBlank()
+    {
+        var driver = CreateValidDriver();
+        driver.UserId = "   ";
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateDriverAsync(driver));
+        Assert.Equal("User ID is required.", ex.Message);
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Driver>()), Times.Never);
+    }
+
+    [Fact]
     public async Task CreateDriverAsync_ThrowsArgumentException_WhenFullNameIsBlank()
     {
         var driver = CreateValidDriver();
@@ -81,6 +92,17 @@ public class DriverServiceTests
     }
 
     [Fact]
+    public async Task CreateDriverAsync_ThrowsArgumentException_WhenLicenseNumberIsBlank()
+    {
+        var driver = CreateValidDriver();
+        driver.LicenseNumber = " ";
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateDriverAsync(driver));
+        Assert.Equal("License number is required.", ex.Message);
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Driver>()), Times.Never);
+    }
+
+    [Fact]
     public async Task CreateDriverAsync_ThrowsArgumentException_WhenPhoneNumberIsBlank()
     {
         var driver = CreateValidDriver();
@@ -88,6 +110,17 @@ public class DriverServiceTests
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateDriverAsync(driver));
         Assert.Equal("Phone number is required.", ex.Message);
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Driver>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateDriverAsync_ThrowsArgumentException_WhenPhoneNumberFormatIsInvalid()
+    {
+        var driver = CreateValidDriver();
+        driver.PhoneNumber = "invalid-phone";
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateDriverAsync(driver));
+        Assert.Equal("Phone number must be 7 to 20 characters and contain only digits, spaces, '+', '-' or parentheses.", ex.Message);
         _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Driver>()), Times.Never);
     }
 
@@ -161,6 +194,61 @@ public class DriverServiceTests
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateDriverAsync(1, driver));
         Assert.Contains("already exists", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Driver>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateDriverAsync_ThrowsArgumentException_WhenUserIdIsBlank()
+    {
+        var driver = CreateValidDriver();
+        driver.UserId = "";
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateDriverAsync(1, driver));
+        Assert.Equal("User ID is required.", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Driver>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateDriverAsync_ThrowsArgumentException_WhenLicenseNumberIsBlank()
+    {
+        var driver = CreateValidDriver();
+        driver.LicenseNumber = " ";
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateDriverAsync(1, driver));
+        Assert.Equal("License number is required.", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Driver>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateDriverAsync_ThrowsArgumentException_WhenPhoneNumberFormatIsInvalid()
+    {
+        var driver = CreateValidDriver();
+        driver.PhoneNumber = "invalid-phone";
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateDriverAsync(1, driver));
+        Assert.Equal("Phone number must be 7 to 20 characters and contain only digits, spaces, '+', '-' or parentheses.", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Driver>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateDriverAsync_ThrowsArgumentException_WhenMaxWorkingHoursIsZeroOrNegative()
+    {
+        var driver = CreateValidDriver();
+        driver.MaxWorkingHoursPerDay = 0;
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateDriverAsync(1, driver));
+        Assert.Equal("Max working hours per day must be greater than zero.", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Driver>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateDriverAsync_ThrowsArgumentException_WhenPhoneNumberExceedsColumnLength()
+    {
+        var driver = CreateValidDriver();
+        driver.PhoneNumber = new string('1', 21);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateDriverAsync(1, driver));
+        Assert.Equal("Phone number cannot exceed 20 characters.", ex.Message);
         _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Driver>()), Times.Never);
     }
 
