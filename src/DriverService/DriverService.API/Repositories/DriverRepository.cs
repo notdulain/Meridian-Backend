@@ -65,7 +65,7 @@ public class DriverRepository : IDriverRepository
         using var connection = GetConnection();
         await connection.OpenAsync();
 
-        var query = "SELECT * FROM Drivers WHERE DriverId = @DriverId";
+        var query = "SELECT * FROM Drivers WHERE DriverId = @DriverId AND IsActive = 1";
         using var command = new SqlCommand(query, connection);
         command.Parameters.AddWithValue("@DriverId", id);
 
@@ -98,7 +98,7 @@ public class DriverRepository : IDriverRepository
                 UserId = @UserId, FullName = @FullName, LicenseNumber = @LicenseNumber,
                 LicenseExpiry = @LicenseExpiry, PhoneNumber = @PhoneNumber,
                 MaxWorkingHoursPerDay = @MaxWorkingHoursPerDay, UpdatedAt = GETUTCDATE()
-            WHERE DriverId = @DriverId";
+            WHERE DriverId = @DriverId AND IsActive = 1";
 
         using var command = new SqlCommand(query, connection);
         command.Parameters.AddWithValue("@DriverId", driver.DriverId);
