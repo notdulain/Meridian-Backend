@@ -28,6 +28,9 @@ public class DriverService : IDriverService
     public Task<(IEnumerable<Driver> Drivers, int TotalCount)> GetDriversAsync(int page, int pageSize)
         => _repository.GetAllAsync(page, pageSize);
 
+    public Task<(IEnumerable<Driver> Drivers, int TotalCount)> GetDeletedDriversAsync(int page, int pageSize)
+        => _repository.GetDeletedAsync(page, pageSize);
+
     public Task<Driver?> GetDriverByIdAsync(int id)
         => _repository.GetByIdAsync(id);
 

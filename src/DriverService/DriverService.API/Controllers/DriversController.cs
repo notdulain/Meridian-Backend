@@ -46,6 +46,21 @@ public class DriversController : ControllerBase
         }
     }
 
+    [HttpGet("deleted")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetDeletedDrivers([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        try
+        {
+            var (drivers, totalCount) = await _service.GetDeletedDriversAsync(page, pageSize);
+            return Ok(new { success = true, data = drivers, meta = new { page, pageSize, totalCount } });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to fetch deleted drivers", errors = new[] { ex.Message } });
+        }
+    }
+
     [HttpGet("{id}")]
     [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> GetDriver(int id)
