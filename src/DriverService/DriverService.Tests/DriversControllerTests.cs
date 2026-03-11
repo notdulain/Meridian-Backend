@@ -169,6 +169,31 @@ public class DriversControllerTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
+    [Fact]
+    public async Task UpdateDriver_Returns400_WhenServiceThrowsValidationError()
+    {
+        // Arrange
+        var driver = CreateValidDriver();
+        var existing = CreateValidDriver();
+        existing.DriverId = 7;
+
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(7)).ReturnsAsync(existing);
+        _serviceMock
+            .Setup(s => s.UpdateDriverAsync(7, It.IsAny<Driver>()))
+            .ThrowsAsync(new ArgumentException("License number is required."));
+
+        // Act
+        var result = await _controller.UpdateDriver(7, driver);
+
+        // Assert
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.False(GetPropertyValue<bool>(badRequest.Value, "success"));
+        Assert.Equal("Failed to update driver", GetPropertyValue<string>(badRequest.Value, "message"));
+        var errors = GetPropertyValue<string[]>(badRequest.Value, "errors");
+        Assert.NotNull(errors);
+        Assert.Contains("License number is required.", errors!);
+    }
+
     // ---------- PUT /api/Drivers/{id}/hours ----------
 
     [Fact]
