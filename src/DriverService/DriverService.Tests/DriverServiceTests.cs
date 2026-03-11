@@ -314,6 +314,20 @@ public class DriverServiceTests
         Assert.Equal(2, totalCount);
     }
 
+    [Fact]
+    public async Task GetDeletedDriversAsync_ReturnsPaginatedResults()
+    {
+        var drivers = new List<Driver> { CreateValidDriver() };
+        _repositoryMock
+            .Setup(r => r.GetDeletedAsync(1, 10))
+            .ReturnsAsync((drivers, 1));
+
+        var (result, totalCount) = await _service.GetDeletedDriversAsync(1, 10);
+
+        Assert.Single(result);
+        Assert.Equal(1, totalCount);
+    }
+
     // ---------- DeleteDriverAsync ----------
 
     [Fact]

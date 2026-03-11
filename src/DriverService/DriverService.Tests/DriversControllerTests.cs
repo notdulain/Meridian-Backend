@@ -104,6 +104,24 @@ public class DriversControllerTests
         Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
     }
 
+    [Fact]
+    public async Task GetDeletedDrivers_Returns200_WithPaginatedResults()
+    {
+        // Arrange
+        var drivers = new List<Driver> { CreateValidDriver() };
+        _serviceMock
+            .Setup(s => s.GetDeletedDriversAsync(1, 10))
+            .ReturnsAsync((drivers, 1));
+
+        // Act
+        var result = await _controller.GetDeletedDrivers(1, 10);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
+        Assert.NotNull(GetPropertyValue<object>(ok.Value, "meta"));
+    }
+
     // ---------- GET /api/Drivers/{id} ----------
 
     [Fact]
