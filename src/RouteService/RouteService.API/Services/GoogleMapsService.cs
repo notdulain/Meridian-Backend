@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Caching.Distributed;
 using RouteService.API.Helpers;
 using RouteService.API.Models;
 
@@ -11,6 +12,7 @@ public sealed class GoogleMapsService : IGoogleMapsService
     private const string RequestFailedMessage = "Unable to retrieve route information from Google Maps.";
     private const string RoutesApiUrl = "https://routes.googleapis.com/directions/v2:computeRoutes";
     private const string FieldMask = "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.routeLabels";
+    private static readonly TimeSpan RouteCacheTtl = TimeSpan.FromHours(12);
 
     /// <summary>Default km per liter when vehicle info is unavailable.</summary>
     private const double DefaultVehicleFuelEfficiencyKmPerLiter = 12;
@@ -26,13 +28,19 @@ public sealed class GoogleMapsService : IGoogleMapsService
 
     private static readonly Regex DurationSecondsRegex = new(@"^(\d+(?:\.\d+)?)s$", RegexOptions.Compiled);
 
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDistributedCache _cache;
     private readonly IConfiguration _configuration;
     private readonly ILogger<GoogleMapsService> _logger;
 
-    public GoogleMapsService(HttpClient httpClient, IConfiguration configuration, ILogger<GoogleMapsService> logger)
+    public GoogleMapsService(
+        IHttpClientFactory httpClientFactory,
+        IDistributedCache cache,
+        IConfiguration configuration,
+        ILogger<GoogleMapsService> logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
+        _cache = cache;
         _configuration = configuration;
         _logger = logger;
     }
@@ -209,6 +217,29 @@ public sealed class GoogleMapsService : IGoogleMapsService
         if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(destination))
             throw new GoogleMapsServiceException("Origin and destination must not be null or empty.");
 
+        var cacheKey = CreateCacheKey(origin, destination, includeAlternatives);
+        try
+        {
+            var cachedRoute = await _cache.GetStringAsync(cacheKey, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(cachedRoute))
+            {
+                var cachedOptions = JsonSerializer.Deserialize<List<RouteOption>>(cachedRoute, SerializerOptions);
+                if (cachedOptions is not null)
+                {
+                    _logger.LogInformation(
+                        "Route retrieved from Redis cache. CacheKey: {CacheKey}, RouteCount: {RouteCount}",
+                        cacheKey, cachedOptions.Count);
+                    return cachedOptions;
+                }
+            }
+
+            _logger.LogInformation("Redis cache miss for route request. CacheKey: {CacheKey}", cacheKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Redis cache read failed. CacheKey: {CacheKey}", cacheKey);
+        }
+
         var apiKey = _configuration["GoogleMaps:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -228,10 +259,11 @@ public sealed class GoogleMapsService : IGoogleMapsService
         request.Headers.Add("X-Goog-FieldMask", FieldMask);
         request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
+        var client = _httpClientFactory.CreateClient(nameof(GoogleMapsService));
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.SendAsync(request, cancellationToken);
+            response = await client.SendAsync(request, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
@@ -331,7 +363,35 @@ public sealed class GoogleMapsService : IGoogleMapsService
             });
         }
 
+        try
+        {
+            await _cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(options, SerializerOptions),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = RouteCacheTtl
+                },
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Route result written to Redis cache. CacheKey: {CacheKey}, TTLMinutes: {TtlMinutes}",
+                cacheKey, RouteCacheTtl.TotalMinutes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Redis cache write failed. CacheKey: {CacheKey}", cacheKey);
+        }
+
         return options;
+    }
+
+    private static string CreateCacheKey(string origin, string destination, bool includeAlternatives)
+    {
+        var normalizedOrigin = origin.Trim().ToLowerInvariant();
+        var normalizedDestination = destination.Trim().ToLowerInvariant();
+        var routeType = includeAlternatives ? "alternatives" : "primary";
+        return $"route:{normalizedOrigin}:{normalizedDestination}:{routeType}";
     }
 
     private static ComputeRoutesRequest BuildRequestBody(string origin, string destination, bool computeAlternativeRoutes)
