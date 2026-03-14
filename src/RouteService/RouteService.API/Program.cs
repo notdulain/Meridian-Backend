@@ -37,7 +37,12 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Configure Redis distributed cache
-var redisConfiguration = builder.Configuration.GetConnectionString("RedisCache") ?? "localhost:6379";
+var redisConfiguration = builder.Configuration.GetConnectionString("RedisCache");
+if (string.IsNullOrWhiteSpace(redisConfiguration))
+{
+    throw new InvalidOperationException("ConnectionStrings:RedisCache is not configured.");
+}
+
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = redisConfiguration;
