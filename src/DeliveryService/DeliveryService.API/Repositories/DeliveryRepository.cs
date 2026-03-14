@@ -48,7 +48,7 @@ public class DeliveryRepository
         return delivery;
     }
 
-    public async Task<Delivery?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public virtual async Task<Delivery?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         await using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
