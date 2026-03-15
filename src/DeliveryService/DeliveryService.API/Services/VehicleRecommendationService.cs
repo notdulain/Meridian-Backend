@@ -99,12 +99,12 @@ public class VehicleRecommendationService : IVehicleRecommendationService
         catch (RpcException ex)
         {
             _logger.LogError(ex, "Error getting available vehicles from VehicleService via gRPC. Status: {Status}", ex.Status);
-            return new List<VehicleResponse>();
+            throw new InvalidOperationException("VehicleService is unavailable for recommendations.", ex);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error getting available vehicles from VehicleService");
-            return new List<VehicleResponse>();
+            throw new InvalidOperationException("VehicleService is unavailable for recommendations.", ex);
         }
     }
 }

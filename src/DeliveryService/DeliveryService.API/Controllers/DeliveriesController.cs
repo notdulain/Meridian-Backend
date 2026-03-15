@@ -158,7 +158,14 @@ public class DeliveriesController : ControllerBase
         var delivery = await _deliveryManagerService.GetDeliveryByIdAsync(id, cancellationToken);
         if (delivery is null) return NotFound(new { message = "Delivery not found" });
 
-        var recommended = await _recommendationService.GetRecommendedVehiclesAsync(id, cancellationToken);
-        return Ok(recommended);
+        try
+        {
+            var recommended = await _recommendationService.GetRecommendedVehiclesAsync(id, cancellationToken);
+            return Ok(recommended);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
+        }
     }
 }

@@ -19,7 +19,9 @@ builder.Services.AddScoped<IDeliveryManagerService, DeliveryManagerService>();
 builder.Services.AddScoped<IVehicleRecommendationService, VehicleRecommendationService>();
 builder.Services.AddGrpcClient<Meridian.VehicleGrpc.VehicleGrpc.VehicleGrpcClient>(options =>
 {
-    var url = builder.Configuration["ServiceUrls:VehicleService"] ?? "http://localhost:6002";
+    var url = builder.Configuration["ServiceUrls:VehicleGrpcService"]
+        ?? builder.Configuration["ServiceUrls:VehicleService"]
+        ?? "http://localhost:7002";
     options.Address = new Uri(url);
 });
 
