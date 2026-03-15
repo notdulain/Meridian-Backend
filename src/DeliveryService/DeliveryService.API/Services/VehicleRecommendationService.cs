@@ -10,25 +10,24 @@ using Microsoft.Extensions.Logging;
 using DeliveryService.API.DTOs;
 using DeliveryService.API.Repositories;
 using DeliveryService.API.Models;
+using Meridian.VehicleGrpc;
+using Grpc.Core;
 
 namespace DeliveryService.API.Services;
 
 public class VehicleRecommendationService : IVehicleRecommendationService
 {
     private readonly DeliveryRepository _deliveryRepository;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IConfiguration _configuration;
+    private readonly VehicleGrpc.VehicleGrpcClient _vehicleClient;
     private readonly ILogger<VehicleRecommendationService> _logger;
 
     public VehicleRecommendationService(
         DeliveryRepository deliveryRepository,
-        IHttpClientFactory httpClientFactory,
-        IConfiguration configuration,
+        VehicleGrpc.VehicleGrpcClient vehicleClient,
         ILogger<VehicleRecommendationService> logger)
     {
         _deliveryRepository = deliveryRepository;
-        _httpClientFactory = httpClientFactory;
-        _configuration = configuration;
+        _vehicleClient = vehicleClient;
         _logger = logger;
     }
 
@@ -74,7 +73,7 @@ public class VehicleRecommendationService : IVehicleRecommendationService
             .ToList();
     }
 
-    private double CalculateMatchScore(VehicleDto vehicle, double requiredWeight, double requiredVolume)
+    private double CalculateMatchScore(VehicleResponse vehicle, double requiredWeight, double requiredVolume)
     {
         // Simple heuristic: higher fuel efficiency is better.
         // Also could penalize significantly oversized vehicles to save them for larger loads.
@@ -90,48 +89,22 @@ public class VehicleRecommendationService : IVehicleRecommendationService
         return (utilizationScore * 0.4) + (efficiencyScore * 0.6);
     }
 
-    private async Task<List<VehicleDto>> GetAvailableVehiclesFromServiceAsync(CancellationToken cancellationToken)
+    private async Task<List<VehicleResponse>> GetAvailableVehiclesFromServiceAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var client = _httpClientFactory.CreateClient("VehicleServiceClient");
-            var baseUrl = _configuration["ServiceUrls:VehicleService"] ?? 
-                          _configuration["ServiceUrls:FleetService"] ?? 
-                          "http://localhost:6002";
-                         
-            var response = await client.GetAsync($"{baseUrl}/api/vehicles/available", cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Failed to fetch available vehicles. Status Code: {StatusCode}", response.StatusCode);
-                return new List<VehicleDto>();
-            }
-
-            var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<List<VehicleDto>>>(cancellationToken: cancellationToken);
-            return apiResponse?.Data ?? new List<VehicleDto>();
+            var response = await _vehicleClient.GetAvailableVehiclesAsync(new GetAvailableVehiclesRequest(), cancellationToken: cancellationToken);
+            return response.Vehicles.ToList();
+        }
+        catch (RpcException ex)
+        {
+            _logger.LogError(ex, "Error getting available vehicles from VehicleService via gRPC. Status: {Status}", ex.Status);
+            return new List<VehicleResponse>();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting available vehicles from VehicleService");
-            return new List<VehicleDto>();
+            _logger.LogError(ex, "Unexpected error getting available vehicles from VehicleService");
+            return new List<VehicleResponse>();
         }
-    }
-
-    // Internal DTOs to deserialize the VehicleService response
-    private class ApiResponse<T>
-    {
-        public bool Success { get; set; }
-        public T? Data { get; set; }
-    }
-
-    private class VehicleDto
-    {
-        public int VehicleId { get; set; }
-        public string PlateNumber { get; set; } = string.Empty;
-        public string Make { get; set; } = string.Empty;
-        public string Model { get; set; } = string.Empty;
-        public double CapacityKg { get; set; }
-        public double CapacityM3 { get; set; }
-        public double FuelEfficiencyKmPerLitre { get; set; }
-        public string Status { get; set; } = string.Empty;
     }
 }

@@ -17,7 +17,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<DeliveryRepository>();
 builder.Services.AddScoped<IDeliveryManagerService, DeliveryManagerService>();
 builder.Services.AddScoped<IVehicleRecommendationService, VehicleRecommendationService>();
-builder.Services.AddHttpClient();
+builder.Services.AddGrpcClient<Meridian.VehicleGrpc.VehicleGrpc.VehicleGrpcClient>(options =>
+{
+    var url = builder.Configuration["ServiceUrls:VehicleService"] ?? "http://localhost:6002";
+    options.Address = new Uri(url);
+});
 
 // Swagger / OpenAPI
 builder.Services.AddSwaggerGen(c =>
