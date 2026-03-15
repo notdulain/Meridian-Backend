@@ -8,6 +8,7 @@ service VehicleGrpc {
   rpc GetVehicle (VehicleRequest) returns (VehicleResponse);
   rpc CheckAvailability (VehicleRequest) returns (AvailabilityResponse);
   rpc UpdateStatus (UpdateStatusRequest) returns (UpdateStatusResponse);
+  rpc GetAvailableVehicles (GetAvailableVehiclesRequest) returns (GetAvailableVehiclesResponse);
 }
 
 message VehicleRequest {
@@ -39,4 +40,11 @@ message UpdateStatusRequest {
 message UpdateStatusResponse {
   bool success = 1;
   string message = 2;
+}
+
+message GetAvailableVehiclesRequest {
+}
+
+message GetAvailableVehiclesResponse {
+  repeated VehicleResponse vehicles = 1;
 }
