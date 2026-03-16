@@ -12,21 +12,24 @@ using VehicleService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.ConfigureKestrel((context, options) =>
+if (builder.Environment.IsDevelopment())
 {
-    var restPort = context.Configuration.GetValue<int?>("Ports:VehicleServiceHttp") ?? 6002;
-    var grpcPort = context.Configuration.GetValue<int?>("Ports:VehicleServiceGrpc") ?? 7002;
-
-    options.ListenLocalhost(restPort, listenOptions =>
+    builder.WebHost.ConfigureKestrel((context, options) =>
     {
-        listenOptions.Protocols = HttpProtocols.Http1;
-    });
+        var restPort = context.Configuration.GetValue<int?>("Ports:VehicleServiceHttp") ?? 6002;
+        var grpcPort = context.Configuration.GetValue<int?>("Ports:VehicleServiceGrpc") ?? 7002;
 
-    options.ListenLocalhost(grpcPort, listenOptions =>
-    {
-        listenOptions.Protocols = HttpProtocols.Http2;
+        options.ListenLocalhost(restPort, listenOptions =>
+        {
+            listenOptions.Protocols = HttpProtocols.Http1;
+        });
+
+        options.ListenLocalhost(grpcPort, listenOptions =>
+        {
+            listenOptions.Protocols = HttpProtocols.Http2;
+        });
     });
-});
+}
 
 // Configure Serilog
 builder.Host.UseSerilog((context, configuration) =>
