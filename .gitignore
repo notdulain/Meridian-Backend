@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 # Ignore environment-specific appsettings
 appsettings.Development.json
 appsettings.*.json
+
+.dotnet/
+.dotnet-cli/
