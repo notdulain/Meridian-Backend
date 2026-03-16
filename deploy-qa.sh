@@ -18,6 +18,7 @@ set -euo pipefail
 : "${JWT_SECRET:?Please export JWT_SECRET before running this script}"
 : "${DB_PASSWORD:?Please export DB_PASSWORD before running this script}"
 : "${GOOGLE_MAPS_API_KEY:?Please export GOOGLE_MAPS_API_KEY before running this script}"
+: "${REDIS_CONNECTION_STRING:?Please export REDIS_CONNECTION_STRING before running this script}"
 
 # ---------- Configuration ----------
 ENV="qa"
@@ -321,6 +322,7 @@ create_app_if_missing ca-route-service \
     --max-replicas 3 \
     --env-vars \
         "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
+        "ConnectionStrings__RedisCache=$REDIS_CONNECTION_STRING" \
         "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
         "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
         "Swagger__ServerBasePath=/route" \

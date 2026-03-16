@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using StackExchange.Redis;
 using Meridian.VehicleGrpc;
 using RouteService.API.Services;
 using System.Text;
@@ -37,12 +36,18 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Configure Redis
+// Configure Redis distributed cache
 var redisConfiguration = builder.Configuration.GetConnectionString("RedisCache");
-if (!string.IsNullOrEmpty(redisConfiguration))
+if (string.IsNullOrWhiteSpace(redisConfiguration))
 {
-    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConfiguration));
+    throw new InvalidOperationException("ConnectionStrings:RedisCache is not configured.");
 }
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConfiguration;
+    options.InstanceName = "MeridianRoutes:";
+});
 
 // Configure gRPC Client
 builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
@@ -51,11 +56,12 @@ builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
 });
 
 // Configure HttpClient for Google Routes API (v2)
-builder.Services.AddHttpClient<IGoogleMapsService, GoogleMapsService>(client =>
+builder.Services.AddHttpClient(nameof(GoogleMapsService), client =>
 {
     client.BaseAddress = new Uri("https://routes.googleapis.com");
     client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Meridian-RouteService/1.0");
 });
+builder.Services.AddScoped<IGoogleMapsService, GoogleMapsService>();
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");

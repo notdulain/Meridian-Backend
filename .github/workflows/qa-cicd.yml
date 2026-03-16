@@ -218,6 +218,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          REDIS_CONNECTION_STRING: ${{ secrets.REDIS_CONNECTION_STRING }}
         run: |
           set -euo pipefail
 
@@ -408,6 +409,7 @@ jobs:
             --max-replicas 3 \
             --set-env-vars \
               "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
+              "ConnectionStrings__RedisCache=$REDIS_CONNECTION_STRING" \
               "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
               "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
               "Swagger__ServerBasePath=/route" \

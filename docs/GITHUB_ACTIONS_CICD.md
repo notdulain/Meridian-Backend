@@ -27,6 +27,7 @@ The repository currently has these GitHub Actions secrets configured:
 - `DB_PASSWORD`
 - `GOOGLE_MAPS_API_KEY`
 - `JWT_SECRET`
+- `REDIS_CONNECTION_STRING`
 
 ## Secrets used by the current workflow
 
@@ -38,6 +39,7 @@ The current `.github/workflows/qa-cicd.yml` directly uses these secrets:
 - `JWT_SECRET`
 - `DB_PASSWORD`
 - `GOOGLE_MAPS_API_KEY`
+- `REDIS_CONNECTION_STRING`
 
 ## Secrets currently not consumed by the workflow
 
@@ -84,6 +86,7 @@ Create these GitHub Actions secrets for the backend deployment itself:
 - `JWT_SECRET`
 - `DB_PASSWORD`
 - `GOOGLE_MAPS_API_KEY`
+- `REDIS_CONNECTION_STRING`
 
 ### Optional ACR secrets
 
