@@ -119,7 +119,7 @@ jobs:
 
           build_and_push "API Gateway" "meridian-apigateway" "src/ApiGateway/Dockerfile" "src/ApiGateway"
           build_and_push "User Service" "meridian-userservice" "src/UserService/UserService.API/Dockerfile" "src/UserService/UserService.API"
-          build_and_push "Delivery Service" "meridian-deliveryservice" "src/DeliveryService/DeliveryService.API/Dockerfile" "src/DeliveryService/DeliveryService.API"
+          build_and_push "Delivery Service" "meridian-deliveryservice" "src/DeliveryService/DeliveryService.API/Dockerfile" "."
           build_and_push "Vehicle Service" "meridian-vehicleservice" "src/VehicleService/VehicleService.API/Dockerfile" "."
           build_and_push "Driver Service" "meridian-driverservice" "src/DriverService/DriverService.API/Dockerfile" "."
           build_and_push "Assignment Service" "meridian-assignmentservice" "src/AssignmentService/AssignmentService.API/Dockerfile" "."
@@ -364,7 +364,11 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" "Swagger__ServerBasePath=/delivery" "${SHARED_ENV[@]}"
+            --set-env-vars \
+              "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" \
+              "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
+              "Swagger__ServerBasePath=/delivery" \
+              "${SHARED_ENV[@]}"
           create_or_update_ingress ca-delivery-service 8080 internal auto
 
           create_or_update_app ca-vehicle-service \

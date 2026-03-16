@@ -265,7 +265,11 @@ create_app_if_missing ca-delivery-service \
     --transport auto \
     --min-replicas 0 \
     --max-replicas 3 \
-    --env-vars "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" "Swagger__ServerBasePath=/delivery" "${SHARED_ENV[@]}"
+    --env-vars \
+        "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" \
+        "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
+        "Swagger__ServerBasePath=/delivery" \
+        "${SHARED_ENV[@]}"
 
 # --- Vehicle Service ---
 create_app_if_missing ca-vehicle-service \
