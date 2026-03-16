@@ -85,7 +85,7 @@ ensure_builder
 
 build_and_push "API Gateway" "meridian-apigateway" "src/ApiGateway/Dockerfile" "src/ApiGateway"
 build_and_push "User Service" "meridian-userservice" "src/UserService/UserService.API/Dockerfile" "src/UserService/UserService.API"
-build_and_push "Delivery Service" "meridian-deliveryservice" "src/DeliveryService/DeliveryService.API/Dockerfile" "src/DeliveryService/DeliveryService.API"
+build_and_push "Delivery Service" "meridian-deliveryservice" "src/DeliveryService/DeliveryService.API/Dockerfile" "."
 build_and_push "Vehicle Service" "meridian-vehicleservice" "src/VehicleService/VehicleService.API/Dockerfile" "."
 build_and_push "Driver Service" "meridian-driverservice" "src/DriverService/DriverService.API/Dockerfile" "."
 build_and_push "Assignment Service" "meridian-assignmentservice" "src/AssignmentService/AssignmentService.API/Dockerfile" "."

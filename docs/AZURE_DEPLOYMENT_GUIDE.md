@@ -72,8 +72,8 @@ docker push $ACR_LOGIN_SERVER/meridian-apigateway:v1
 docker build -t $ACR_LOGIN_SERVER/meridian-userservice:v1 -f src/UserService/UserService.API/Dockerfile src/UserService/UserService.API
 docker push $ACR_LOGIN_SERVER/meridian-userservice:v1
 
-# 3. Delivery Service (build context: service directory)
-docker build -t $ACR_LOGIN_SERVER/meridian-deliveryservice:v1 -f src/DeliveryService/DeliveryService.API/Dockerfile src/DeliveryService/DeliveryService.API
+# 3. Delivery Service (build context: repo root — needs shared/protos/vehicle.proto)
+docker build -t $ACR_LOGIN_SERVER/meridian-deliveryservice:v1 -f src/DeliveryService/DeliveryService.API/Dockerfile .
 docker push $ACR_LOGIN_SERVER/meridian-deliveryservice:v1
 
 # 4. Vehicle Service (build context: repo root — needs shared/protos/vehicle.proto)
