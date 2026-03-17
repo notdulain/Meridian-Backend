@@ -1,5 +1,5 @@
 using Dapper;
-using MySqlConnector;
+using Microsoft.Data.SqlClient;
 using AssignmentService.API.Models;
 
 namespace AssignmentService.API.Repositories;
@@ -14,14 +14,14 @@ public class AssignmentRepository : IAssignmentRepository
             ?? throw new InvalidOperationException("AssignmentDb connection string is not configured.");
     }
 
-    private MySqlConnection CreateConnection() => new(_connectionString);
+    private SqlConnection CreateConnection() => new(_connectionString);
 
     public async Task<Assignment> CreateAsync(Assignment assignment)
     {
         const string sql = @"
             INSERT INTO Assignments (DeliveryId, VehicleId, DriverId, AssignedAt, AssignedBy, Status, Notes, CreatedAt, UpdatedAt)
-            VALUES (@DeliveryId, @VehicleId, @DriverId, @AssignedAt, @AssignedBy, @Status, @Notes, @CreatedAt, @UpdatedAt);
-            SELECT LAST_INSERT_ID();";
+            OUTPUT INSERTED.AssignmentId
+            VALUES (@DeliveryId, @VehicleId, @DriverId, @AssignedAt, @AssignedBy, @Status, @Notes, @CreatedAt, @UpdatedAt);";
 
         using var conn = CreateConnection();
         var id = await conn.ExecuteScalarAsync<int>(sql, assignment);
@@ -39,7 +39,8 @@ public class AssignmentRepository : IAssignmentRepository
     public async Task<(IEnumerable<Assignment> Items, int TotalCount)> GetAllAsync(int page, int pageSize)
     {
         const string sql = @"
-            SELECT * FROM Assignments ORDER BY CreatedAt DESC LIMIT @pageSize OFFSET @offset;
+            SELECT * FROM Assignments ORDER BY CreatedAt DESC
+            OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;
             SELECT COUNT(*) FROM Assignments;";
 
         using var conn = CreateConnection();
@@ -52,14 +53,17 @@ public class AssignmentRepository : IAssignmentRepository
 
     public async Task<Assignment?> GetByDeliveryIdAsync(int deliveryId)
     {
-        const string sql = "SELECT * FROM Assignments WHERE DeliveryId = @deliveryId ORDER BY CreatedAt DESC LIMIT 1";
+        const string sql = @"
+            SELECT TOP 1 * FROM Assignments
+            WHERE DeliveryId = @deliveryId
+            ORDER BY CreatedAt DESC";
         using var conn = CreateConnection();
         return await conn.QueryFirstOrDefaultAsync<Assignment>(sql, new { deliveryId });
     }
 
     public async Task<Assignment?> GetActiveByDriverIdAsync(int driverId)
     {
-        const string sql = "SELECT * FROM Assignments WHERE DriverId = @driverId AND Status = 'Active' LIMIT 1";
+        const string sql = "SELECT TOP 1 * FROM Assignments WHERE DriverId = @driverId AND Status = 'Active'";
         using var conn = CreateConnection();
         return await conn.QueryFirstOrDefaultAsync<Assignment>(sql, new { driverId });
     }

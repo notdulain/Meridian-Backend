@@ -51,14 +51,14 @@ public class AssignmentsControllerTests
 
     private void SetupVehicleAvailable(bool available = true)
     {
-        var response = new AvailabilityResponse { IsAvailable = available, Message = available ? "Available" : "Vehicle not available" };
+        var response = new Meridian.VehicleGrpc.AvailabilityResponse { IsAvailable = available, Message = available ? "Available" : "Vehicle not available" };
         _vehicleClientMock
             .Setup(c => c.CheckAvailabilityAsync(
                 It.IsAny<VehicleRequest>(),
                 It.IsAny<Metadata>(),
                 It.IsAny<DateTime?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns(new AsyncUnaryCall<AvailabilityResponse>(
+            .Returns(new AsyncUnaryCall<Meridian.VehicleGrpc.AvailabilityResponse>(
                 Task.FromResult(response),
                 Task.FromResult(new Metadata()),
                 () => Status.DefaultSuccess,

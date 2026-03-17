@@ -5,7 +5,7 @@ using Serilog;
 using Meridian.VehicleGrpc;
 using Meridian.DriverGrpc;
 using System.Text;
-using MySqlConnector;
+using Microsoft.Data.SqlClient;
 using Dapper;
 using AssignmentService.API.Repositories;
 
@@ -90,20 +90,31 @@ if (!string.IsNullOrEmpty(connectionString))
 {
     try
     {
-        using var conn = new MySqlConnection(connectionString);
+        // 1. Ensure database exists
+        var masterConnectionString = connectionString.Replace("Database=assignment_db;", "Database=master;");
+        using (var masterConn = new SqlConnection(masterConnectionString))
+        {
+            await masterConn.ExecuteAsync("IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'assignment_db') CREATE DATABASE assignment_db;");
+        }
+
+        // 2. Run table migration
+        using var conn = new SqlConnection(connectionString);
         var sql = @"
-            CREATE TABLE IF NOT EXISTS Assignments (
-                AssignmentId INT AUTO_INCREMENT PRIMARY KEY,
-                DeliveryId INT NOT NULL,
-                VehicleId INT NOT NULL,
-                DriverId INT NOT NULL,
-                AssignedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                AssignedBy VARCHAR(255) NOT NULL,
-                Status VARCHAR(50) NOT NULL DEFAULT 'Active',
-                Notes TEXT NULL,
-                CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            );";
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Assignments' AND xtype='U')
+            BEGIN
+                CREATE TABLE Assignments (
+                    AssignmentId INT IDENTITY(1,1) PRIMARY KEY,
+                    DeliveryId INT NOT NULL,
+                    VehicleId INT NOT NULL,
+                    DriverId INT NOT NULL,
+                    AssignedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+                    AssignedBy NVARCHAR(255) NOT NULL,
+                    Status NVARCHAR(50) NOT NULL DEFAULT 'Active',
+                    Notes NVARCHAR(MAX) NULL,
+                    CreatedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+                    UpdatedAt DATETIME NOT NULL DEFAULT GETUTCDATE()
+                )
+            END";
         await conn.ExecuteAsync(sql);
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("Database migration successful!");
