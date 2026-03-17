@@ -5,8 +5,14 @@ using Serilog;
 using Meridian.VehicleGrpc;
 using Meridian.DriverGrpc;
 using System.Text;
+using Microsoft.Data.SqlClient;
+using Dapper;
+using AssignmentService.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Allow unencrypted HTTP/2 for gRPC clients (h2c)
+AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
 // Configure Serilog
 builder.Host.UseSerilog((context, configuration) =>
@@ -53,6 +59,9 @@ builder.Services.AddHttpClient("DeliveryService", client =>
     client.BaseAddress = new Uri(builder.Configuration["Services:DeliveryServiceUrl"]!);
 });
 
+// Register repository
+builder.Services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
@@ -77,6 +86,50 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// Run DB migration
+var connectionString = builder.Configuration.GetConnectionString("AssignmentDb");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    try
+    {
+        // 1. Ensure database exists
+        var masterConnectionString = connectionString.Replace("Database=assignment_db;", "Database=master;");
+        using (var masterConn = new SqlConnection(masterConnectionString))
+        {
+            await masterConn.ExecuteAsync("IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'assignment_db') CREATE DATABASE assignment_db;");
+        }
+
+        // 2. Run table migration
+        using var conn = new SqlConnection(connectionString);
+        var sql = @"
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Assignments' AND xtype='U')
+            BEGIN
+                CREATE TABLE Assignments (
+                    AssignmentId INT IDENTITY(1,1) PRIMARY KEY,
+                    DeliveryId INT NOT NULL,
+                    VehicleId INT NOT NULL,
+                    DriverId INT NOT NULL,
+                    AssignedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+                    AssignedBy NVARCHAR(255) NOT NULL,
+                    Status NVARCHAR(50) NOT NULL DEFAULT 'Active',
+                    Notes NVARCHAR(MAX) NULL,
+                    CreatedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+                    UpdatedAt DATETIME NOT NULL DEFAULT GETUTCDATE()
+                )
+            END";
+        await conn.ExecuteAsync(sql);
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Database migration successful!");
+        Console.ResetColor();
+    }
+    catch (Exception ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"Database migration failed: {ex.Message}");
+        Console.ResetColor();
+    }
+}
 
 app.UseSerilogRequestLogging();
 

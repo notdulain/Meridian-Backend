@@ -1,5 +1,6 @@
 using DbUp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -10,6 +11,25 @@ using DriverService.API.Repositories;
 using DriverService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.WebHost.ConfigureKestrel((context, options) =>
+    {
+        var restPort = context.Configuration.GetValue<int?>("Ports:DriverServiceHttp") ?? 6003;
+        var grpcPort = context.Configuration.GetValue<int?>("Ports:DriverServiceGrpc") ?? 7003;
+
+        options.ListenLocalhost(restPort, listenOptions =>
+        {
+            listenOptions.Protocols = HttpProtocols.Http1;
+        });
+
+        options.ListenLocalhost(grpcPort, listenOptions =>
+        {
+            listenOptions.Protocols = HttpProtocols.Http2;
+        });
+    });
+}
 
 // Configure Serilog
 builder.Host.UseSerilog((context, configuration) =>

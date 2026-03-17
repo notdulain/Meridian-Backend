@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS Assignments (
+    AssignmentId INT AUTO_INCREMENT PRIMARY KEY,
+    DeliveryId INT NOT NULL,
+    VehicleId INT NOT NULL,
+    DriverId INT NOT NULL,
+    AssignedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    AssignedBy VARCHAR(255) NOT NULL,
+    Status VARCHAR(50) NOT NULL DEFAULT 'Active',
+    Notes TEXT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_delivery_id (DeliveryId),
+    INDEX idx_driver_id (DriverId),
+    INDEX idx_status (Status)
+);
