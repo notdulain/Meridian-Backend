@@ -11,6 +11,9 @@ using AssignmentService.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Allow unencrypted HTTP/2 for gRPC clients (h2c)
+AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+
 // Configure Serilog
 builder.Host.UseSerilog((context, configuration) =>
     configuration.ReadFrom.Configuration(context.Configuration));
