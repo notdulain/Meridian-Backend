@@ -5,6 +5,9 @@ using Serilog;
 using Meridian.VehicleGrpc;
 using Meridian.DriverGrpc;
 using System.Text;
+using MySqlConnector;
+using Dapper;
+using AssignmentService.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +56,9 @@ builder.Services.AddHttpClient("DeliveryService", client =>
     client.BaseAddress = new Uri(builder.Configuration["Services:DeliveryServiceUrl"]!);
 });
 
+// Register repository
+builder.Services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
@@ -77,6 +83,39 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// Run DB migration
+var connectionString = builder.Configuration.GetConnectionString("AssignmentDb");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    try
+    {
+        using var conn = new MySqlConnection(connectionString);
+        var sql = @"
+            CREATE TABLE IF NOT EXISTS Assignments (
+                AssignmentId INT AUTO_INCREMENT PRIMARY KEY,
+                DeliveryId INT NOT NULL,
+                VehicleId INT NOT NULL,
+                DriverId INT NOT NULL,
+                AssignedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                AssignedBy VARCHAR(255) NOT NULL,
+                Status VARCHAR(50) NOT NULL DEFAULT 'Active',
+                Notes TEXT NULL,
+                CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            );";
+        await conn.ExecuteAsync(sql);
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Database migration successful!");
+        Console.ResetColor();
+    }
+    catch (Exception ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"Database migration failed: {ex.Message}");
+        Console.ResetColor();
+    }
+}
 
 app.UseSerilogRequestLogging();
 
