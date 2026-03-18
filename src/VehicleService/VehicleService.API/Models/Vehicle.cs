@@ -6,6 +6,7 @@ public class Vehicle
     public required string PlateNumber { get; set; }
     public required string Make { get; set; }
     public required string Model { get; set; }
+    public string CurrentLocation { get; set; } = string.Empty;
     public int Year { get; set; }
     public double CapacityKg { get; set; }
     public double CapacityM3 { get; set; }

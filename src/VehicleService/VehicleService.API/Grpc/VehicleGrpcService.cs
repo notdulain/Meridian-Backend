@@ -35,7 +35,8 @@ public class VehicleGrpcService : VehicleGrpc.VehicleGrpcBase
                 CapacityKg = vehicle.CapacityKg,
                 CapacityM3 = vehicle.CapacityM3,
                 FuelEfficiencyKmPerLitre = vehicle.FuelEfficiencyKmPerLitre,
-                Status = vehicle.Status
+                Status = vehicle.Status,
+                CurrentLocation = vehicle.CurrentLocation
             };
         }
         catch (Exception ex) when (ex is not RpcException)
@@ -107,7 +108,8 @@ public class VehicleGrpcService : VehicleGrpc.VehicleGrpcBase
                     CapacityKg = vehicle.CapacityKg,
                     CapacityM3 = vehicle.CapacityM3,
                     FuelEfficiencyKmPerLitre = vehicle.FuelEfficiencyKmPerLitre,
-                    Status = vehicle.Status
+                    Status = vehicle.Status,
+                    CurrentLocation = vehicle.CurrentLocation
                 });
             }
 

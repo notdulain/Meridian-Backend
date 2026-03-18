@@ -5,6 +5,7 @@ BEGIN
         PlateNumber NVARCHAR(50) NOT NULL UNIQUE,
         Make NVARCHAR(100) NOT NULL,
         Model NVARCHAR(100) NOT NULL,
+        CurrentLocation NVARCHAR(255) NOT NULL DEFAULT '',
         Year INT NOT NULL,
         CapacityKg FLOAT NOT NULL,
         CapacityM3 FLOAT NOT NULL,

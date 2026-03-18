@@ -17,6 +17,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<DeliveryRepository>();
 builder.Services.AddScoped<IDeliveryManagerService, DeliveryManagerService>();
 builder.Services.AddScoped<IVehicleRecommendationService, VehicleRecommendationService>();
+builder.Services.AddHttpClient<IRouteDistanceService, RouteDistanceService>((serviceProvider, client) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var routeServiceUrl = configuration["ServiceUrls:RouteService"] ?? "http://localhost:6003";
+    client.BaseAddress = new Uri(routeServiceUrl);
+});
 builder.Services.AddGrpcClient<Meridian.VehicleGrpc.VehicleGrpc.VehicleGrpcClient>(options =>
 {
     var url = builder.Configuration["Grpc:VehicleServiceUrl"]

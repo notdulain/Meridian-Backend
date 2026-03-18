@@ -21,14 +21,15 @@ public class VehicleRepository : IVehicleRepository
         await connection.OpenAsync();
 
         var query = @"
-            INSERT INTO Vehicles (PlateNumber, Make, Model, Year, CapacityKg, CapacityM3, FuelEfficiencyKmPerLitre, Status)
+            INSERT INTO Vehicles (PlateNumber, Make, Model, CurrentLocation, Year, CapacityKg, CapacityM3, FuelEfficiencyKmPerLitre, Status)
             OUTPUT INSERTED.VehicleId
-            VALUES (@PlateNumber, @Make, @Model, @Year, @CapacityKg, @CapacityM3, @FuelEfficiencyKmPerLitre, @Status);";
+            VALUES (@PlateNumber, @Make, @Model, @CurrentLocation, @Year, @CapacityKg, @CapacityM3, @FuelEfficiencyKmPerLitre, @Status);";
 
         using var command = new SqlCommand(query, connection);
         command.Parameters.AddWithValue("@PlateNumber", vehicle.PlateNumber);
         command.Parameters.AddWithValue("@Make", vehicle.Make);
         command.Parameters.AddWithValue("@Model", vehicle.Model);
+        command.Parameters.AddWithValue("@CurrentLocation", vehicle.CurrentLocation);
         command.Parameters.AddWithValue("@Year", vehicle.Year);
         command.Parameters.AddWithValue("@CapacityKg", vehicle.CapacityKg);
         command.Parameters.AddWithValue("@CapacityM3", vehicle.CapacityM3);
@@ -130,7 +131,7 @@ public class VehicleRepository : IVehicleRepository
 
         var query = @"
             UPDATE Vehicles
-            SET PlateNumber = @PlateNumber, Make = @Make, Model = @Model, Year = @Year,
+            SET PlateNumber = @PlateNumber, Make = @Make, Model = @Model, CurrentLocation = @CurrentLocation, Year = @Year,
                 CapacityKg = @CapacityKg, CapacityM3 = @CapacityM3, FuelEfficiencyKmPerLitre = @FuelEfficiencyKmPerLitre,
                 Status = @Status, UpdatedAt = GETUTCDATE()
             WHERE VehicleId = @VehicleId";
@@ -140,6 +141,7 @@ public class VehicleRepository : IVehicleRepository
         command.Parameters.AddWithValue("@PlateNumber", vehicle.PlateNumber);
         command.Parameters.AddWithValue("@Make", vehicle.Make);
         command.Parameters.AddWithValue("@Model", vehicle.Model);
+        command.Parameters.AddWithValue("@CurrentLocation", vehicle.CurrentLocation);
         command.Parameters.AddWithValue("@Year", vehicle.Year);
         command.Parameters.AddWithValue("@CapacityKg", vehicle.CapacityKg);
         command.Parameters.AddWithValue("@CapacityM3", vehicle.CapacityM3);
@@ -205,6 +207,7 @@ public class VehicleRepository : IVehicleRepository
             PlateNumber = reader.GetString(reader.GetOrdinal("PlateNumber")),
             Make = reader.GetString(reader.GetOrdinal("Make")),
             Model = reader.GetString(reader.GetOrdinal("Model")),
+            CurrentLocation = reader.GetString(reader.GetOrdinal("CurrentLocation")),
             Year = reader.GetInt32(reader.GetOrdinal("Year")),
             CapacityKg = reader.GetDouble(reader.GetOrdinal("CapacityKg")),
             CapacityM3 = reader.GetDouble(reader.GetOrdinal("CapacityM3")),
