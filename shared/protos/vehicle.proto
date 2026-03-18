@@ -25,6 +25,7 @@ message VehicleResponse {
   double capacity_m3 = 7;
   double fuel_efficiency_km_per_litre = 8;
   string status = 9;
+  string current_location = 10;
 }
 
 message AvailabilityResponse {

@@ -456,6 +456,7 @@ public class VehiclesControllerTests
         PlateNumber = "ABC-123",
         Make = "Toyota",
         Model = "Hilux",
+        CurrentLocation = "Colombo Fort",
         Year = 2023,
         CapacityKg = 1000,
         CapacityM3 = 5.5,
