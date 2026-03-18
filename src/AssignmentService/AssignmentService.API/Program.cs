@@ -117,6 +117,29 @@ if (!string.IsNullOrEmpty(connectionString))
                     CreatedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
                     UpdatedAt DATETIME NOT NULL DEFAULT GETUTCDATE()
                 )
+            END
+
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='AssignmentHistory' AND xtype='U')
+            BEGIN
+                CREATE TABLE AssignmentHistory (
+                    AssignmentHistoryId INT IDENTITY(1,1) PRIMARY KEY,
+                    AssignmentId INT NOT NULL,
+                    DeliveryId INT NOT NULL,
+                    VehicleId INT NOT NULL,
+                    DriverId INT NOT NULL,
+                    PreviousStatus NVARCHAR(50) NULL,
+                    NewStatus NVARCHAR(50) NOT NULL,
+                    Action NVARCHAR(50) NOT NULL,
+                    ChangedBy NVARCHAR(255) NOT NULL,
+                    ChangedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+                    Notes NVARCHAR(MAX) NULL,
+                    CONSTRAINT FK_AssignmentHistory_Assignments FOREIGN KEY (AssignmentId) REFERENCES Assignments(AssignmentId)
+                )
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AssignmentHistory_ChangedAt' AND object_id = OBJECT_ID('AssignmentHistory'))
+            BEGIN
+                CREATE INDEX IX_AssignmentHistory_ChangedAt ON AssignmentHistory(ChangedAt DESC)
             END";
         await conn.ExecuteAsync(sql);
         Console.ForegroundColor = ConsoleColor.Green;

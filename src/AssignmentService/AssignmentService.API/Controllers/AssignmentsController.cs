@@ -66,6 +66,19 @@ public class AssignmentsController : ControllerBase
             };
 
             var created = await _repository.CreateAsync(assignment);
+            await _repository.CreateHistoryAsync(new AssignmentHistory
+            {
+                AssignmentId = created.AssignmentId,
+                DeliveryId = created.DeliveryId,
+                VehicleId = created.VehicleId,
+                DriverId = created.DriverId,
+                PreviousStatus = null,
+                NewStatus = created.Status,
+                Action = "Created",
+                ChangedBy = assignedBy,
+                ChangedAt = now,
+                Notes = created.Notes
+            });
 
             // MER-163: Mark vehicle as OnTrip
             await _vehicleClient.UpdateStatusAsync(new UpdateStatusRequest
@@ -82,6 +95,31 @@ public class AssignmentsController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = "Failed to create assignment", errors = new[] { ex.Message } });
+        }
+    }
+
+    // GET /api/assignments/history
+    [HttpGet("history")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> GetAssignmentHistory(
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        try
+        {
+            if (fromDate.HasValue && toDate.HasValue && fromDate.Value.Date > toDate.Value.Date)
+            {
+                return BadRequest(new { success = false, message = "fromDate cannot be later than toDate", errors = Array.Empty<string>() });
+            }
+
+            var (history, totalCount) = await _repository.GetHistoryAsync(fromDate, toDate, page, pageSize);
+            return Ok(new { success = true, data = history, meta = new { page, pageSize, totalCount, fromDate, toDate } });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to fetch assignment history", errors = new[] { ex.Message } });
         }
     }
 
@@ -170,6 +208,23 @@ public class AssignmentsController : ControllerBase
                 return NotFound(new { success = false, message = "Assignment not found", errors = Array.Empty<string>() });
 
             var updated = await _repository.UpdateStatusAsync(id, "Completed");
+            if (!updated)
+                return NotFound(new { success = false, message = "Assignment not found", errors = Array.Empty<string>() });
+
+            var changedBy = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+            await _repository.CreateHistoryAsync(new AssignmentHistory
+            {
+                AssignmentId = existing.AssignmentId,
+                DeliveryId = existing.DeliveryId,
+                VehicleId = existing.VehicleId,
+                DriverId = existing.DriverId,
+                PreviousStatus = existing.Status,
+                NewStatus = "Completed",
+                Action = "Completed",
+                ChangedBy = changedBy,
+                ChangedAt = DateTime.UtcNow,
+                Notes = existing.Notes
+            });
 
             // MER-164: Update delivery status to Completed
             await PatchDeliveryStatusAsync(existing.DeliveryId, "Completed");
@@ -200,7 +255,24 @@ public class AssignmentsController : ControllerBase
             if (existing == null)
                 return NotFound(new { success = false, message = "Assignment not found", errors = Array.Empty<string>() });
 
-            await _repository.UpdateStatusAsync(id, "Cancelled");
+            var updated = await _repository.UpdateStatusAsync(id, "Cancelled");
+            if (!updated)
+                return NotFound(new { success = false, message = "Assignment not found", errors = Array.Empty<string>() });
+
+            var changedBy = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+            await _repository.CreateHistoryAsync(new AssignmentHistory
+            {
+                AssignmentId = existing.AssignmentId,
+                DeliveryId = existing.DeliveryId,
+                VehicleId = existing.VehicleId,
+                DriverId = existing.DriverId,
+                PreviousStatus = existing.Status,
+                NewStatus = "Cancelled",
+                Action = "Cancelled",
+                ChangedBy = changedBy,
+                ChangedAt = DateTime.UtcNow,
+                Notes = existing.Notes
+            });
 
             // MER-164: Revert delivery status to Pending
             await PatchDeliveryStatusAsync(existing.DeliveryId, "Pending");
