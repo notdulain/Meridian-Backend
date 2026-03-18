@@ -127,10 +127,10 @@ jobs:
           build_and_push "Route Service" "meridian-routeservice" "src/RouteService/RouteService.API/Dockerfile" "."
           build_and_push "Tracking Service" "meridian-trackingservice" "src/TrackingService/TrackingService.API/Dockerfile" "src/TrackingService/TrackingService.API"
 
-  deploy-qa:
+  deploy-prod:
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: qa
+    environment: prod
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -338,7 +338,7 @@ jobs:
           )
 
           SHARED_ENV=(
-            "ASPNETCORE_ENVIRONMENT=QA"
+            "ASPNETCORE_ENVIRONMENT=PROD"
             "Swagger__Enabled=true"
             "Jwt__Issuer=meridian-gateway"
             "Jwt__Audience=meridian-api"
@@ -460,4 +460,4 @@ jobs:
       - name: Show gateway URL
         shell: bash
         run: |
-          echo "QA gateway: ${{ steps.deploy.outputs.gateway_url }}"
+          echo "PROD gateway: ${{ steps.deploy.outputs.gateway_url }}"
