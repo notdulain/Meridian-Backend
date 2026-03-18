@@ -11,7 +11,9 @@ public class VehicleRecommendationDto
     public double CapacityKg { get; set; }
     public double CapacityM3 { get; set; }
     public double FuelEfficiencyKmPerLitre { get; set; }
-    
+    public string CurrentLocation { get; set; } = string.Empty;
+    public double? DistanceToPickupKm { get; set; }
+
     // Additional fields for recommendation context
     public double MatchScore { get; set; }
     public string RecommendationReason { get; set; } = string.Empty;

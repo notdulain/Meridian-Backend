@@ -1,11 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using DeliveryService.API.DTOs;
 using DeliveryService.API.Repositories;
@@ -19,15 +15,18 @@ public class VehicleRecommendationService : IVehicleRecommendationService
 {
     private readonly DeliveryRepository _deliveryRepository;
     private readonly VehicleGrpc.VehicleGrpcClient _vehicleClient;
+    private readonly IRouteDistanceService _routeDistanceService;
     private readonly ILogger<VehicleRecommendationService> _logger;
 
     public VehicleRecommendationService(
         DeliveryRepository deliveryRepository,
         VehicleGrpc.VehicleGrpcClient vehicleClient,
+        IRouteDistanceService routeDistanceService,
         ILogger<VehicleRecommendationService> logger)
     {
         _deliveryRepository = deliveryRepository;
         _vehicleClient = vehicleClient;
+        _routeDistanceService = routeDistanceService;
         _logger = logger;
     }
 
@@ -42,51 +41,88 @@ public class VehicleRecommendationService : IVehicleRecommendationService
 
         var availableVehicles = await GetAvailableVehiclesFromServiceAsync(cancellationToken);
 
-        var recommendedVehicles = new List<VehicleRecommendationDto>();
+        var eligibleVehicles = availableVehicles
+            .Where(vehicle =>
+                vehicle.CapacityKg >= requiredWeight &&
+                vehicle.CapacityM3 >= requiredVolume &&
+                string.Equals(vehicle.Status, "Available", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        foreach (var vehicle in availableVehicles)
-        {
-            var isCapacityOk = vehicle.CapacityKg >= requiredWeight && vehicle.CapacityM3 >= requiredVolume;
-            var isAvailable = string.Equals(vehicle.Status, "Available", StringComparison.OrdinalIgnoreCase);
+        var recommendationTasks = eligibleVehicles
+            .Select(vehicle => BuildRecommendationAsync(vehicle, delivery.PickupAddress, requiredWeight, requiredVolume, cancellationToken));
 
-            if (isCapacityOk && isAvailable)
-            {
-                var matchScore = CalculateMatchScore(vehicle, requiredWeight, requiredVolume);
-                
-                recommendedVehicles.Add(new VehicleRecommendationDto
-                {
-                    VehicleId = vehicle.VehicleId,
-                    PlateNumber = vehicle.PlateNumber,
-                    Make = vehicle.Make,
-                    Model = vehicle.Model,
-                    CapacityKg = vehicle.CapacityKg,
-                    CapacityM3 = vehicle.CapacityM3,
-                    FuelEfficiencyKmPerLitre = vehicle.FuelEfficiencyKmPerLitre,
-                    MatchScore = matchScore,
-                    RecommendationReason = $"Sufficient capacity. Ranked by score {matchScore:F2}."
-                });
-            }
-        }
+        var recommendedVehicles = await Task.WhenAll(recommendationTasks);
 
         return recommendedVehicles
             .OrderByDescending(v => v.MatchScore)
+            .ThenBy(v => v.DistanceToPickupKm ?? double.MaxValue)
             .ToList();
     }
 
-    private double CalculateMatchScore(VehicleResponse vehicle, double requiredWeight, double requiredVolume)
+    private async Task<VehicleRecommendationDto> BuildRecommendationAsync(
+        VehicleResponse vehicle,
+        string pickupAddress,
+        double requiredWeight,
+        double requiredVolume,
+        CancellationToken cancellationToken)
     {
-        // Simple heuristic: higher fuel efficiency is better.
-        // Also could penalize significantly oversized vehicles to save them for larger loads.
+        double? distanceToPickupKm = null;
+
+        if (!string.IsNullOrWhiteSpace(vehicle.CurrentLocation) && !string.IsNullOrWhiteSpace(pickupAddress))
+        {
+            try
+            {
+                distanceToPickupKm = await _routeDistanceService.GetDistanceInKilometersAsync(vehicle.CurrentLocation, pickupAddress, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Unable to calculate route distance for vehicle {VehicleId} from {Origin} to {Destination}",
+                    vehicle.VehicleId,
+                    vehicle.CurrentLocation,
+                    pickupAddress);
+            }
+        }
+
+        var matchScore = CalculateMatchScore(vehicle, requiredWeight, requiredVolume, distanceToPickupKm);
+
+        return new VehicleRecommendationDto
+        {
+            VehicleId = vehicle.VehicleId,
+            PlateNumber = vehicle.PlateNumber,
+            Make = vehicle.Make,
+            Model = vehicle.Model,
+            CapacityKg = vehicle.CapacityKg,
+            CapacityM3 = vehicle.CapacityM3,
+            FuelEfficiencyKmPerLitre = vehicle.FuelEfficiencyKmPerLitre,
+            CurrentLocation = vehicle.CurrentLocation,
+            DistanceToPickupKm = distanceToPickupKm,
+            MatchScore = matchScore,
+            RecommendationReason = BuildRecommendationReason(matchScore, distanceToPickupKm)
+        };
+    }
+
+    private static double CalculateMatchScore(VehicleResponse vehicle, double requiredWeight, double requiredVolume, double? distanceToPickupKm)
+    {
         var weightUtilization = requiredWeight / vehicle.CapacityKg;
         var volumeUtilization = requiredVolume / vehicle.CapacityM3;
-        
-        // A simple weighted score favoring efficiency and good utilization 
-        // (0.0 to 1.0 mostly, where 1.0 is full utilization and great efficiency)
         var utilizationScore = (weightUtilization + volumeUtilization) / 2.0;
-        
-        var efficiencyScore = Math.Min(vehicle.FuelEfficiencyKmPerLitre / 20.0, 1.0); // Normalize to ~20 km/L max
+        var efficiencyScore = Math.Min(vehicle.FuelEfficiencyKmPerLitre / 20.0, 1.0);
+        var distanceScore = distanceToPickupKm.HasValue
+            ? 1d / (1d + distanceToPickupKm.Value)
+            : 0d;
 
-        return (utilizationScore * 0.4) + (efficiencyScore * 0.6);
+        return Math.Round((utilizationScore * 0.35) + (efficiencyScore * 0.35) + (distanceScore * 0.30), 4);
+    }
+
+    private static string BuildRecommendationReason(double matchScore, double? distanceToPickupKm)
+    {
+        var distancePart = distanceToPickupKm.HasValue
+            ? $"Distance to pickup: {distanceToPickupKm.Value:F2} km."
+            : "Distance to pickup unavailable.";
+
+        return $"{distancePart} Ranked by blended score {matchScore:F2}.";
     }
 
     private async Task<List<VehicleResponse>> GetAvailableVehiclesFromServiceAsync(CancellationToken cancellationToken)
