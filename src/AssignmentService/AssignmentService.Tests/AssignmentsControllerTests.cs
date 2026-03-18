@@ -128,6 +128,47 @@ public class AssignmentsControllerTests
         Assert.Equal(200, ok.StatusCode);
     }
 
+    [Fact]
+    public async Task GetAssignmentHistory_ReturnsHistoryWithDateFilters()
+    {
+        var fromDate = new DateTime(2026, 3, 1);
+        var toDate = new DateTime(2026, 3, 10);
+        _repoMock.Setup(r => r.GetHistoryAsync(fromDate, toDate, 1, 10))
+            .ReturnsAsync((new List<AssignmentHistory>
+            {
+                new()
+                {
+                    AssignmentHistoryId = 1,
+                    AssignmentId = 5,
+                    DeliveryId = 8,
+                    VehicleId = 2,
+                    DriverId = 3,
+                    NewStatus = "Completed",
+                    Action = "Completed",
+                    ChangedBy = "dispatcher-1",
+                    ChangedAt = new DateTime(2026, 3, 5)
+                }
+            }, 1));
+
+        var result = await CreateControllerWithHttpContext().GetAssignmentHistory(fromDate, toDate);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(200, ok.StatusCode);
+        var success = GetPropertyValue<bool>(ok.Value, "success");
+        Assert.True(success);
+    }
+
+    [Fact]
+    public async Task GetAssignmentHistory_InvalidDateRange_Returns400()
+    {
+        var result = await CreateControllerWithHttpContext().GetAssignmentHistory(
+            new DateTime(2026, 3, 10),
+            new DateTime(2026, 3, 1));
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(400, badRequest.StatusCode);
+    }
+
     // ---------- GET /api/assignments/{id} ----------
 
     [Fact]
@@ -253,6 +294,8 @@ public class AssignmentsControllerTests
         };
         _repoMock.Setup(r => r.CreateAsync(It.IsAny<Assignment>()))
             .ReturnsAsync(expectedAssignment);
+        _repoMock.Setup(r => r.CreateHistoryAsync(It.IsAny<AssignmentHistory>()))
+            .Returns(Task.CompletedTask);
 
         var controller = CreateControllerWithHttpContext();
         var request = new CreateAssignmentRequest
@@ -269,6 +312,10 @@ public class AssignmentsControllerTests
         Assert.Equal(201, objectResult.StatusCode);
         var success = GetPropertyValue<bool>(objectResult.Value, "success");
         Assert.True(success);
+        _repoMock.Verify(r => r.CreateHistoryAsync(It.Is<AssignmentHistory>(h =>
+            h.AssignmentId == 1 &&
+            h.Action == "Created" &&
+            h.NewStatus == "Active")), Times.Once);
     }
 
     // ---------- PUT /api/assignments/{id}/complete ----------
@@ -290,6 +337,7 @@ public class AssignmentsControllerTests
         var existing = new Assignment { AssignmentId = 5, DeliveryId = 1, VehicleId = 1, DriverId = 1, AssignedBy = "admin", Status = "Active" };
         _repoMock.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
         _repoMock.Setup(r => r.UpdateStatusAsync(5, "Completed")).ReturnsAsync(true);
+        _repoMock.Setup(r => r.CreateHistoryAsync(It.IsAny<AssignmentHistory>())).Returns(Task.CompletedTask);
         SetupVehicleUpdateStatus();
         _httpClientFactoryMock.Setup(f => f.CreateClient("DeliveryService"))
             .Returns(new System.Net.Http.HttpClient { BaseAddress = new Uri("http://localhost:6001") });
@@ -300,6 +348,11 @@ public class AssignmentsControllerTests
         Assert.Equal(200, ok.StatusCode);
         var message = GetPropertyValue<string>(ok.Value, "message");
         Assert.Contains("completed", message, StringComparison.OrdinalIgnoreCase);
+        _repoMock.Verify(r => r.CreateHistoryAsync(It.Is<AssignmentHistory>(h =>
+            h.AssignmentId == 5 &&
+            h.Action == "Completed" &&
+            h.PreviousStatus == "Active" &&
+            h.NewStatus == "Completed")), Times.Once);
     }
 
     // ---------- PUT /api/assignments/{id}/cancel ----------
@@ -321,6 +374,7 @@ public class AssignmentsControllerTests
         var existing = new Assignment { AssignmentId = 5, DeliveryId = 1, VehicleId = 1, DriverId = 1, AssignedBy = "admin", Status = "Active" };
         _repoMock.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
         _repoMock.Setup(r => r.UpdateStatusAsync(5, "Cancelled")).ReturnsAsync(true);
+        _repoMock.Setup(r => r.CreateHistoryAsync(It.IsAny<AssignmentHistory>())).Returns(Task.CompletedTask);
         SetupVehicleUpdateStatus();
         _httpClientFactoryMock.Setup(f => f.CreateClient("DeliveryService"))
             .Returns(new System.Net.Http.HttpClient { BaseAddress = new Uri("http://localhost:6001") });
@@ -331,6 +385,11 @@ public class AssignmentsControllerTests
         Assert.Equal(200, ok.StatusCode);
         var message = GetPropertyValue<string>(ok.Value, "message");
         Assert.Contains("cancel", message, StringComparison.OrdinalIgnoreCase);
+        _repoMock.Verify(r => r.CreateHistoryAsync(It.Is<AssignmentHistory>(h =>
+            h.AssignmentId == 5 &&
+            h.Action == "Cancelled" &&
+            h.PreviousStatus == "Active" &&
+            h.NewStatus == "Cancelled")), Times.Once);
     }
 
     // ---------- GET /api/assignments/driver/{driverId}/active ----------
