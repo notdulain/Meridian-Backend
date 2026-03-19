@@ -213,6 +213,144 @@ public class GoogleMapsServiceTests
         Assert.Equal(3030, result.Routes[1].FuelCostLKR);
     }
 
+    [Fact]
+    public async Task GetRouteAsync_Throws_WhenApiKeyIsMissing()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("{}")));
+        var service = CreateService(handler, overrides: new Dictionary<string, string?> { ["GoogleMaps:ApiKey"] = "" });
+
+        var exception = await Assert.ThrowsAsync<GoogleMapsServiceException>(
+            () => service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None));
+
+        Assert.Contains("API key is not configured", exception.Message);
+        Assert.Equal(0, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task GetRouteAsync_Throws_WhenHttpRequestFails()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            throw new HttpRequestException("network failure"));
+        var service = CreateService(handler);
+
+        var exception = await Assert.ThrowsAsync<GoogleMapsServiceException>(
+            () => service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None));
+
+        Assert.Contains("Unable to retrieve route information from Google Maps.", exception.Message);
+        Assert.Contains("network failure", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetRouteAsync_Throws_WhenRequestTimesOut()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            throw new TaskCanceledException("timed out", new TimeoutException()));
+        var service = CreateService(handler);
+
+        var exception = await Assert.ThrowsAsync<GoogleMapsServiceException>(
+            () => service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None));
+
+        Assert.Contains("Request timed out", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetRouteAsync_Throws_WhenGoogleReturnsInvalidJson()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("{not-json")));
+        var service = CreateService(handler);
+
+        var exception = await Assert.ThrowsAsync<GoogleMapsServiceException>(
+            () => service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None));
+
+        Assert.Contains("invalid response", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetRouteAsync_Throws_WhenGoogleReturnsErrorObject()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "error": {
+                "code": 400,
+                "message": "Invalid route request",
+                "status": "INVALID_ARGUMENT"
+              }
+            }
+            """)));
+        var service = CreateService(handler);
+
+        var exception = await Assert.ThrowsAsync<GoogleMapsServiceException>(
+            () => service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None));
+
+        Assert.Equal("Invalid route request", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetRouteAsync_ThrowsRouteNotFound_WhenGoogleReturnsNoRoutes()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "routes": []
+            }
+            """)));
+        var service = CreateService(handler);
+
+        await Assert.ThrowsAsync<RouteNotFoundException>(
+            () => service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetRouteAsync_Succeeds_WhenCacheReadFails()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "routes": [
+                {
+                  "distanceMeters": 115000,
+                  "duration": "7200s",
+                  "polyline": { "encodedPolyline": "encoded-polyline" },
+                  "routeLabels": ["DEFAULT_ROUTE"]
+                }
+              ]
+            }
+            """)));
+        var service = CreateService(handler, cache: new FaultingDistributedCache(CreateCache(), throwOnGet: true));
+
+        var result = await service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None);
+
+        Assert.Equal("115.0 km", result.Distance);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task GetRouteAsync_Succeeds_WhenCacheWriteFails()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "routes": [
+                {
+                  "distanceMeters": 115000,
+                  "duration": "7200s",
+                  "polyline": { "encodedPolyline": "encoded-polyline" },
+                  "routeLabels": ["DEFAULT_ROUTE"]
+                }
+              ]
+            }
+            """)));
+        var service = CreateService(handler, cache: new FaultingDistributedCache(CreateCache(), throwOnSet: true));
+
+        var result = await service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None);
+
+        Assert.Equal("115.0 km", result.Distance);
+        Assert.Equal(1, handler.CallCount);
+    }
+
     private static GoogleMapsService CreateService(
         RecordingHttpMessageHandler handler,
         IDistributedCache? cache = null,
@@ -290,6 +428,68 @@ public class GoogleMapsServiceTests
             }
 
             return await _responseFactory(request, cancellationToken);
+        }
+    }
+
+    private sealed class FaultingDistributedCache : IDistributedCache
+    {
+        private readonly IDistributedCache _innerCache;
+        private readonly bool _throwOnGet;
+        private readonly bool _throwOnSet;
+
+        public FaultingDistributedCache(IDistributedCache innerCache, bool throwOnGet = false, bool throwOnSet = false)
+        {
+            _innerCache = innerCache;
+            _throwOnGet = throwOnGet;
+            _throwOnSet = throwOnSet;
+        }
+
+        public byte[]? Get(string key)
+        {
+            if (_throwOnGet)
+            {
+                throw new InvalidOperationException("cache get failed");
+            }
+
+            return _innerCache.Get(key);
+        }
+
+        public Task<byte[]?> GetAsync(string key, CancellationToken token = default)
+        {
+            if (_throwOnGet)
+            {
+                throw new InvalidOperationException("cache get failed");
+            }
+
+            return _innerCache.GetAsync(key, token);
+        }
+
+        public void Refresh(string key) => _innerCache.Refresh(key);
+
+        public Task RefreshAsync(string key, CancellationToken token = default) => _innerCache.RefreshAsync(key, token);
+
+        public void Remove(string key) => _innerCache.Remove(key);
+
+        public Task RemoveAsync(string key, CancellationToken token = default) => _innerCache.RemoveAsync(key, token);
+
+        public void Set(string key, byte[] value, DistributedCacheEntryOptions options)
+        {
+            if (_throwOnSet)
+            {
+                throw new InvalidOperationException("cache set failed");
+            }
+
+            _innerCache.Set(key, value, options);
+        }
+
+        public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
+        {
+            if (_throwOnSet)
+            {
+                throw new InvalidOperationException("cache set failed");
+            }
+
+            return _innerCache.SetAsync(key, value, options, token);
         }
     }
 }
