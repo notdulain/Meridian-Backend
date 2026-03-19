@@ -78,6 +78,141 @@ public class GoogleMapsServiceTests
         Assert.Equal("Kandy", root.GetProperty("destination").GetProperty("address").GetString());
     }
 
+    [Fact]
+    public async Task GetRouteAsync_UsesCachedRoute_WhenAvailable()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "routes": [
+                {
+                  "distanceMeters": 115000,
+                  "duration": "7200s",
+                  "polyline": { "encodedPolyline": "encoded-polyline" },
+                  "routeLabels": ["DEFAULT_ROUTE"]
+                }
+              ]
+            }
+            """)));
+        var cache = CreateCache();
+        var service = CreateService(handler, cache: cache);
+
+        var firstResult = await service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None);
+        var secondResult = await service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None);
+
+        Assert.Equal("115.0 km", firstResult.Distance);
+        Assert.Equal(firstResult.Distance, secondResult.Distance);
+        Assert.Equal(firstResult.Duration, secondResult.Duration);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task GetAlternativeRoutesAsync_SendsAlternativeRoutesFlag_AndSortsResults()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "routes": [
+                {
+                  "distanceMeters": 120000,
+                  "duration": "8100s",
+                  "polyline": { "encodedPolyline": "slow-route" },
+                  "routeLabels": ["DEFAULT_ROUTE"]
+                },
+                {
+                  "distanceMeters": 115000,
+                  "duration": "7200s",
+                  "polyline": { "encodedPolyline": "fast-route" },
+                  "routeLabels": ["DEFAULT_ROUTE_ALTERNATE"]
+                }
+              ]
+            }
+            """)));
+        var service = CreateService(handler);
+
+        var result = await service.GetAlternativeRoutesAsync("Colombo", "Kandy", CancellationToken.None);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("fast-route", result[0].PolylinePoints);
+        Assert.Equal("115.0 km", result[0].Distance);
+        Assert.Equal("2 hr", result[0].Duration);
+
+        using var doc = JsonDocument.Parse(handler.LastBody!);
+        Assert.True(doc.RootElement.GetProperty("computeAlternativeRoutes").GetBoolean());
+    }
+
+    [Fact]
+    public async Task GetRouteComparisonsAsync_MarksLowestFuelCostRouteAsRecommended()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "routes": [
+                {
+                  "distanceMeters": 120000,
+                  "duration": "7200s",
+                  "polyline": { "encodedPolyline": "route-a" },
+                  "routeLabels": ["DEFAULT_ROUTE"]
+                },
+                {
+                  "distanceMeters": 105000,
+                  "duration": "7800s",
+                  "polyline": { "encodedPolyline": "route-b" },
+                  "routeLabels": ["DEFAULT_ROUTE_ALTERNATE"]
+                }
+              ]
+            }
+            """)));
+        var service = CreateService(handler);
+
+        var comparisons = await service.GetRouteComparisonsAsync("Colombo", "Kandy", CancellationToken.None);
+
+        Assert.Equal(2, comparisons.Count);
+        var recommended = Assert.Single(comparisons, r => r.IsRecommended);
+        Assert.Equal("route-b", recommended.PolylinePoints);
+        Assert.Equal(105, recommended.DistanceKm);
+    }
+
+    [Fact]
+    public async Task GetRankedRoutesAsync_CalculatesFuelMetrics_AndAssignsRanks()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "routes": [
+                {
+                  "distanceMeters": 120000,
+                  "duration": "7200s",
+                  "polyline": { "encodedPolyline": "route-a" },
+                  "routeLabels": ["DEFAULT_ROUTE"]
+                },
+                {
+                  "distanceMeters": 60000,
+                  "duration": "3600s",
+                  "polyline": { "encodedPolyline": "route-b" },
+                  "routeLabels": ["DEFAULT_ROUTE_ALTERNATE"]
+                }
+              ]
+            }
+            """)));
+        var service = CreateService(handler);
+
+        var result = await service.GetRankedRoutesAsync("Colombo", "Kandy", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Routes.Count);
+        Assert.Equal(new[] { 1, 2 }, result.Routes.Select(r => r.Rank).ToArray());
+        Assert.Equal("route-b", result.Routes[0].PolylinePoints);
+        Assert.True(result.Routes[0].IsRecommended);
+        Assert.Equal(result.Routes[0].RouteId, result.RecommendedRouteId);
+        Assert.Equal(60, result.Routes[0].DistanceKm);
+        Assert.Equal(5, result.Routes[0].FuelConsumptionLitres);
+        Assert.Equal(1515, result.Routes[0].FuelCostLKR);
+        Assert.Equal(120, result.Routes[1].DistanceKm);
+        Assert.Equal(10, result.Routes[1].FuelConsumptionLitres);
+        Assert.Equal(3030, result.Routes[1].FuelCostLKR);
+    }
+
     private static GoogleMapsService CreateService(
         RecordingHttpMessageHandler handler,
         IDistributedCache? cache = null,
