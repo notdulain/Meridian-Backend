@@ -59,7 +59,7 @@ public sealed class RouteDecisionService : IRouteDecisionService
             DistanceKm = distanceKm,
             DurationMinutes = durationMinutes,
             FuelCostLkr = Math.Round(fuelCost, 2, MidpointRounding.AwayFromZero),
-            FuelConsumptionLitres = Math.Round(fuelConsumption, 2, MidpointRounding.AwayFromZero),
+            FuelConsumptionLitres = Math.Round((decimal)fuelConsumption, 2, MidpointRounding.AwayFromZero),
             Polyline = request.Route.PolylinePoints ?? string.Empty,
             Selected = true,
             CreatedAt = DateTime.UtcNow
