@@ -169,6 +169,18 @@ public class AssignmentsControllerTests
         Assert.Equal(400, badRequest.StatusCode);
     }
 
+    [Fact]
+    public async Task GetAssignmentHistory_WhenRepositoryThrows_Returns400()
+    {
+        _repoMock.Setup(r => r.GetHistoryAsync(null, null, 1, 10))
+            .ThrowsAsync(new InvalidOperationException("history lookup failed"));
+
+        var result = await CreateControllerWithHttpContext().GetAssignmentHistory();
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(400, badRequest.StatusCode);
+    }
+
     // ---------- GET /api/assignments/{id} ----------
 
     [Fact]
@@ -318,6 +330,75 @@ public class AssignmentsControllerTests
             h.NewStatus == "Active")), Times.Once);
     }
 
+    [Fact]
+    public async Task CreateAssignment_WhenHistoryWriteFails_Returns400()
+    {
+        SetupVehicleAvailable(available: true);
+        SetupDriverAvailable(available: true);
+
+        _repoMock.Setup(r => r.CreateAsync(It.IsAny<Assignment>()))
+            .ReturnsAsync(new Assignment
+            {
+                AssignmentId = 12,
+                DeliveryId = 10,
+                VehicleId = 2,
+                DriverId = 3,
+                AssignedBy = "test-dispatcher-id",
+                Status = "Active"
+            });
+        _repoMock.Setup(r => r.CreateHistoryAsync(It.IsAny<AssignmentHistory>()))
+            .ThrowsAsync(new InvalidOperationException("history insert failed"));
+
+        var controller = CreateControllerWithHttpContext();
+        var request = new CreateAssignmentRequest
+        {
+            DeliveryId = 10,
+            VehicleId = 2,
+            DriverId = 3
+        };
+
+        var result = await controller.CreateAssignment(request);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(400, badRequest.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateAssignment_WhenDeliveryPatchFails_StillReturns201()
+    {
+        SetupVehicleAvailable(available: true);
+        SetupDriverAvailable(available: true);
+        SetupVehicleUpdateStatus();
+
+        _repoMock.Setup(r => r.CreateAsync(It.IsAny<Assignment>()))
+            .ReturnsAsync(new Assignment
+            {
+                AssignmentId = 21,
+                DeliveryId = 10,
+                VehicleId = 2,
+                DriverId = 3,
+                AssignedBy = "test-dispatcher-id",
+                Status = "Active"
+            });
+        _repoMock.Setup(r => r.CreateHistoryAsync(It.IsAny<AssignmentHistory>()))
+            .Returns(Task.CompletedTask);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("DeliveryService"))
+            .Returns(new HttpClient(new ThrowingHttpMessageHandler()) { BaseAddress = new Uri("http://localhost:6001") });
+
+        var controller = CreateControllerWithHttpContext();
+        var request = new CreateAssignmentRequest
+        {
+            DeliveryId = 10,
+            VehicleId = 2,
+            DriverId = 3
+        };
+
+        var result = await controller.CreateAssignment(request);
+
+        var objectResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(201, objectResult.StatusCode);
+    }
+
     // ---------- PUT /api/assignments/{id}/complete ----------
 
     [Fact]
@@ -355,6 +436,37 @@ public class AssignmentsControllerTests
             h.NewStatus == "Completed")), Times.Once);
     }
 
+    [Fact]
+    public async Task CompleteAssignment_WhenStatusUpdateReturnsFalse_Returns404()
+    {
+        var existing = new Assignment { AssignmentId = 5, DeliveryId = 1, VehicleId = 1, DriverId = 1, AssignedBy = "admin", Status = "Active" };
+        _repoMock.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
+        _repoMock.Setup(r => r.UpdateStatusAsync(5, "Completed")).ReturnsAsync(false);
+
+        var result = await CreateControllerWithHttpContext().CompleteAssignment(5);
+
+        var notFound = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Equal(404, notFound.StatusCode);
+        _repoMock.Verify(r => r.CreateHistoryAsync(It.IsAny<AssignmentHistory>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CompleteAssignment_WhenDeliveryPatchFails_StillReturns200()
+    {
+        var existing = new Assignment { AssignmentId = 5, DeliveryId = 1, VehicleId = 1, DriverId = 1, AssignedBy = "admin", Status = "Active" };
+        _repoMock.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
+        _repoMock.Setup(r => r.UpdateStatusAsync(5, "Completed")).ReturnsAsync(true);
+        _repoMock.Setup(r => r.CreateHistoryAsync(It.IsAny<AssignmentHistory>())).Returns(Task.CompletedTask);
+        SetupVehicleUpdateStatus();
+        _httpClientFactoryMock.Setup(f => f.CreateClient("DeliveryService"))
+            .Returns(new HttpClient(new ThrowingHttpMessageHandler()) { BaseAddress = new Uri("http://localhost:6001") });
+
+        var result = await CreateControllerWithHttpContext().CompleteAssignment(5);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(200, ok.StatusCode);
+    }
+
     // ---------- PUT /api/assignments/{id}/cancel ----------
 
     [Fact]
@@ -390,6 +502,37 @@ public class AssignmentsControllerTests
             h.Action == "Cancelled" &&
             h.PreviousStatus == "Active" &&
             h.NewStatus == "Cancelled")), Times.Once);
+    }
+
+    [Fact]
+    public async Task CancelAssignment_WhenStatusUpdateReturnsFalse_Returns404()
+    {
+        var existing = new Assignment { AssignmentId = 5, DeliveryId = 1, VehicleId = 1, DriverId = 1, AssignedBy = "admin", Status = "Active" };
+        _repoMock.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
+        _repoMock.Setup(r => r.UpdateStatusAsync(5, "Cancelled")).ReturnsAsync(false);
+
+        var result = await CreateControllerWithHttpContext().CancelAssignment(5);
+
+        var notFound = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Equal(404, notFound.StatusCode);
+        _repoMock.Verify(r => r.CreateHistoryAsync(It.IsAny<AssignmentHistory>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CancelAssignment_WhenDeliveryPatchFails_StillReturns200()
+    {
+        var existing = new Assignment { AssignmentId = 5, DeliveryId = 1, VehicleId = 1, DriverId = 1, AssignedBy = "admin", Status = "Active" };
+        _repoMock.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
+        _repoMock.Setup(r => r.UpdateStatusAsync(5, "Cancelled")).ReturnsAsync(true);
+        _repoMock.Setup(r => r.CreateHistoryAsync(It.IsAny<AssignmentHistory>())).Returns(Task.CompletedTask);
+        SetupVehicleUpdateStatus();
+        _httpClientFactoryMock.Setup(f => f.CreateClient("DeliveryService"))
+            .Returns(new HttpClient(new ThrowingHttpMessageHandler()) { BaseAddress = new Uri("http://localhost:6001") });
+
+        var result = await CreateControllerWithHttpContext().CancelAssignment(5);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(200, ok.StatusCode);
     }
 
     // ---------- GET /api/assignments/driver/{driverId}/active ----------
@@ -481,5 +624,13 @@ public class AssignmentsControllerTests
                 return prop.Value.GetString();
         }
         return null;
+    }
+
+    private sealed class ThrowingHttpMessageHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            throw new HttpRequestException("Delivery service unavailable");
+        }
     }
 }

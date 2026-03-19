@@ -110,6 +110,87 @@ public class VehicleRecommendationServiceTests
     }
 
     [Fact]
+    public async Task GetRecommendedVehiclesAsync_ReturnsEmpty_WhenNoVehiclesAreEligible()
+    {
+        var deliveryInfo = new Delivery
+        {
+            Id = 9,
+            PickupAddress = "Colombo Fort",
+            PackageWeightKg = 500,
+            PackageVolumeM3 = 5
+        };
+
+        var mockResponse = new GetAvailableVehiclesResponse();
+        mockResponse.Vehicles.AddRange(
+        [
+            new VehicleResponse { VehicleId = 1, Status = "OnTrip", CapacityKg = 700, CapacityM3 = 7, FuelEfficiencyKmPerLitre = 12, CurrentLocation = "Colombo 03" },
+            new VehicleResponse { VehicleId = 2, Status = "Available", CapacityKg = 300, CapacityM3 = 3, FuelEfficiencyKmPerLitre = 14, CurrentLocation = "Colombo 05" }
+        ]);
+
+        _mockVehicleClient
+            .Setup(c => c.GetAvailableVehiclesAsync(It.IsAny<GetAvailableVehiclesRequest>(), null, null, It.IsAny<CancellationToken>()))
+            .Returns(CreateAvailableVehiclesCall(Task.FromResult(mockResponse)));
+        _mockRepo.Setup(r => r.GetByIdAsync(9, It.IsAny<CancellationToken>())).ReturnsAsync(deliveryInfo);
+
+        var service = new VehicleRecommendationService(_mockRepo.Object, _mockVehicleClient.Object, _mockRouteDistanceService.Object, _mockLogger.Object);
+
+        var result = await service.GetRecommendedVehiclesAsync(9);
+
+        Assert.Empty(result);
+        _mockRouteDistanceService.Verify(
+            s => s.GetDistanceInKilometersAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task GetRecommendedVehiclesAsync_WhenVehicleServiceRpcFails_ThrowsInvalidOperationException()
+    {
+        var deliveryInfo = new Delivery
+        {
+            Id = 3,
+            PickupAddress = "Colombo Fort",
+            PackageWeightKg = 100,
+            PackageVolumeM3 = 1
+        };
+
+        var rpcException = new RpcException(new Status(StatusCode.Unavailable, "Vehicle service unavailable"));
+
+        _mockRepo.Setup(r => r.GetByIdAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(deliveryInfo);
+        _mockVehicleClient
+            .Setup(c => c.GetAvailableVehiclesAsync(It.IsAny<GetAvailableVehiclesRequest>(), null, null, It.IsAny<CancellationToken>()))
+            .Returns(CreateAvailableVehiclesCall(Task.FromException<GetAvailableVehiclesResponse>(rpcException)));
+
+        var service = new VehicleRecommendationService(_mockRepo.Object, _mockVehicleClient.Object, _mockRouteDistanceService.Object, _mockLogger.Object);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetRecommendedVehiclesAsync(3));
+
+        Assert.Contains("VehicleService is unavailable for recommendations", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetRecommendedVehiclesAsync_WhenVehicleServiceThrowsUnexpectedException_ThrowsInvalidOperationException()
+    {
+        var deliveryInfo = new Delivery
+        {
+            Id = 4,
+            PickupAddress = "Colombo Fort",
+            PackageWeightKg = 100,
+            PackageVolumeM3 = 1
+        };
+
+        _mockRepo.Setup(r => r.GetByIdAsync(4, It.IsAny<CancellationToken>())).ReturnsAsync(deliveryInfo);
+        _mockVehicleClient
+            .Setup(c => c.GetAvailableVehiclesAsync(It.IsAny<GetAvailableVehiclesRequest>(), null, null, It.IsAny<CancellationToken>()))
+            .Returns(CreateAvailableVehiclesCall(Task.FromException<GetAvailableVehiclesResponse>(new Exception("boom"))));
+
+        var service = new VehicleRecommendationService(_mockRepo.Object, _mockVehicleClient.Object, _mockRouteDistanceService.Object, _mockLogger.Object);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetRecommendedVehiclesAsync(4));
+
+        Assert.Contains("VehicleService is unavailable for recommendations", exception.Message);
+    }
+
+    [Fact]
     public async Task GetRecommendedVehiclesAsync_Continues_WhenDistanceLookupFails()
     {
         var deliveryInfo = new Delivery
@@ -156,5 +237,15 @@ public class VehicleRecommendationServiceTests
         Assert.Equal(11, result.VehicleId);
         Assert.Null(result.DistanceToPickupKm);
         Assert.Contains("Distance to pickup unavailable", result.RecommendationReason);
+    }
+
+    private static AsyncUnaryCall<GetAvailableVehiclesResponse> CreateAvailableVehiclesCall(Task<GetAvailableVehiclesResponse> responseTask)
+    {
+        return new AsyncUnaryCall<GetAvailableVehiclesResponse>(
+            responseTask,
+            Task.FromResult(new Metadata()),
+            () => Status.DefaultSuccess,
+            () => new Metadata(),
+            () => { });
     }
 }
