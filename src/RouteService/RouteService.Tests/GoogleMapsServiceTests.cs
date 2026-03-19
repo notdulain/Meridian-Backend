@@ -351,6 +351,48 @@ public class GoogleMapsServiceTests
         Assert.Equal(1, handler.CallCount);
     }
 
+    [Fact]
+    public async Task GetRouteAsync_Throws_WhenGoogleReturnsHttp429()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "error": {
+                "code": 429,
+                "message": "OVER_QUERY_LIMIT"
+              }
+            }
+            """, HttpStatusCode.TooManyRequests)));
+        var service = CreateService(handler);
+
+        var exception = await Assert.ThrowsAsync<GoogleMapsServiceException>(
+            () => service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None));
+
+        Assert.Contains("Unable to retrieve route information from Google Maps.", exception.Message);
+        Assert.Contains("OVER_QUERY_LIMIT", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetRouteAsync_Throws_WhenGoogleReturnsQuotaErrorObject()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(CreateJsonResponse("""
+            {
+              "error": {
+                "code": 429,
+                "message": "Quota exceeded for the current request",
+                "status": "RESOURCE_EXHAUSTED"
+              }
+            }
+            """)));
+        var service = CreateService(handler);
+
+        var exception = await Assert.ThrowsAsync<GoogleMapsServiceException>(
+            () => service.GetRouteAsync("Colombo", "Kandy", CancellationToken.None));
+
+        Assert.Equal("Quota exceeded for the current request", exception.Message);
+    }
+
     private static GoogleMapsService CreateService(
         RecordingHttpMessageHandler handler,
         IDistributedCache? cache = null,
