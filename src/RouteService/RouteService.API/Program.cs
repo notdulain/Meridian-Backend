@@ -52,6 +52,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = "MeridianRoutes:";
 });
 
+
 var routeDbConnectionString = builder.Configuration.GetConnectionString("RouteDb");
 if (string.IsNullOrWhiteSpace(routeDbConnectionString))
 {

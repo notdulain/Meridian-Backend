@@ -10,6 +10,7 @@ public sealed class RouteServiceDbContext(DbContextOptions<RouteServiceDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var routeHistory = modelBuilder.Entity<RouteHistory>();
+
         routeHistory.ToTable("RouteHistories");
         routeHistory.HasKey(x => x.RouteId);
         routeHistory.HasIndex(x => new { x.Origin, x.Destination });

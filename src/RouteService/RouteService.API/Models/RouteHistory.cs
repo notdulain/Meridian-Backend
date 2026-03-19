@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RouteService.API.Models;
 
@@ -19,8 +20,10 @@ public sealed class RouteHistory
 
     public int DurationMinutes { get; set; }
 
+    [Column(TypeName = "decimal(18,2)")]
     public decimal FuelCostLkr { get; set; }
 
+    [Column(TypeName = "decimal(18,2)")]
     public decimal FuelConsumptionLitres { get; set; }
 
     [Required]
