@@ -12,7 +12,7 @@ public sealed class GoogleMapsService : IGoogleMapsService
     private const string RequestFailedMessage = "Unable to retrieve route information from Google Maps.";
     private const string RoutesApiUrl = "https://routes.googleapis.com/directions/v2:computeRoutes";
     private const string FieldMask = "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.routeLabels";
-    private static readonly TimeSpan RouteCacheTtl = TimeSpan.FromHours(12);
+    private static readonly TimeSpan RouteCacheTtl = TimeSpan.FromMinutes(10);
 
     /// <summary>Default km per liter when vehicle info is unavailable.</summary>
     private const double DefaultVehicleFuelEfficiencyKmPerLiter = 12;
@@ -390,8 +390,9 @@ public sealed class GoogleMapsService : IGoogleMapsService
     {
         var normalizedOrigin = origin.Trim().ToLowerInvariant();
         var normalizedDestination = destination.Trim().ToLowerInvariant();
-        var routeType = includeAlternatives ? "alternatives" : "primary";
-        return $"route:{normalizedOrigin}:{normalizedDestination}:{routeType}";
+        return includeAlternatives
+            ? $"route:current:{normalizedOrigin}:{normalizedDestination}"
+            : $"route:primary:{normalizedOrigin}:{normalizedDestination}";
     }
 
     private static ComputeRoutesRequest BuildRequestBody(string origin, string destination, bool computeAlternativeRoutes)

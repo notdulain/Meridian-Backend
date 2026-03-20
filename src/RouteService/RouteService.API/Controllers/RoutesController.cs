@@ -10,10 +10,14 @@ namespace RouteService.API.Controllers;
 public class RoutesController : ControllerBase
 {
     private readonly IGoogleMapsService _googleMapsService;
+    private readonly IRouteDecisionService _routeDecisionService;
 
-    public RoutesController(IGoogleMapsService googleMapsService)
+    public RoutesController(
+        IGoogleMapsService googleMapsService,
+        IRouteDecisionService routeDecisionService)
     {
         _googleMapsService = googleMapsService;
+        _routeDecisionService = routeDecisionService;
     }
 
     [HttpPost("optimize")]
@@ -105,7 +109,40 @@ public class RoutesController : ControllerBase
         }
     }
 
-    /// <summary>GET /api/routes/compare?origin=Colombo&amp;destination=Kandy - Compare alternative routes with recommended route by fuel cost, distance, and ETA (MER-67).</summary>
+    [HttpPost("select")]
+    public async Task<IActionResult> SelectRoute([FromBody] SelectRouteRequest request, CancellationToken cancellationToken)
+    {
+        if (request is null
+            || string.IsNullOrWhiteSpace(request.Origin)
+            || string.IsNullOrWhiteSpace(request.Destination)
+            || request.Route is null)
+        {
+            return BadRequest(new { success = false, message = "Origin, destination, and route are required." });
+        }
+
+        try
+        {
+            var selected = await _routeDecisionService.SaveSelectedRouteAsync(request, cancellationToken);
+            return Ok(new { success = true, route = selected });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet("history")]
+    public async Task<IActionResult> GetRouteHistory([FromQuery] string origin, [FromQuery] string destination, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(destination))
+        {
+            return BadRequest(new { success = false, message = "Both origin and destination are required." });
+        }
+
+        var history = await _routeDecisionService.GetHistoryAsync(origin, destination, cancellationToken);
+        return Ok(new { success = true, routes = history });
+    }
+
     [HttpGet("compare")]
     public async Task<IActionResult> CompareRoutes([FromQuery] string origin, [FromQuery] string destination, CancellationToken cancellationToken)
     {
@@ -114,26 +151,8 @@ public class RoutesController : ControllerBase
             return BadRequest(new { success = false, message = "Both origin and destination are required." });
         }
 
-        try
-        {
-            var routes = await _googleMapsService.GetRouteComparisonsAsync(origin, destination, cancellationToken);
-            var recommended = routes.FirstOrDefault(r => r.IsRecommended);
-            var response = new RouteComparisonResponse
-            {
-                Success = true,
-                Routes = routes,
-                RecommendedRouteId = recommended?.RouteId ?? string.Empty
-            };
-            return Ok(response);
-        }
-        catch (RouteNotFoundException ex)
-        {
-            return NotFound(new { success = false, message = ex.Message });
-        }
-        catch (GoogleMapsServiceException ex)
-        {
-            return StatusCode(StatusCodes.Status502BadGateway, new { success = false, message = ex.Message });
-        }
+        var response = await _routeDecisionService.CompareRoutesAsync(origin, destination, cancellationToken);
+        return Ok(response);
     }
 
     /// <summary>GET /api/routes/rank?origin=Colombo&amp;destination=Kandy - Rank route options by fuel cost, distance, and duration (fuel in litres, cost in LKR, duration in hours).</summary>
