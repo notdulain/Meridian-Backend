@@ -130,10 +130,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<RouteServiceDbContext>();
-    await dbContext.Database.MigrateAsync();
-}
+// EF Core migrations are disabled. Database schema is managed manually and considered final.
 
 app.Run();
