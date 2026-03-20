@@ -14,6 +14,9 @@ public class VehicleService : IVehicleService
 
     public async Task<Vehicle> CreateVehicleAsync(Vehicle vehicle)
     {
+        if (string.IsNullOrWhiteSpace(vehicle.CurrentLocation))
+            throw new ArgumentException("Current location is required.");
+
         if (vehicle.CapacityKg <= 0)
             throw new ArgumentException("Capacity (Kg) must be greater than zero.");
         
@@ -39,6 +42,9 @@ public class VehicleService : IVehicleService
 
     public async Task<Vehicle> UpdateVehicleAsync(int id, Vehicle vehicle)
     {
+        if (string.IsNullOrWhiteSpace(vehicle.CurrentLocation))
+            throw new ArgumentException("Current location is required.");
+
         if (vehicle.CapacityKg <= 0)
             throw new ArgumentException("Capacity (Kg) must be greater than zero.");
 

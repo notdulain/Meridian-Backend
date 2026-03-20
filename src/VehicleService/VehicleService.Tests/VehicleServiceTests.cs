@@ -58,6 +58,18 @@ public class VehicleServiceTests
     }
 
     [Fact]
+    public async Task CreateVehicleAsync_ThrowsArgumentException_WhenCurrentLocationIsMissing()
+    {
+        var vehicle = CreateValidVehicle();
+        vehicle.CurrentLocation = " ";
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+
+        Assert.Equal("Current location is required.", ex.Message);
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
     public async Task CreateVehicleAsync_ThrowsArgumentException_WhenCapacityM3IsZeroOrLess()
     {
         // Arrange
@@ -105,6 +117,18 @@ public class VehicleServiceTests
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateVehicleAsync(1, vehicle));
         Assert.Equal("Capacity (Kg) must be greater than zero.", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateVehicleAsync_ThrowsArgumentException_WhenCurrentLocationIsMissing()
+    {
+        var vehicle = CreateValidVehicle();
+        vehicle.CurrentLocation = string.Empty;
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateVehicleAsync(1, vehicle));
+
+        Assert.Equal("Current location is required.", ex.Message);
         _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Vehicle>()), Times.Never);
     }
 
@@ -461,6 +485,7 @@ public class VehicleServiceTests
         PlateNumber = "ABC-123",
         Make = "Toyota",
         Model = "Hilux",
+        CurrentLocation = "Colombo Fort",
         Year = 2023,
         CapacityKg = 1000,
         CapacityM3 = 5.5,
