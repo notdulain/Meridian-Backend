@@ -226,7 +226,7 @@ jobs:
           SQL_HOST="$SQL_SERVER.database.windows.net"
           CONN_BASE="Server=$SQL_HOST;User ID=$DB_ADMIN;Password=$DB_PASSWORD;Trust Server Certificate=True"
           ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
-          REDIS_CONNECTION_STRING="$REDIS_ENDPOINT,password=$REDIS_PASSWORD,ssl=True,abortConnect=False"
+          REDIS_CONNECTION_STRING="$REDIS_ENDPOINT,user=default,password=$REDIS_PASSWORD,ssl=True,abortConnect=False"
 
           create_or_update_app() {
             local app_name="$1"
