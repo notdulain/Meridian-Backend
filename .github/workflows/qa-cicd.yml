@@ -334,6 +334,8 @@ jobs:
 
           GATEWAY_ENV=(
             "OCELOT_BASE_URL=https://placeholder"
+            "Cors__AllowedOrigins__0=http://localhost:3000"
+            "Cors__AllowedOrigins__1=https://blue-rock-0c1e01a00.2.azurestaticapps.net"
             "USER_SERVICE_HOST=$USER_SERVICE_HOST"
             "DELIVERY_SERVICE_HOST=$DELIVERY_SERVICE_HOST"
             "VEHICLE_SERVICE_HOST=$VEHICLE_SERVICE_HOST"
