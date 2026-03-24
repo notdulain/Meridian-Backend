@@ -25,7 +25,7 @@ env:
   LOCATION: eastasia
   CAE_NAME: cae-meridian-qa
   SQL_SERVER: sql-meridian-qa001
-  REDIS_NAME: redis-meridian-qa001
+  REDIS_ENDPOINT: redis-17031.c251.east-us-mz.azure.cloud.redislabs.com:17031
   DB_ADMIN: meridianadmin
 
 jobs:
@@ -150,7 +150,6 @@ jobs:
         shell: bash
         run: |
           az provider register --namespace Microsoft.ContainerRegistry --wait
-          az provider register --namespace Microsoft.Cache --wait
           az provider register --namespace Microsoft.Sql --wait
           az provider register --namespace Microsoft.App --wait
 
@@ -186,18 +185,6 @@ jobs:
             --end-ip-address 0.0.0.0 \
             --output none
 
-          if az redis show --name "$REDIS_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
-            echo "Redis Cache $REDIS_NAME already exists."
-          else
-            az redis create \
-              --name "$REDIS_NAME" \
-              --resource-group "$RESOURCE_GROUP" \
-              --location "$LOCATION" \
-              --sku Basic \
-              --vm-size c0 \
-              --output none
-          fi
-
           if az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
             echo "ACR $ACR_NAME already exists."
           else
@@ -232,15 +219,14 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
         run: |
           set -euo pipefail
 
           SQL_HOST="$SQL_SERVER.database.windows.net"
           CONN_BASE="Server=$SQL_HOST;User ID=$DB_ADMIN;Password=$DB_PASSWORD;Trust Server Certificate=True"
           ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
-          REDIS_HOST=$(az redis show --name "$REDIS_NAME" --resource-group "$RESOURCE_GROUP" --query hostName -o tsv)
-          REDIS_KEY=$(az redis list-keys --name "$REDIS_NAME" --resource-group "$RESOURCE_GROUP" --query primaryKey -o tsv)
-          REDIS_CONNECTION_STRING="$REDIS_HOST:6380,password=$REDIS_KEY,ssl=True,abortConnect=False"
+          REDIS_CONNECTION_STRING="$REDIS_ENDPOINT,password=$REDIS_PASSWORD,ssl=True,abortConnect=False"
 
           create_or_update_app() {
             local app_name="$1"
