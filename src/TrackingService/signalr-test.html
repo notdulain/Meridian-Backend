@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MER-81 | SignalR Hub Tester</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; padding: 24px; }
+    h1 { color: #7c6af7; margin-bottom: 4px; font-size: 1.4rem; }
+    p.sub { color: #666; font-size: 0.85rem; margin-bottom: 24px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 10px; padding: 18px; }
+    .card h2 { font-size: 0.9rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+    label { font-size: 0.8rem; color: #888; display: block; margin-bottom: 4px; margin-top: 10px; }
+    input, textarea { width: 100%; background: #0f1117; border: 1px solid #2a2d3a; border-radius: 6px;
+      color: #e0e0e0; padding: 8px 10px; font-size: 0.85rem; outline: none; }
+    input:focus, textarea:focus { border-color: #7c6af7; }
+    button { margin-top: 12px; width: 100%; padding: 9px; border: none; border-radius: 6px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    button:hover { opacity: 0.85; }
+    .btn-connect { background: #7c6af7; color: #fff; }
+    .btn-disconnect { background: #ef4444; color: #fff; }
+    .btn-join { background: #22c55e; color: #fff; }
+    .btn-leave { background: #f59e0b; color: #1a1a1a; }
+    .btn-send { background: #3b82f6; color: #fff; }
+    #log { background: #0a0c12; border: 1px solid #2a2d3a; border-radius: 8px; padding: 14px;
+      height: 320px; overflow-y: auto; font-family: monospace; font-size: 0.78rem; margin-top: 16px; }
+    .log-info  { color: #7c6af7; }
+    .log-recv  { color: #22c55e; }
+    .log-error { color: #ef4444; }
+    .log-warn  { color: #f59e0b; }
+    .status { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+      background: #ef4444; margin-right: 6px; }
+    .status.connected { background: #22c55e; }
+    #statusText { font-size: 0.8rem; color: #888; }
+    .full { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+
+<h1>⚡ MER-81 — SignalR Hub Tester</h1>
+<p class="sub">Tests: Connect · JoinAssignmentGroup · LeaveAssignmentGroup · SendLocationUpdate</p>
+
+<div class="grid">
+
+  <!-- CONNECTION -->
+  <div class="card">
+    <h2>1. Connect</h2>
+    <label>Hub URL</label>
+    <input id="hubUrl" value="http://localhost:5005/hubs/tracking" />
+    <label>JWT Token (paste without "Bearer ")</label>
+    <textarea id="token" rows="3" placeholder="eyJhbGci..."></textarea>
+    <button class="btn-connect" onclick="connect()">🔌 Connect</button>
+    <button class="btn-disconnect" onclick="disconnect()">✂️ Disconnect</button>
+    <div style="margin-top:12px">
+      <span class="status" id="statusDot"></span>
+      <span id="statusText">Disconnected</span>
+    </div>
+  </div>
+
+  <!-- DISPATCHER ACTIONS -->
+  <div class="card">
+    <h2>2. Dispatcher — Join / Leave Group</h2>
+    <p style="font-size:0.78rem;color:#666">Use a Dispatcher/Admin JWT token to test these</p>
+    <label>Assignment ID</label>
+    <input id="assignmentId" type="number" value="1" />
+    <button class="btn-join" onclick="joinGroup()">➕ JoinAssignmentGroup</button>
+    <button class="btn-leave" onclick="leaveGroup()">➖ LeaveAssignmentGroup</button>
+  </div>
+
+  <!-- DRIVER ACTIONS -->
+  <div class="card full">
+    <h2>3. Driver — Send Location Update</h2>
+    <p style="font-size:0.78rem;color:#666">Use a Driver JWT token to test this</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
+      <div>
+        <label>Assignment ID</label>
+        <input id="sendAssignmentId" type="number" value="1" />
+      </div>
+      <div>
+        <label>Driver ID</label>
+        <input id="sendDriverId" type="number" value="3" />
+      </div>
+      <div>
+        <label>Latitude</label>
+        <input id="lat" type="number" value="6.9271" step="0.0001" />
+      </div>
+      <div>
+        <label>Longitude</label>
+        <input id="lng" type="number" value="79.8612" step="0.0001" />
+      </div>
+    </div>
+    <button class="btn-send" onclick="sendLocation()">📍 SendLocationUpdate</button>
+  </div>
+
+  <!-- LOG -->
+  <div class="card full">
+    <h2>Event Log <small style="color:#444;font-weight:400">(incoming ReceiveLocationUpdate events appear here)</small></h2>
+    <div id="log"><span class="log-info">[ready] Open the browser console for extra details.</span></div>
+  </div>
+
+</div>
+
+<script>
+  let connection = null;
+
+  function log(msg, type = 'info') {
+    const el = document.getElementById('log');
+    const line = document.createElement('div');
+    line.className = `log-${type}`;
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function setStatus(connected) {
+    document.getElementById('statusDot').className = 'status' + (connected ? ' connected' : '');
+    document.getElementById('statusText').textContent = connected ? 'Connected ✅' : 'Disconnected';
+  }
+
+  async function connect() {
+    if (connection) await disconnect();
+
+    const url = document.getElementById('hubUrl').value.trim();
+    const token = document.getElementById('token').value.trim();
+
+    connection = new signalR.HubConnectionBuilder()
+      .withUrl(url, { accessTokenFactory: () => token })
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Information)
+      .build();
+
+    // Listen for location updates (ReceiveLocationUpdate event - sub-task 241)
+    connection.on('ReceiveLocationUpdate', (update) => {
+      log(`📍 ReceiveLocationUpdate → AssignmentId: ${update.assignmentId}, ` +
+          `Lat: ${update.latitude}, Lng: ${update.longitude}, ` +
+          `Driver: ${update.driverId}, Time: ${update.timestamp}`, 'recv');
+    });
+
+    connection.onclose(() => { setStatus(false); log('Connection closed.', 'warn'); });
+    connection.onreconnecting(() => log('Reconnecting...', 'warn'));
+    connection.onreconnected(() => { setStatus(true); log('Reconnected!', 'info'); });
+
+    try {
+      await connection.start();
+      setStatus(true);
+      log(`Connected! ConnectionId: ${connection.connectionId}`, 'info');
+    } catch (err) {
+      log(`Connection failed: ${err.message}`, 'error');
+    }
+  }
+
+  async function disconnect() {
+    if (connection) {
+      await connection.stop();
+      connection = null;
+      setStatus(false);
+      log('Disconnected manually.', 'warn');
+    }
+  }
+
+  async function joinGroup() {
+    if (!connection) return log('Not connected!', 'error');
+    const id = parseInt(document.getElementById('assignmentId').value);
+    try {
+      await connection.invoke('JoinAssignmentGroup', id);
+      log(`Joined group tracking-${id}`, 'info');
+    } catch (e) { log(`JoinAssignmentGroup failed: ${e.message}`, 'error'); }
+  }
+
+  async function leaveGroup() {
+    if (!connection) return log('Not connected!', 'error');
+    const id = parseInt(document.getElementById('assignmentId').value);
+    try {
+      await connection.invoke('LeaveAssignmentGroup', id);
+      log(`Left group tracking-${id}`, 'warn');
+    } catch (e) { log(`LeaveAssignmentGroup failed: ${e.message}`, 'error'); }
+  }
+
+  async function sendLocation() {
+    if (!connection) return log('Not connected!', 'error');
+    const update = {
+      assignmentId: parseInt(document.getElementById('sendAssignmentId').value),
+      driverId:     parseInt(document.getElementById('sendDriverId').value),
+      latitude:     parseFloat(document.getElementById('lat').value),
+      longitude:    parseFloat(document.getElementById('lng').value),
+      timestamp:    new Date().toISOString(),
+      speedKmh:     null
+    };
+    try {
+      await connection.invoke('SendLocationUpdate', update);
+      log(`Sent location → AssignmentId: ${update.assignmentId}, Lat: ${update.latitude}, Lng: ${update.longitude}`, 'info');
+    } catch (e) { log(`SendLocationUpdate failed: ${e.message}`, 'error'); }
+  }
+</script>
+</body>
+</html>
