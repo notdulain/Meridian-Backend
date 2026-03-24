@@ -30,7 +30,7 @@ SUFFIX="${ENV:0:3}001"
 SQL_SERVER="sql-meridian-$SUFFIX"
 CAE_NAME="cae-meridian-$ENV"
 
-DB_ADMIN="meridianadmin"
+DB_ADMIN="CloudSA28323cc6"
 ACR_NAME="${ACR_NAME:-acrmeridian$ENV}"
 
 echo "🚀 Deploying Meridian Platform ($ENV Environment)..."

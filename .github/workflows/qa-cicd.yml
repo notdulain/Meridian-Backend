@@ -26,7 +26,7 @@ env:
   CAE_NAME: cae-meridian-qa
   SQL_SERVER: sql-meridian-qa001
   REDIS_ENDPOINT: redis-17031.c251.east-us-mz.azure.cloud.redislabs.com:17031
-  DB_ADMIN: meridianadmin
+  DB_ADMIN: CloudSA28323cc6
 
 jobs:
   build-and-push:
