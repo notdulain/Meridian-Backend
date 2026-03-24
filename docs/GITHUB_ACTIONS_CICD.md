@@ -1,12 +1,12 @@
-# GitHub Actions QA CI/CD
+# GitHub Actions CI/CD
 
-This repository includes a GitHub Actions workflow at `.github/workflows/qa-cicd.yml`.
+This repository includes environment-specific GitHub Actions workflows at `.github/workflows/qa-cicd.yml` and `.github/workflows/prod-cicd.yml`.
 
 ## What it does
 
 1. Builds all backend images on a GitHub-hosted Linux runner
 2. Pushes `linux/amd64` images to Azure Container Registry
-3. Creates or updates the QA Azure resources directly from the workflow
+3. Creates or updates the Azure resource group, SQL logical server, ACR, and Container Apps environment directly from the workflow
 4. Deploys the new image tag to Azure Container Apps
 
 The workflow triggers on:
@@ -26,6 +26,7 @@ The repository currently has these GitHub Actions secrets configured:
 - `AZURE_TENANT_ID`
 - `DB_PASSWORD`
 - `GOOGLE_MAPS_API_KEY`
+- `REDIS_PASSWORD`
 - `JWT_SECRET`
 
 ## Secrets used by the current workflow
@@ -38,6 +39,7 @@ The current `.github/workflows/qa-cicd.yml` directly uses these secrets:
 - `JWT_SECRET`
 - `DB_PASSWORD`
 - `GOOGLE_MAPS_API_KEY`
+- `REDIS_PASSWORD`
 
 ## Secrets currently not consumed by the workflow
 
@@ -168,48 +170,25 @@ Steps:
 5. Create an API key or reuse an existing restricted key.
 6. Copy that value into the `GOOGLE_MAPS_API_KEY` GitHub secret.
 
-#### Redis connection string
+#### Redis Cloud credentials
 
-The QA GitHub Actions workflow now provisions Azure Cache for Redis automatically and builds the RouteService connection string from that resource during deployment.
+The QA and PROD workflows do not provision Azure Cache for Redis. RouteService uses a Redis Cloud endpoint, and the workflows build the StackExchange.Redis connection string during deployment.
 
-If you need to create or inspect the Redis resource manually, use:
-
-```bash
-az provider register --namespace Microsoft.Cache --wait
-
-az redis create \
-  --name <redis-name> \
-  --resource-group <resource-group> \
-  --location <location> \
-  --sku Basic \
-  --vm-size c0
-```
-
-Get the Redis host name:
-
-```bash
-az redis show \
-  --name <redis-name> \
-  --resource-group <resource-group> \
-  --query hostName -o tsv
-```
-
-Get the primary key:
-
-```bash
-az redis list-keys \
-  --name <redis-name> \
-  --resource-group <resource-group> \
-  --query primaryKey -o tsv
-```
-
-Build the secret value in StackExchange.Redis format:
+Current endpoint:
 
 ```text
-<hostName>:6380,password=<primaryKey>,ssl=True,abortConnect=False
+redis-17031.c251.east-us-mz.azure.cloud.redislabs.com:17031
 ```
 
-The QA GitHub Actions workflow builds this value automatically from the provisioned Redis resource. You only need this full connection string if you are doing manual deployments or troubleshooting outside the workflow.
+Required GitHub secret:
+
+- `REDIS_PASSWORD`
+
+The workflows construct the RouteService connection string in this format:
+
+```text
+redis-17031.c251.east-us-mz.azure.cloud.redislabs.com:17031,user=default,password=$REDIS_PASSWORD,ssl=True,abortConnect=False
+```
 
 #### Optional ACR values
 
@@ -250,7 +229,7 @@ gh secret set AZURE_CLIENT_ID --body "<managed-identity-client-id>"
 gh secret set JWT_SECRET --body "<jwt-secret>"
 gh secret set DB_PASSWORD --body "<db-password>"
 gh secret set GOOGLE_MAPS_API_KEY --body "<google-maps-api-key>"
-gh secret set REDIS_CONNECTION_STRING --body "<redis-connection-string>"
+gh secret set REDIS_PASSWORD --body "<redis-password>"
 ```
 
 Optional fallback ACR secrets:
@@ -269,7 +248,7 @@ At a minimum, the identity needs enough rights to:
 
 - create or update the resource group
 - create or update Azure Container Registry
-- create or update Azure SQL Server
+- create or update Azure SQL logical server
 - create or update Azure Container Apps resources
 - register Azure resource providers
 
@@ -284,6 +263,17 @@ The workflow currently assumes:
 - `LOCATION=eastasia`
 - `CAE_NAME=cae-meridian-qa`
 - `SQL_SERVER=sql-meridian-qa001`
+- `REDIS_ENDPOINT=redis-17031.c251.east-us-mz.azure.cloud.redislabs.com:17031`
+
+The seven application databases are expected to already exist on the logical server:
+
+- `user_db`
+- `meridian_delivery`
+- `meridian_vehicle`
+- `driver_db`
+- `meridian_assignment`
+- `meridian_route`
+- `meridian_tracking`
 
 If those values need to change, update `.github/workflows/qa-cicd.yml`.
 
@@ -299,3 +289,4 @@ The deploy job uses that same tag when updating Azure Container Apps, so the dep
 - The workflow is self-contained and does not call `build-push.sh` or `deploy-qa.sh`.
 - The local bash scripts remain useful for manual bootstrap or local operator workflows, but GitHub Actions does not depend on them.
 - The current workflow authenticates Docker to ACR via `az acr login`, so ACR username/password secrets are not required for the workflow to pass.
+- The workflows no longer create Azure Redis resources. RouteService cache configuration comes from Redis Cloud.

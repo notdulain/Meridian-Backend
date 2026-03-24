@@ -1,6 +1,6 @@
 # Azure Deployment Guide for Meridian
 
-This guide outlines the steps required to deploy the Meridian microservices to Microsoft Azure. We will be using **Azure Container Apps** to host our Dockerized microservices, **Azure Container Registry (ACR)** to store Docker images, **Azure SQL Database** as our managed relational database, and **Azure Cache for Redis** for distributed caching.
+This guide outlines the steps required to deploy the Meridian microservices to Microsoft Azure. We use **Azure Container Apps** to host the services, **Azure Container Registry (ACR)** to store Docker images, **Azure SQL Database** as the managed relational database platform, and **Redis Cloud** for RouteService distributed caching.
 
 Important deployment notes:
 
@@ -23,7 +23,7 @@ To keep resource names concise while adhering to naming standards, the following
 *   **cae**: Container Apps Environment
 *   **ca**: Container App
 *   **sqldb / sql-server**: Azure SQL Database / Server
-*   **redis**: Azure Cache for Redis
+*   **redis**: Redis cache endpoint
 *   **kv**: Azure Key Vault
 *   **law**: Log Analytics Workspace
 *   **appi**: Application Insights
@@ -39,8 +39,8 @@ As per the architectural design, Meridian uses three distinct environments, each
 Within each Resource Group, the following resources will be created:
 *   **Azure Container Apps Environment:** The managed cluster hosting the microservices.
 *   **Azure Container Apps:** The actual microservices (`ca-api-gateway`, `ca-user-service`, `ca-delivery-service`, `ca-vehicle-service`, `ca-driver-service`, `ca-assignment-service`, `ca-route-service`, `ca-tracking-service`).
-*   **Azure SQL Database Server:** Hosting the relational databases (`user_db`, `meridian_delivery`, `meridian_vehicle`, `meridian_driver`, `meridian_assignment`, `meridian_tracking`).
-*   **Azure Cache for Redis:** Caching (RouteService) and SignalR backplane (TrackingService).
+*   **Azure SQL Database Server:** Hosting the relational databases (`user_db`, `meridian_delivery`, `meridian_vehicle`, `driver_db`, `meridian_assignment`, `meridian_route`, `meridian_tracking`).
+*   **Redis Cloud database:** Used by RouteService for distributed route caching.
 *   **Azure Key Vault:** Securely storing secrets (connection strings, JWT keys).
 *   **Log Analytics Workspace & Application Insights:** For centralized logging and distributed tracing.
 
@@ -99,7 +99,7 @@ docker push $ACR_LOGIN_SERVER/meridian-trackingservice:v1
 
 ## Phase 3: Provision Azure Resources (Batch Script)
 
-To keep the deployment clean and automated, use the following bash script to provision all resources for a specific environment at once. This script uses Azure CLI. Save it, modify the variables, and execute it to instantly stand up the environment infrastructure.
+To keep the deployment clean and automated, use the following bash script to provision the reusable Azure resources for a specific environment. The SQL logical server is created by automation, but the seven application databases are created manually ahead of time. Redis is provided by Redis Cloud and injected into RouteService as an environment variable.
 
 > **Note:** Ensure you are logged in using `az login` before running this script.
 
@@ -116,11 +116,7 @@ LOCATION="eastasia"
 
 # Resource Names (Following naming conventions)
 RESOURCE_GROUP="rg-meridian-$ENV"
-LOG_ANALYTICS="law-meridian-$ENV"
-APP_INSIGHTS="appi-meridian-$ENV"
-SQL_SERVER="sql-server-meridian-$ENV-$RANDOM"
-REDIS_NAME="redis-meridian-$ENV-$RANDOM"
-KEYVAULT_NAME="kv-meridian-$ENV-$RANDOM"
+SQL_SERVER="sql-meridian-${ENV}001"
 CAE_NAME="cae-meridian-$ENV"
 
 # Database Configuration (Update these securely)
@@ -137,36 +133,26 @@ echo "🚀 Deploying Meridian Platform ($ENV Environment)..."
 echo "📦 Creating Resource Group: $RESOURCE_GROUP"
 az group create --name $RESOURCE_GROUP --location $LOCATION
 
-# 2. Setup Logging and Application Insights
-echo "📊 Setting up Log Analytics and Application Insights..."
-WORKSPACE_ID=$(az monitor log-analytics workspace create --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS --query customerId -o tsv)
-WORKSPACE_SECRET=$(az monitor log-analytics workspace get-shared-keys --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS --query primarySharedKey -o tsv)
-az monitor app-insights component create --app $APP_INSIGHTS --location $LOCATION --kind web -g $RESOURCE_GROUP --application-type web
-
-# 3. Create Azure SQL Server and configure firewall
+# 2. Create Azure SQL Server and configure firewall
 echo "🗄️ Creating SQL Server: $SQL_SERVER..."
 az sql server create --name $SQL_SERVER --resource-group $RESOURCE_GROUP --location $LOCATION --admin-user $DB_ADMIN --admin-password $DB_PASSWORD
 az sql server firewall-rule create --resource-group $RESOURCE_GROUP --server $SQL_SERVER --name AllowAllAzureIPs --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
 
-# 4. Create Redis Cache
-echo "⚡ Creating Redis Cache: $REDIS_NAME..."
-az redis create --name $REDIS_NAME --resource-group $RESOURCE_GROUP --location $LOCATION --sku Basic --vm-size c0
+# Manually create these seven databases on the logical server before deployment:
+# user_db, meridian_delivery, meridian_vehicle, driver_db,
+# meridian_assignment, meridian_route, meridian_tracking
 
-# 5. Create Key Vault
-echo "🔐 Creating Key Vault: $KEYVAULT_NAME..."
-az keyvault create --name $KEYVAULT_NAME --resource-group $RESOURCE_GROUP --location $LOCATION
-
-# 6. Create Azure Container Registry
+# 3. Create Azure Container Registry
 echo "📦 Creating Azure Container Registry: $ACR_NAME..."
 az acr create --name $ACR_NAME --resource-group $RESOURCE_GROUP --location $LOCATION --sku Basic --admin-enabled true
 ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
 ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query passwords[0].value -o tsv)
 
-# 7. Create Container Apps Environment
+# 4. Create Container Apps Environment
 echo "☁️ Creating Container Apps Environment: $CAE_NAME..."
-az containerapp env create --name $CAE_NAME --resource-group $RESOURCE_GROUP --location $LOCATION --logs-workspace-id $WORKSPACE_ID --logs-workspace-key $WORKSPACE_SECRET
+az containerapp env create --name $CAE_NAME --resource-group $RESOURCE_GROUP --location $LOCATION --logs-destination none
 
-# 8. Create Container Apps (Microservices)
+# 5. Create Container Apps (Microservices)
 echo "🛳️ Deploying Microservices to Container Apps..."
 
 # API Gateway (Publicly accessible ingress, container listens on 8080)
@@ -294,9 +280,11 @@ API Gateway URL: $(az containerapp show --resource-group $RESOURCE_GROUP --name 
 ## Phase 4: CI/CD Pipeline Automation
 
 Once manual deployment is confirmed via this script, configure GitHub Actions to automatically run on code commit. This entails:
-1. Authenticating to ACR from GitHub Actions using `azure/docker-login` with ACR credentials stored as GitHub Secrets.
+1. Authenticating to Azure from GitHub Actions using OIDC via `azure/login`.
 2. Building and pushing images to ACR (`$ACR_LOGIN_SERVER`) on every commit.
-3. Integrating the `az containerapp update --image $ACR_LOGIN_SERVER/<service>:<tag>` command directly in the CI/CD pipeline to seamlessly deploy the latest image.
+3. Creating or updating the Azure resource group, SQL logical server, ACR, and Container Apps environment from the workflow.
+4. Reusing the manually created SQL databases during deployment.
+5. Injecting the Redis Cloud endpoint and secret into RouteService during deployment.
 
 ## Swagger in Azure
 

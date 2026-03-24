@@ -47,7 +47,7 @@ The backend is organized into an API gateway and several microservices, followin
 * **API Gateway & Auth:** Ocelot-based gateway with symmetric JWT auth (`MeridianBearer`) and CORS configured for the frontend (`http://localhost:3000`).
 * **gRPC for internal calls:** `.proto` contracts and gRPC clients/servers set up for inter-service communication (e.g., Assignment → Delivery/Vehicle/Driver, Route → Vehicle).
 * **Database migrations:** Each service uses **DbUp** with SQL scripts under its `Migrations` folder, executed automatically on startup.
-* **SQL Server & Redis:** Local development uses Dockerized **SQL Server** and **Redis**. Local secrets can live in git-ignored `appsettings.Development.json`, while Azure uses Container App environment variables.
+* **SQL Server & Redis:** Local development uses Dockerized **SQL Server** and **Redis**. In Azure, the workflows create or update the core resources (resource group, SQL logical server, ACR, and Container Apps environment), while the service databases are created manually and Redis is provided by Redis Cloud.
 * **API documentation:** Swagger/OpenAPI is enabled in development and can be enabled in QA with `Swagger__Enabled=true`. Services expose Swagger directly on their local ports and through the gateway on routes such as `http://localhost:5050/delivery/swagger`.
 * **Real-time tracking:** A SignalR hub in `TrackingService` exposes `/hubs/tracking` via the gateway for live location updates.
 
@@ -126,6 +126,8 @@ The backend is organized into an API gateway and several microservices, followin
   - `http://localhost:5050/tracking/swagger`
   - `http://localhost:5050/user/swagger`
 - In Azure Container Apps, all containers listen internally on `8080`, but the public entry point remains the API Gateway FQDN.
+- QA and PROD deployments expect these SQL databases to already exist on their respective Azure SQL logical servers: `user_db`, `meridian_delivery`, `meridian_vehicle`, `driver_db`, `meridian_assignment`, `meridian_route`, `meridian_tracking`.
+- QA and PROD deployments use Redis Cloud for RouteService cache configuration instead of Azure Cache for Redis.
 
 ## 🗺️ Future Plans & Developer Roadmap
 
