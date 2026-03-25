@@ -10,6 +10,15 @@ using UserService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load shared UserService config files from the parent folder if present.
+var sharedConfigRoot = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
+builder.Configuration
+    .AddJsonFile(Path.Combine(sharedConfigRoot, "appsettings.json"), optional: true, reloadOnChange: true)
+    .AddJsonFile(
+        Path.Combine(sharedConfigRoot, $"appsettings.{builder.Environment.EnvironmentName}.json"),
+        optional: true,
+        reloadOnChange: true);
+
 // ─────────────────────────────────────────────
 // Serilog
 // ─────────────────────────────────────────────
@@ -60,12 +69,27 @@ builder.Services.AddHttpContextAccessor();
 // ─────────────────────────────────────────────
 // JWT Authentication — symmetric signing key
 // ─────────────────────────────────────────────
-var jwtSecret = builder.Configuration["Jwt:Secret"]
-    ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"]
-    ?? throw new InvalidOperationException("Jwt:Issuer is not configured.");
-var jwtAudience = builder.Configuration["Jwt:Audience"]
-    ?? throw new InvalidOperationException("Jwt:Audience is not configured.");
+var isTesting = builder.Environment.IsEnvironment("Testing");
+
+string jwtSecret;
+string jwtIssuer;
+string jwtAudience;
+
+if (isTesting)
+{
+    jwtSecret = "super-secret-test-key-1234567890123456";
+    jwtIssuer = "TestIssuer";
+    jwtAudience = "TestAudience";
+}
+else
+{
+    jwtSecret = builder.Configuration["Jwt:Secret"]
+        ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+    jwtIssuer = builder.Configuration["Jwt:Issuer"]
+        ?? throw new InvalidOperationException("Jwt:Issuer is not configured.");
+    jwtAudience = builder.Configuration["Jwt:Audience"]
+        ?? throw new InvalidOperationException("Jwt:Audience is not configured.");
+}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -118,37 +142,40 @@ builder.Services.AddScoped<IUserService, UserService.API.Services.UserService>()
 // ─────────────────────────────────────────────
 var app = builder.Build();
 
-// Run DbUp Migrations
-var connectionString = builder.Configuration.GetConnectionString("UserDb")
-    ?? throw new InvalidOperationException("ConnectionStrings:UserDb is not configured.");
-EnsureDatabase.For.SqlDatabase(connectionString);
-
-var upgrader = DeployChanges.To
-    .SqlDatabase(connectionString)
-    .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
-    .LogToConsole()
-    .Build();
-
-var result = upgrader.PerformUpgrade();
-if (!result.Successful)
+// Run DbUp Migrations (skipped in Testing environment)
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine(result.Error);
+    var connectionString = builder.Configuration.GetConnectionString("UserDb")
+        ?? throw new InvalidOperationException("ConnectionStrings:UserDb is not configured.");
+    EnsureDatabase.For.SqlDatabase(connectionString);
+
+    var upgrader = DeployChanges.To
+        .SqlDatabase(connectionString)
+        .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
+        .LogToConsole()
+        .Build();
+
+    var result = upgrader.PerformUpgrade();
+    if (!result.Successful)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine(result.Error);
+        Console.ResetColor();
+        throw new Exception("Database migration failed", result.Error);
+    }
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine("Database migration successful!");
     Console.ResetColor();
-    throw new Exception("Database migration failed", result.Error);
 }
-Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine("Database migration successful!");
-Console.ResetColor();
 
 app.UseCors("ReactFrontend");
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "UserService v1");
+        c.SwaggerEndpoint("v1/swagger.json", "UserService v1");
         c.RoutePrefix = "swagger";
     });
 }
@@ -159,3 +186,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

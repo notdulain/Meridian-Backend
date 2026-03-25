@@ -10,10 +10,12 @@ namespace DeliveryService.API.Controllers;
 public class DeliveriesController : ControllerBase
 {
     private readonly IDeliveryManagerService _deliveryManagerService;
+    private readonly IVehicleRecommendationService _recommendationService;
 
-    public DeliveriesController(IDeliveryManagerService deliveryManagerService)
+    public DeliveriesController(IDeliveryManagerService deliveryManagerService, IVehicleRecommendationService recommendationService)
     {
         _deliveryManagerService = deliveryManagerService;
+        _recommendationService = recommendationService;
     }
 
     /// <summary>
@@ -145,5 +147,25 @@ public class DeliveriesController : ControllerBase
         var deleted = await _deliveryManagerService.DeleteDeliveryAsync(id, cancellationToken);
         if (!deleted) return NotFound();
         return NoContent();
+    }
+
+    /// <summary>Get a list of recommended vehicles for a specific delivery based on capacity and availability.</summary>
+    [HttpGet("{id:int}/recommend-vehicles")]
+    [ProducesResponseType(typeof(IEnumerable<VehicleRecommendationDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IEnumerable<VehicleRecommendationDto>>> RecommendVehicles(int id, CancellationToken cancellationToken)
+    {
+        var delivery = await _deliveryManagerService.GetDeliveryByIdAsync(id, cancellationToken);
+        if (delivery is null) return NotFound(new { message = "Delivery not found" });
+
+        try
+        {
+            var recommended = await _recommendationService.GetRecommendedVehiclesAsync(id, cancellationToken);
+            return Ok(recommended);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
+        }
     }
 }

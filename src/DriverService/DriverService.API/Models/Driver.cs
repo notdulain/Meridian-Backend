@@ -3,7 +3,7 @@ namespace DriverService.API.Models;
 public class Driver
 {
     public int DriverId { get; set; }
-    public required string KeycloakUserId { get; set; }
+    public required string UserId { get; set; }
     public required string FullName { get; set; }
     public required string LicenseNumber { get; set; }
     public required string LicenseExpiry { get; set; }

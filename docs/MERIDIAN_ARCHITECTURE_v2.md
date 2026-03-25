@@ -530,13 +530,13 @@ public enum UserRole { Admin, Dispatcher, Driver }
 
 | Service | Database Name | Dev Connection |
 |---|---|---|
-| DeliveryService | `delivery_db` | `Server=localhost,1433;Database=delivery_db;...` |
-| VehicleService | `vehicle_db` | `Server=localhost,1433;Database=vehicle_db;...` |
+| DeliveryService | `meridian_delivery` | `Server=localhost,1433;Database=meridian_delivery;...` |
+| VehicleService | `meridian_vehicle` | `Server=localhost,1433;Database=meridian_vehicle;...` |
 | DriverService | `driver_db` | `Server=localhost,1433;Database=driver_db;...` |
-| AssignmentService | `assignment_db` | `Server=localhost,1433;Database=assignment_db;...` |
-| TrackingService | `tracking_db` | `Server=localhost,1433;Database=tracking_db;...` |
+| AssignmentService | `meridian_assignment` | `Server=localhost,1433;Database=meridian_assignment;...` |
+| TrackingService | `meridian_tracking` | `Server=localhost,1433;Database=meridian_tracking;...` |
 | UserService | `user_db` | `Server=localhost,1433;Database=user_db;...` |
-| RouteService | — | Redis-only (route cache) |
+| RouteService | `meridian_route` | `Server=localhost,1433;Database=meridian_route;...` plus Redis cache |
 
 **Credentials:** `User Id=sa; Password=<in appsettings.Development.json>; TrustServerCertificate=True;`
 
@@ -548,7 +548,7 @@ public enum UserRole { Admin, Dispatcher, Driver }
 | Environment | Instance | Purpose |
 |---|---|---|
 | Development | `localhost:6379` | Google Maps route cache, route optimization results |
-| Production | Azure Cache for Redis | Distributed cache |
+| Production | Redis Cloud | Distributed cache |
 
 ### 5.4 Migration Scripts Structure
 
@@ -939,14 +939,14 @@ fix/*       → Bug fix branches
 
 | Component | Azure Service |
 |---|---|
-| Microservices | Azure App Service (containerized) |
+| Microservices | Azure Container Apps |
 | Frontend | Azure Static Web Apps |
 | Database | Azure SQL Database |
-| Cache | Azure Cache for Redis |
+| Cache | Redis Cloud |
 | Secrets | Azure Key Vault |
 | Monitoring | Azure Application Insights |
 | Container Registry | Azure Container Registry |
-| Auth | Azure Key Vault for JWT secret; UserService deployed as App Service |
+| Auth | Shared JWT secret injected via environment variables; UserService deployed as a Container App |
 
 ---
 

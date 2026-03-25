@@ -8,6 +8,7 @@ service VehicleGrpc {
   rpc GetVehicle (VehicleRequest) returns (VehicleResponse);
   rpc CheckAvailability (VehicleRequest) returns (AvailabilityResponse);
   rpc UpdateStatus (UpdateStatusRequest) returns (UpdateStatusResponse);
+  rpc GetAvailableVehicles (GetAvailableVehiclesRequest) returns (GetAvailableVehiclesResponse);
 }
 
 message VehicleRequest {
@@ -24,6 +25,7 @@ message VehicleResponse {
   double capacity_m3 = 7;
   double fuel_efficiency_km_per_litre = 8;
   string status = 9;
+  string current_location = 10;
 }
 
 message AvailabilityResponse {
@@ -39,4 +41,11 @@ message UpdateStatusRequest {
 message UpdateStatusResponse {
   bool success = 1;
   string message = 2;
+}
+
+message GetAvailableVehiclesRequest {
+}
+
+message GetAvailableVehiclesResponse {
+  repeated VehicleResponse vehicles = 1;
 }

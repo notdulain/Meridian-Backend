@@ -40,6 +40,169 @@ public class VehicleServiceTests
         _repositoryMock.Verify(r => r.CreateAsync(vehicle), Times.Once);
     }
 
+    [Fact]
+    public async Task CreateVehicleAsync_ThrowsArgumentException_WhenCapacityKgIsZeroOrLess()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.CapacityKg = 0;
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+        Assert.Equal("Capacity (Kg) must be greater than zero.", ex.Message);
+        
+        vehicle.CapacityKg = -10;
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateVehicleAsync_ThrowsArgumentException_WhenCurrentLocationIsMissing()
+    {
+        var vehicle = CreateValidVehicle();
+        vehicle.CurrentLocation = " ";
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+
+        Assert.Equal("Current location is required.", ex.Message);
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateVehicleAsync_ThrowsArgumentException_WhenCapacityM3IsZeroOrLess()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.CapacityM3 = 0;
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+        Assert.Equal("Capacity (M3) must be greater than zero.", ex.Message);
+
+        vehicle.CapacityM3 = -5;
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateVehicleAsync_ThrowsArgumentException_WhenPlateNumberAlreadyExists()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.PlateNumber = "DUPLICATE-123";
+
+        // Setup the mock to return an existing vehicle for this plate number
+        _repositoryMock
+            .Setup(r => r.GetByPlateNumberAsync("DUPLICATE-123"))
+            .ReturnsAsync(new Vehicle { PlateNumber = "DUPLICATE-123", Make = "Ford", Model = "Fiesta", Status = "Available" });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateVehicleAsync(vehicle));
+        Assert.Equal("A vehicle with plate number 'DUPLICATE-123' already exists.", ex.Message);
+
+        _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    // ---------- UpdateVehicleAsync ----------
+
+    [Fact]
+    public async Task UpdateVehicleAsync_ThrowsArgumentException_WhenCapacityKgIsZeroOrLess()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.CapacityKg = 0;
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateVehicleAsync(1, vehicle));
+        Assert.Equal("Capacity (Kg) must be greater than zero.", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateVehicleAsync_ThrowsArgumentException_WhenCurrentLocationIsMissing()
+    {
+        var vehicle = CreateValidVehicle();
+        vehicle.CurrentLocation = string.Empty;
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateVehicleAsync(1, vehicle));
+
+        Assert.Equal("Current location is required.", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateVehicleAsync_ThrowsArgumentException_WhenCapacityM3IsZeroOrLess()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.CapacityM3 = -1;
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateVehicleAsync(1, vehicle));
+        Assert.Equal("Capacity (M3) must be greater than zero.", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateVehicleAsync_ThrowsArgumentException_WhenStatusIsInvalid()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.Status = "Broken";
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateVehicleAsync(1, vehicle));
+        Assert.Contains("Invalid status", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateVehicleAsync_ThrowsArgumentException_WhenPlateNumberBelongsToAnotherVehicle()
+    {
+        // Arrange
+        var vehicle = CreateValidVehicle();
+        vehicle.PlateNumber = "TAKEN-999";
+
+        // A different vehicle already has this plate number
+        _repositoryMock
+            .Setup(r => r.GetByPlateNumberAsync("TAKEN-999"))
+            .ReturnsAsync(new Vehicle { VehicleId = 99, PlateNumber = "TAKEN-999", Make = "Honda", Model = "Civic", Status = "Available" });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateVehicleAsync(1, vehicle));
+        Assert.Equal("A vehicle with plate number 'TAKEN-999' already exists.", ex.Message);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Vehicle>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateVehicleAsync_AllowsSamePlateNumber_WhenBelongsToSameVehicle()
+    {
+        // Arrange — vehicle is updating itself, plate check should NOT block it
+        var vehicle = CreateValidVehicle();
+        vehicle.VehicleId = 5;
+        vehicle.PlateNumber = "SAME-001";
+
+        var updated = CreateValidVehicle();
+        updated.VehicleId = 5;
+
+        _repositoryMock
+            .Setup(r => r.GetByPlateNumberAsync("SAME-001"))
+            .ReturnsAsync(new Vehicle { VehicleId = 5, PlateNumber = "SAME-001", Make = "Toyota", Model = "Hilux", Status = "Available" });
+
+        _repositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<Vehicle>()))
+            .ReturnsAsync(updated);
+
+        // Act
+        var result = await _service.UpdateVehicleAsync(5, vehicle);
+
+        // Assert
+        Assert.NotNull(result);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Vehicle>()), Times.Once);
+    }
+
     // ---------- GetVehicleByIdAsync ----------
 
     [Fact]
@@ -256,17 +419,17 @@ public class VehicleServiceTests
         var vehicles = new List<Vehicle> { vehicle1, vehicle2 };
 
         _repositoryMock
-            .Setup(r => r.GetAllAsync(1, 10, null))
+            .Setup(r => r.GetAllAsync(1, 10, null, null))
             .ReturnsAsync((vehicles, 2));
 
         // Act
-        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, null);
+        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, null, null);
 
         // Assert
         Assert.NotNull(resultVehicles);
         Assert.Equal(2, resultVehicles.Count());
         Assert.Equal(2, totalCount);
-        _repositoryMock.Verify(r => r.GetAllAsync(1, 10, null), Times.Once);
+        _repositoryMock.Verify(r => r.GetAllAsync(1, 10, null, null), Times.Once);
     }
 
     [Fact]
@@ -280,16 +443,39 @@ public class VehicleServiceTests
         var vehicles = new List<Vehicle> { vehicle1 };
 
         _repositoryMock
-            .Setup(r => r.GetAllAsync(1, 10, "Maintenance"))
+            .Setup(r => r.GetAllAsync(1, 10, "Maintenance", null))
             .ReturnsAsync((vehicles, 1));
 
         // Act
-        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, "Maintenance");
+        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, "Maintenance", null);
 
         // Assert
         Assert.Single(resultVehicles);
         Assert.Equal(1, totalCount);
         Assert.All(resultVehicles, v => Assert.Equal("Maintenance", v.Status));
+    }
+
+    [Fact]
+    public async Task GetVehiclesAsync_WithIsActiveFilter_ReturnsFilteredResults()
+    {
+        // Arrange
+        var vehicle1 = CreateValidVehicle();
+        vehicle1.VehicleId = 1;
+        vehicle1.Status = "Available";
+        
+        var vehicles = new List<Vehicle> { vehicle1 };
+
+        _repositoryMock
+            .Setup(r => r.GetAllAsync(1, 10, null, true))
+            .ReturnsAsync((vehicles, 1));
+
+        // Act
+        var (resultVehicles, totalCount) = await _service.GetVehiclesAsync(1, 10, null, true);
+
+        // Assert
+        Assert.Single(resultVehicles);
+        Assert.Equal(1, totalCount);
+        Assert.All(resultVehicles, v => Assert.NotEqual("Retired", v.Status));
     }
 
     // ---------- Helpers ----------
@@ -299,6 +485,7 @@ public class VehicleServiceTests
         PlateNumber = "ABC-123",
         Make = "Toyota",
         Model = "Hilux",
+        CurrentLocation = "Colombo Fort",
         Year = 2023,
         CapacityKg = 1000,
         CapacityM3 = 5.5,

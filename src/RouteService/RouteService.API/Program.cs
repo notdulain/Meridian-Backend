@@ -1,8 +1,13 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using StackExchange.Redis;
 using Meridian.VehicleGrpc;
+using RouteService.API.Data;
+using RouteService.API.Repositories;
+using RouteService.API.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,12 +39,30 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Configure Redis
+// Configure Redis distributed cache
 var redisConfiguration = builder.Configuration.GetConnectionString("RedisCache");
-if (!string.IsNullOrEmpty(redisConfiguration))
+if (string.IsNullOrWhiteSpace(redisConfiguration))
 {
-    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConfiguration));
+    throw new InvalidOperationException("ConnectionStrings:RedisCache is not configured.");
 }
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConfiguration;
+    options.InstanceName = "MeridianRoutes:";
+});
+
+
+var routeDbConnectionString = builder.Configuration.GetConnectionString("RouteDb");
+if (string.IsNullOrWhiteSpace(routeDbConnectionString))
+{
+    throw new InvalidOperationException("ConnectionStrings:RouteDb is not configured.");
+}
+
+builder.Services.AddDbContext<RouteServiceDbContext>(options =>
+    options.UseSqlServer(routeDbConnectionString));
+builder.Services.AddScoped<IRouteHistoryRepository, RouteHistoryRepository>();
+builder.Services.AddScoped<IRouteDecisionService, RouteDecisionService>();
 
 // Configure gRPC Client
 builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
@@ -47,19 +70,33 @@ builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
     o.Address = new Uri(builder.Configuration["Grpc:VehicleServiceUrl"]!);
 });
 
-// Configure HttpClient for Google Maps
-builder.Services.AddHttpClient("GoogleMaps", client =>
+// Configure HttpClient for Google Routes API (v2)
+builder.Services.AddHttpClient(nameof(GoogleMapsService), client =>
 {
-    client.BaseAddress = new Uri("https://maps.googleapis.com");
+    client.BaseAddress = new Uri("https://routes.googleapis.com");
+    client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Meridian-RouteService/1.0");
 });
+builder.Services.AddScoped<IGoogleMapsService, GoogleMapsService>();
 
-// Keycloak Authentication
+// JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = builder.Configuration["Keycloak:Authority"];
-        options.Audience = builder.Configuration["Keycloak:Audience"];
-        options.RequireHttpsMetadata = false; // dev only
+        options.RequireHttpsMetadata = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+            ClockSkew = TimeSpan.Zero
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -68,12 +105,22 @@ var app = builder.Build();
 
 app.UseSerilogRequestLogging();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
-    app.UseSwagger();
+    app.UseSwagger(c =>
+    {
+        c.PreSerializeFilters.Add((swagger, _) =>
+        {
+            var serverBasePath = app.Configuration["Swagger:ServerBasePath"];
+            if (!string.IsNullOrWhiteSpace(serverBasePath))
+            {
+                swagger.Servers = new List<OpenApiServer> { new() { Url = serverBasePath } };
+            }
+        });
+    });
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "RouteService v1");
+        c.SwaggerEndpoint("v1/swagger.json", "RouteService v1");
         c.RoutePrefix = "swagger";
     });
 }
@@ -82,5 +129,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// EF Core migrations are disabled. Database schema is managed manually and considered final.
 
 app.Run();

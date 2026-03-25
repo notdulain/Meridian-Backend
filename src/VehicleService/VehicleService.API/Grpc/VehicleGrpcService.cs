@@ -35,7 +35,8 @@ public class VehicleGrpcService : VehicleGrpc.VehicleGrpcBase
                 CapacityKg = vehicle.CapacityKg,
                 CapacityM3 = vehicle.CapacityM3,
                 FuelEfficiencyKmPerLitre = vehicle.FuelEfficiencyKmPerLitre,
-                Status = vehicle.Status
+                Status = vehicle.Status,
+                CurrentLocation = vehicle.CurrentLocation
             };
         }
         catch (Exception ex) when (ex is not RpcException)
@@ -84,6 +85,39 @@ public class VehicleGrpcService : VehicleGrpc.VehicleGrpcBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating status for vehicle {VehicleId}", request.VehicleId);
+            throw new RpcException(new Status(StatusCode.Internal, "Internal server error"));
+        }
+    }
+
+    public override async Task<GetAvailableVehiclesResponse> GetAvailableVehicles(GetAvailableVehiclesRequest request, ServerCallContext context)
+    {
+        try
+        {
+            var vehicles = await _vehicleService.GetAvailableVehiclesAsync();
+            var response = new GetAvailableVehiclesResponse();
+
+            foreach (var vehicle in vehicles)
+            {
+                response.Vehicles.Add(new VehicleResponse
+                {
+                    VehicleId = vehicle.VehicleId,
+                    PlateNumber = vehicle.PlateNumber,
+                    Make = vehicle.Make,
+                    Model = vehicle.Model,
+                    Year = vehicle.Year,
+                    CapacityKg = vehicle.CapacityKg,
+                    CapacityM3 = vehicle.CapacityM3,
+                    FuelEfficiencyKmPerLitre = vehicle.FuelEfficiencyKmPerLitre,
+                    Status = vehicle.Status,
+                    CurrentLocation = vehicle.CurrentLocation
+                });
+            }
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting available vehicles");
             throw new RpcException(new Status(StatusCode.Internal, "Internal server error"));
         }
     }

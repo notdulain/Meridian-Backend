@@ -1,241 +1,32 @@
 using Microsoft.AspNetCore.Mvc;
+using Moq;
 using System.Text.Json;
 using DriverService.API.Controllers;
 using DriverService.API.Models;
+using DriverService.API.Services;
 using Xunit;
 
 namespace DriverService.Tests;
 
-/// <summary>
-/// Tests for DriversController.
-/// Note: The controller is a placeholder implementation with no real service injection.
-/// These tests verify the HTTP contract and response shape. Richer tests will follow
-/// when the real service layer is introduced.
-/// </summary>
 public class DriversControllerTests
 {
+    private readonly Mock<IDriverService> _serviceMock;
     private readonly DriversController _controller;
 
     public DriversControllerTests()
     {
-        _controller = new DriversController();
-    }
-
-    // ---------- GET /api/drivers ----------
-
-    [Fact]
-    public void GetDrivers_ReturnsEmptyList_WithCorrectStructure()
-    {
-        // Act
-        var result = _controller.GetDrivers();
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        Assert.NotNull(ok.Value);
-
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-
-        // data should be an empty list (no drivers in placeholder)
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var dataArray = JsonSerializer.Deserialize<List<JsonElement>>(dataJson!);
-        Assert.NotNull(dataArray);
-        Assert.Empty(dataArray);
-    }
-
-    [Fact]
-    public void GetDrivers_WithCustomPagination_Returns200()
-    {
-        // Act
-        var result = _controller.GetDrivers(page: 2, pageSize: 5);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-    }
-
-    // ---------- GET /api/drivers/{id} ----------
-
-    [Fact]
-    public void GetDriver_ReturnsDriverById()
-    {
-        // Act
-        var result = _controller.GetDriver(42);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        Assert.NotNull(ok.Value);
-
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-
-        // The placeholder returns a Driver with the requested ID
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var driver = JsonSerializer.Deserialize<JsonElement>(dataJson!, CaseInsensitiveOptions);
-        Assert.Equal(42, GetInt32Property(driver, "driverid"));
-    }
-
-    [Fact]
-    public void GetDriver_ReturnsDriverWithExpectedFields()
-    {
-        // Act
-        var result = _controller.GetDriver(1);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-
-        var driver = JsonSerializer.Deserialize<JsonElement>(dataJson!, CaseInsensitiveOptions);
-        // Verify all required fields are present and non-empty (case-insensitive property search)
-        Assert.True(TryGetCaseInsensitive(driver, "driverid", out _));
-        Assert.True(TryGetCaseInsensitive(driver, "fullname", out var fullName));
-        Assert.NotEmpty(fullName.GetString()!);
-        Assert.True(TryGetCaseInsensitive(driver, "licensenumber", out _));
-    }
-
-    // ---------- POST /api/drivers ----------
-
-    [Fact]
-    public void CreateDriver_ReturnsStaticDriver()
-    {
-        // Arrange
-        var newDriver = CreateValidDriver();
-
-        // Act
-        var result = _controller.CreateDriver(newDriver);
-
-        // Assert
-        var objectResult = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(201, objectResult.StatusCode);
-        Assert.NotNull(objectResult.Value);
-
-        var success = GetPropertyValue<bool>(objectResult.Value, "success");
-        Assert.True(success);
-
-        // Placeholder always assigns DriverId = 1
-        var dataJson = GetRawProperty(objectResult.Value, "data");
-        Assert.NotNull(dataJson);
-        var driver = JsonSerializer.Deserialize<JsonElement>(dataJson!, CaseInsensitiveOptions);
-        Assert.Equal(1, GetInt32Property(driver, "driverid"));
-    }
-
-    [Fact]
-    public void CreateDriver_ResponseContainsDriverData()
-    {
-        // Arrange
-        var newDriver = CreateValidDriver();
-        newDriver.FullName = "Jane Smith";
-
-        // Act
-        var result = _controller.CreateDriver(newDriver);
-
-        // Assert
-        var objectResult = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(201, objectResult.StatusCode);
-
-        var dataJson = GetRawProperty(objectResult.Value, "data");
-        Assert.NotNull(dataJson);
-        var driver = JsonSerializer.Deserialize<JsonElement>(dataJson!, CaseInsensitiveOptions);
-        Assert.Equal("Jane Smith", GetStringProperty(driver, "fullname"));
-    }
-
-    // ---------- GET /api/drivers/available ----------
-
-    [Fact]
-    public void GetAvailableDrivers_ReturnsEmptyList()
-    {
-        // Act
-        var result = _controller.GetAvailableDrivers();
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        Assert.NotNull(ok.Value);
-
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-
-        // Placeholder returns an empty list
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var dataArray = JsonSerializer.Deserialize<List<JsonElement>>(dataJson!);
-        Assert.NotNull(dataArray);
-        Assert.Empty(dataArray);
-    }
-
-    // ---------- PUT /api/drivers/{id} ----------
-
-    [Fact]
-    public void UpdateDriver_ExistingId_Returns200()
-    {
-        // Arrange
-        var driver = CreateValidDriver();
-        driver.FullName = "Updated Name";
-
-        // Act
-        var result = _controller.UpdateDriver(7, driver);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-
-        // Placeholder assigns the provided ID to the driver
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var updated = JsonSerializer.Deserialize<JsonElement>(dataJson!, CaseInsensitiveOptions);
-        Assert.Equal(7, GetInt32Property(updated, "driverid"));
-    }
-
-    // ---------- PUT /api/drivers/{id}/hours ----------
-
-    [Fact]
-    public void UpdateWorkingHours_Returns200WithSuccessMessage()
-    {
-        // Arrange
-        var request = new UpdateHoursDto { HoursToAdd = 4.5 };
-
-        // Act
-        var result = _controller.UpdateWorkingHours(3, request);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-    }
-
-    // ---------- DELETE /api/drivers/{id} ----------
-
-    [Fact]
-    public void DeleteDriver_Returns200WithSuccessMessage()
-    {
-        // Act
-        var result = _controller.DeleteDriver(5);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
+        _serviceMock = new Mock<IDriverService>();
+        _controller = new DriversController(_serviceMock.Object);
     }
 
     // ---------- Helpers ----------
 
     private static Driver CreateValidDriver() => new()
     {
-        KeycloakUserId = "kc-user-001",
+        UserId = "user-001",
         FullName = "John Doe",
         LicenseNumber = "LIC-12345",
-        LicenseExpiry = "2027-12-31",
+        LicenseExpiry = DateTime.UtcNow.AddYears(2).ToString("yyyy-MM-dd"),
         PhoneNumber = "+94771234567",
         MaxWorkingHoursPerDay = 8.0,
         IsActive = true,
@@ -243,75 +34,284 @@ public class DriversControllerTests
         UpdatedAt = DateTime.UtcNow
     };
 
-    // JSON options for case-insensitive property matching
-    private static readonly JsonSerializerOptions CaseInsensitiveOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private static T? GetPropertyValue<T>(object? obj, string propertyName)
     {
         if (obj == null) return default;
-
         var json = JsonSerializer.Serialize(obj);
         using var doc = JsonDocument.Parse(json);
-
         foreach (var prop in doc.RootElement.EnumerateObject())
-        {
             if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
                 return JsonSerializer.Deserialize<T>(prop.Value.GetRawText());
-        }
-
         return default;
     }
 
-    private static string? GetRawProperty(object? obj, string propertyName)
+    // ---------- POST /api/Drivers ----------
+
+    [Fact]
+    public async Task CreateDriver_Returns201_WhenValid()
     {
-        if (obj == null) return null;
+        // Arrange
+        var driver = CreateValidDriver();
+        var created = CreateValidDriver();
+        created.DriverId = 1;
 
-        var json = JsonSerializer.Serialize(obj);
-        using var doc = JsonDocument.Parse(json);
+        _serviceMock
+            .Setup(s => s.CreateDriverAsync(It.IsAny<Driver>()))
+            .ReturnsAsync(created);
 
-        foreach (var prop in doc.RootElement.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-                return prop.Value.GetRawText();
-        }
+        // Act
+        var result = await _controller.CreateDriver(driver);
 
-        return null;
+        // Assert
+        var objectResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(201, objectResult.StatusCode);
+        Assert.True(GetPropertyValue<bool>(objectResult.Value, "success"));
     }
 
-    private static bool TryGetCaseInsensitive(JsonElement element, string propertyName, out JsonElement value)
+    [Fact]
+    public async Task CreateDriver_Returns400_WhenServiceThrows()
     {
-        foreach (var prop in element.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-            {
-                value = prop.Value;
-                return true;
-            }
-        }
-        value = default;
-        return false;
+        // Arrange
+        var driver = CreateValidDriver();
+        _serviceMock
+            .Setup(s => s.CreateDriverAsync(It.IsAny<Driver>()))
+            .ThrowsAsync(new ArgumentException("A driver with license number 'LIC-12345' already exists."));
+
+        // Act
+        var result = await _controller.CreateDriver(driver);
+
+        // Assert
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.False(GetPropertyValue<bool>(badRequest.Value, "success"));
     }
 
-    private static int GetInt32Property(JsonElement element, string propertyName)
+    // ---------- GET /api/Drivers ----------
+
+    [Fact]
+    public async Task GetDrivers_Returns200_WithPaginatedResults()
     {
-        foreach (var prop in element.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-                return prop.Value.GetInt32();
-        }
-        throw new KeyNotFoundException($"Property '{propertyName}' not found in JSON element.");
+        // Arrange
+        var drivers = new List<Driver> { CreateValidDriver(), CreateValidDriver() };
+        _serviceMock
+            .Setup(s => s.GetDriversAsync(1, 10))
+            .ReturnsAsync((drivers, 2));
+
+        // Act
+        var result = await _controller.GetDrivers(1, 10);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
     }
 
-    private static string? GetStringProperty(JsonElement element, string propertyName)
+    [Fact]
+    public async Task GetDeletedDrivers_Returns200_WithPaginatedResults()
     {
-        foreach (var prop in element.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-                return prop.Value.GetString();
-        }
-        return null;
+        // Arrange
+        var drivers = new List<Driver> { CreateValidDriver() };
+        _serviceMock
+            .Setup(s => s.GetDeletedDriversAsync(1, 10))
+            .ReturnsAsync((drivers, 1));
+
+        // Act
+        var result = await _controller.GetDeletedDrivers(1, 10);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
+        Assert.NotNull(GetPropertyValue<object>(ok.Value, "meta"));
+    }
+
+    // ---------- GET /api/Drivers/{id} ----------
+
+    [Fact]
+    public async Task GetDriver_Returns200_WhenFound()
+    {
+        // Arrange
+        var driver = CreateValidDriver();
+        driver.DriverId = 5;
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(5)).ReturnsAsync(driver);
+
+        // Act
+        var result = await _controller.GetDriver(5);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
+    }
+
+    [Fact]
+    public async Task GetDriver_Returns404_WhenNotFound()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(999)).ReturnsAsync((Driver?)null);
+
+        // Act
+        var result = await _controller.GetDriver(999);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task GetDriver_Returns404_WhenDriverIsSoftDeleted()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(5)).ReturnsAsync((Driver?)null);
+
+        // Act
+        var result = await _controller.GetDriver(5);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    // ---------- PUT /api/Drivers/{id} ----------
+
+    [Fact]
+    public async Task UpdateDriver_Returns200_WhenValid()
+    {
+        // Arrange
+        var driver = CreateValidDriver();
+        var existing = CreateValidDriver();
+        existing.DriverId = 7;
+
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(7)).ReturnsAsync(existing);
+        _serviceMock.Setup(s => s.UpdateDriverAsync(7, It.IsAny<Driver>())).ReturnsAsync(existing);
+
+        // Act
+        var result = await _controller.UpdateDriver(7, driver);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
+    }
+
+    [Fact]
+    public async Task UpdateDriver_Returns404_WhenNotFound()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(999)).ReturnsAsync((Driver?)null);
+
+        // Act
+        var result = await _controller.UpdateDriver(999, CreateValidDriver());
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task UpdateDriver_Returns404_WhenDriverIsSoftDeleted()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(7)).ReturnsAsync((Driver?)null);
+
+        // Act
+        var result = await _controller.UpdateDriver(7, CreateValidDriver());
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+        _serviceMock.Verify(s => s.UpdateDriverAsync(It.IsAny<int>(), It.IsAny<Driver>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateDriver_Returns400_WhenServiceThrowsValidationError()
+    {
+        // Arrange
+        var driver = CreateValidDriver();
+        var existing = CreateValidDriver();
+        existing.DriverId = 7;
+
+        _serviceMock.Setup(s => s.GetDriverByIdAsync(7)).ReturnsAsync(existing);
+        _serviceMock
+            .Setup(s => s.UpdateDriverAsync(7, It.IsAny<Driver>()))
+            .ThrowsAsync(new ArgumentException("License number is required."));
+
+        // Act
+        var result = await _controller.UpdateDriver(7, driver);
+
+        // Assert
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.False(GetPropertyValue<bool>(badRequest.Value, "success"));
+        Assert.Equal("Failed to update driver", GetPropertyValue<string>(badRequest.Value, "message"));
+        var errors = GetPropertyValue<string[]>(badRequest.Value, "errors");
+        Assert.NotNull(errors);
+        Assert.Contains("License number is required.", errors!);
+    }
+
+    // ---------- PUT /api/Drivers/{id}/hours ----------
+
+    [Fact]
+    public async Task UpdateWorkingHours_Returns200_WhenValid()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.UpdateWorkingHoursAsync(3, 4.5)).ReturnsAsync(true);
+
+        // Act
+        var result = await _controller.UpdateWorkingHours(3, new UpdateHoursDto { HoursToAdd = 4.5 });
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
+    }
+
+    [Fact]
+    public async Task UpdateWorkingHours_Returns404_WhenDriverNotFound()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.UpdateWorkingHoursAsync(999, It.IsAny<double>())).ReturnsAsync(false);
+
+        // Act
+        var result = await _controller.UpdateWorkingHours(999, new UpdateHoursDto { HoursToAdd = 2.0 });
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    // ---------- DELETE /api/Drivers/{id} ----------
+
+    [Fact]
+    public async Task DeleteDriver_Returns200_WhenDeleted()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.DeleteDriverAsync(5)).ReturnsAsync(true);
+
+        // Act
+        var result = await _controller.DeleteDriver(5);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
+    }
+
+    [Fact]
+    public async Task DeleteDriver_Returns404_WhenNotFound()
+    {
+        // Arrange
+        _serviceMock.Setup(s => s.DeleteDriverAsync(999)).ReturnsAsync(false);
+
+        // Act
+        var result = await _controller.DeleteDriver(999);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    // ---------- GET /api/Drivers/available ----------
+
+    [Fact]
+    public async Task GetAvailableDrivers_Returns200_WithList()
+    {
+        // Arrange
+        _serviceMock
+            .Setup(s => s.GetAvailableDriversAsync())
+            .ReturnsAsync(new List<Driver> { CreateValidDriver() });
+
+        // Act
+        var result = await _controller.GetAvailableDrivers();
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
     }
 }

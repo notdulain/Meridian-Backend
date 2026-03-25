@@ -27,7 +27,13 @@ The backend is organized into an API gateway and several microservices, followin
    - Vehicle/driver assignment logic and recommendations (Port `6004`, gRPC `7004`)
 
 7. **RouteService (`/src/RouteService/RouteService.API`)**  
-   - Route optimization, Google Maps integration, fuel cost estimation, Redis-backed route cache (Port `6005`, gRPC `7005`)
+- Route optimization, Google Maps Routes API integration, fuel cost estimation, Redis-backed route cache (Port `6005`, gRPC `7005`)
+- HTTP endpoints (via the ApiGateway):
+  - `POST /api/routes/optimize` – optimize a route and return the best option plus alternatives
+  - `GET /api/routes/calculate` – calculate distance, ETA, and polyline between origin and destination
+  - `GET /api/routes/alternatives` – list alternative route options from Google Routes API
+  - `GET /api/routes/compare` – compare alternative routes with distance, ETA, and fuel cost metrics
+  - `GET /api/routes/rank` – return ranked routes including fuel consumption (L), fuel cost (LKR), and duration (hours)
 
 8. **TrackingService (`/src/TrackingService/TrackingService.API`)**  
    - Real-time GPS tracking via SignalR hub, location history (Port `6006`)
@@ -41,8 +47,8 @@ The backend is organized into an API gateway and several microservices, followin
 * **API Gateway & Auth:** Ocelot-based gateway with symmetric JWT auth (`MeridianBearer`) and CORS configured for the frontend (`http://localhost:3000`).
 * **gRPC for internal calls:** `.proto` contracts and gRPC clients/servers set up for inter-service communication (e.g., Assignment → Delivery/Vehicle/Driver, Route → Vehicle).
 * **Database migrations:** Each service uses **DbUp** with SQL scripts under its `Migrations` folder, executed automatically on startup.
-* **SQL Server & Redis:** Local development uses Dockerized **SQL Server** and **Redis**. Connection strings and secrets live in git-ignored `appsettings.Development.json`.
-* **API documentation:** Swagger/OpenAPI is enabled in development for all HTTP services (e.g., `http://localhost:6001/swagger`, `http://localhost:6002/swagger`, `http://localhost:6003/swagger`, etc.).
+* **SQL Server & Redis:** Local development uses Dockerized **SQL Server** and **Redis**. In Azure, the workflows create or update the core resources (resource group, SQL logical server, ACR, and Container Apps environment), while the service databases are created manually and Redis is provided by Redis Cloud.
+* **API documentation:** Swagger/OpenAPI is enabled in development and can be enabled in QA with `Swagger__Enabled=true`. Services expose Swagger directly on their local ports and through the gateway on routes such as `http://localhost:5050/delivery/swagger`.
 * **Real-time tracking:** A SignalR hub in `TrackingService` exposes `/hubs/tracking` via the gateway for live location updates.
 
 ## 🚀 How to Run Locally
@@ -100,6 +106,28 @@ The backend is organized into an API gateway and several microservices, followin
    ```
 
    The frontend talks to the API Gateway at `http://localhost:5050` and uses `ws://localhost:5050/hubs/tracking` for real-time updates.
+
+## Swagger Access
+
+- Local direct service Swagger:
+  - `http://localhost:6001/swagger`
+  - `http://localhost:6002/swagger`
+  - `http://localhost:6003/swagger`
+  - `http://localhost:6004/swagger`
+  - `http://localhost:6005/swagger`
+  - `http://localhost:6006/swagger`
+  - `http://localhost:6007/swagger`
+- Local gateway Swagger proxies:
+  - `http://localhost:5050/delivery/swagger`
+  - `http://localhost:5050/vehicle/swagger`
+  - `http://localhost:5050/driver/swagger`
+  - `http://localhost:5050/assignment/swagger`
+  - `http://localhost:5050/route/swagger`
+  - `http://localhost:5050/tracking/swagger`
+  - `http://localhost:5050/user/swagger`
+- In Azure Container Apps, all containers listen internally on `8080`, but the public entry point remains the API Gateway FQDN.
+- QA and PROD deployments expect these SQL databases to already exist on their respective Azure SQL logical servers: `user_db`, `meridian_delivery`, `meridian_vehicle`, `driver_db`, `meridian_assignment`, `meridian_route`, `meridian_tracking`.
+- QA and PROD deployments use Redis Cloud for RouteService cache configuration instead of Azure Cache for Redis.
 
 ## 🗺️ Future Plans & Developer Roadmap
 

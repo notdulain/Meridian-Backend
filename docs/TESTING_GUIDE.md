@@ -86,6 +86,20 @@ dotnet test --collect:"XPlat Code Coverage"
 
 This command runs the tests and generates an XML file (usually named `coverage.cobertura.xml`) inside a generated `TestResults/{guid}/` folder.
 
+### Assignment Engine Coverage Workflow
+
+If you want to measure coverage specifically for the assignment-engine story scope, use the repo script below. It runs the `AssignmentService` and `DeliveryService` test projects with coverage enabled, writes isolated results under `TestResults/assignment-engine/`, and generates an HTML + text summary report under `coveragereport/assignment-engine/`.
+
+```bash
+cd Meridian-Backend
+./scripts/measure-assignment-engine-coverage.sh
+```
+
+After the script finishes:
+- Open `coveragereport/assignment-engine/index.html` for the full HTML report.
+- Read `coveragereport/assignment-engine/Summary.txt` for the text summary.
+- Use this targeted workflow when validating assignment creation/history logic in `AssignmentService` together with recommendation logic in `DeliveryService`.
+
 ### Viewing a Beautiful HTML Report
 
 Raw XML isn't easy to read. You can install the `.NET Global Tool` called **ReportGenerator** to convert this XML into an interactive HTML dashboard.

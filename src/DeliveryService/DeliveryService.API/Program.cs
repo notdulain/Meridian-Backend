@@ -16,6 +16,21 @@ builder.Services.AddEndpointsApiExplorer();
 // Repository and manager service
 builder.Services.AddScoped<DeliveryRepository>();
 builder.Services.AddScoped<IDeliveryManagerService, DeliveryManagerService>();
+builder.Services.AddScoped<IVehicleRecommendationService, VehicleRecommendationService>();
+builder.Services.AddHttpClient<IRouteDistanceService, RouteDistanceService>((serviceProvider, client) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var routeServiceUrl = configuration["ServiceUrls:RouteService"] ?? "http://localhost:6003";
+    client.BaseAddress = new Uri(routeServiceUrl);
+});
+builder.Services.AddGrpcClient<Meridian.VehicleGrpc.VehicleGrpc.VehicleGrpcClient>(options =>
+{
+    var url = builder.Configuration["Grpc:VehicleServiceUrl"]
+        ?? builder.Configuration["ServiceUrls:VehicleGrpcService"]
+        ?? builder.Configuration["ServiceUrls:VehicleService"]
+        ?? "http://localhost:7002";
+    options.Address = new Uri(url);
+});
 
 // Swagger / OpenAPI
 builder.Services.AddSwaggerGen(c =>
@@ -101,17 +116,27 @@ Console.WriteLine("Database migration successful!");
 Console.ResetColor();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
-    app.UseSwagger();
+    app.UseSwagger(c =>
+    {
+        c.PreSerializeFilters.Add((swagger, _) =>
+        {
+            var serverBasePath = app.Configuration["Swagger:ServerBasePath"];
+            if (!string.IsNullOrWhiteSpace(serverBasePath))
+            {
+                swagger.Servers = new List<OpenApiServer> { new() { Url = serverBasePath } };
+            }
+        });
+    });
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DeliveryService v1");
+        c.SwaggerEndpoint("v1/swagger.json", "DeliveryService v1");
         c.RoutePrefix = "swagger";
     });
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection(); // Removed to prevent internal 301 loop with API Gateway
 app.UseCors("AllowedOrigins");
 app.UseAuthentication();
 

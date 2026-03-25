@@ -1,254 +1,159 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
+using Moq;
 using RouteService.API.Controllers;
 using RouteService.API.Models;
+using RouteService.API.Services;
 using Xunit;
 
 namespace RouteService.Tests;
 
-/// <summary>
-/// Tests for RoutesController.
-/// Note: The controller is a placeholder with no dependencies — straightforward to test directly.
-/// </summary>
 public class RoutesControllerTests
 {
-    private readonly RoutesController _controller;
+    private readonly Mock<IGoogleMapsService> _googleMapsServiceMock = new(MockBehavior.Strict);
+    private readonly Mock<IRouteDecisionService> _routeDecisionServiceMock = new(MockBehavior.Strict);
 
-    public RoutesControllerTests()
-    {
-        _controller = new RoutesController();
-    }
-
-    // ---------- POST /api/routes/optimize ----------
+    private RoutesController CreateController() =>
+        new(_googleMapsServiceMock.Object, _routeDecisionServiceMock.Object);
 
     [Fact]
-    public void OptimizeRoute_ReturnsSuccessWithAtLeastOneOption()
+    public async Task GetAlternativeRoutes_ReturnsOk_WhenRoutesFound()
     {
-        // Arrange
-        var request = new OptimizeRouteRequest
-        {
-            Origin = "Colombo",
-            Destination = "Kandy",
-            VehicleId = 1,
-            DeliveryId = 10
-        };
+        _googleMapsServiceMock
+            .Setup(x => x.GetAlternativeRoutesAsync("Colombo", "Kandy", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new RouteOption
+                {
+                    RouteId = "r-1",
+                    Summary = "Primary Route",
+                    Distance = "115.0 km",
+                    DistanceValue = 115000,
+                    Duration = "2 hr",
+                    DurationValue = 7200,
+                    FuelCost = 2900,
+                    PolylinePoints = "poly-1"
+                }
+            ]);
 
-        // Act
-        var result = _controller.OptimizeRoute(request);
+        var result = await CreateController().GetAlternativeRoutes("Colombo", "Kandy", CancellationToken.None);
 
-        // Assert
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Equal(200, ok.StatusCode);
-        Assert.NotNull(ok.Value);
-
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-
-        // Placeholder always returns at least one route option
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var options = JsonSerializer.Deserialize<List<JsonElement>>(dataJson!);
-        Assert.NotNull(options);
-        Assert.NotEmpty(options);
     }
 
     [Fact]
-    public void OptimizeRoute_ReturnedOptionHasExpectedFields()
+    public async Task SelectRoute_ReturnsBadRequest_ForInvalidBody()
     {
-        // Arrange
-        var request = new OptimizeRouteRequest
-        {
-            Origin = "Colombo",
-            Destination = "Kandy",
-            VehicleId = 1,
-            DeliveryId = 10
-        };
-
-        // Act
-        var result = _controller.OptimizeRoute(request);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-
-        var options = JsonSerializer.Deserialize<List<JsonElement>>(dataJson!);
-        Assert.NotNull(options);
-        var first = options![0];
-
-        // Verify all required RouteOption fields are present
-        Assert.True(TryGetCaseInsensitive(first, "routeId", out var routeId));
-        Assert.NotEmpty(routeId.GetString()!);
-        Assert.True(TryGetCaseInsensitive(first, "summary", out _));
-        Assert.True(TryGetCaseInsensitive(first, "distance", out _));
-        Assert.True(TryGetCaseInsensitive(first, "duration", out _));
-        Assert.True(TryGetCaseInsensitive(first, "fuelCost", out _));
-    }
-
-    [Fact]
-    public void OptimizeRoute_ReturnedOptionHasPositiveFuelCost()
-    {
-        // Arrange
-        var request = new OptimizeRouteRequest
-        {
-            Origin = "Colombo",
-            Destination = "Galle",
-            VehicleId = 2,
-            DeliveryId = 5
-        };
-
-        // Act
-        var result = _controller.OptimizeRoute(request);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var dataJson = GetRawProperty(ok.Value, "data");
-        var options = JsonSerializer.Deserialize<List<JsonElement>>(dataJson!);
-        Assert.NotNull(options);
-
-        foreach (var option in options!)
-        {
-            var fuelCost = GetDoubleProperty(option, "fuelCost");
-            Assert.True(fuelCost > 0, $"Expected fuelCost > 0 but got {fuelCost}");
-        }
-    }
-
-    // ---------- GET /api/routes/{routeId} ----------
-
-    [Fact]
-    public void GetRoute_ReturnsRouteOptionWithMatchingId()
-    {
-        // Act
-        var result = _controller.GetRoute("R-42");
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        Assert.NotNull(ok.Value);
-
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-
-        // Placeholder echoes back the routeId
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var route = JsonSerializer.Deserialize<JsonElement>(dataJson!);
-        Assert.Equal("R-42", GetStringProperty(route, "routeId"));
-    }
-
-    [Fact]
-    public void GetRoute_ResponseContainsAllRequiredFields()
-    {
-        // Act
-        var result = _controller.GetRoute("R-1");
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-
-        var route = JsonSerializer.Deserialize<JsonElement>(dataJson!);
-        Assert.True(TryGetCaseInsensitive(route, "routeId", out _));
-        Assert.True(TryGetCaseInsensitive(route, "summary", out var summary));
-        Assert.NotEmpty(summary.GetString()!);
-        Assert.True(TryGetCaseInsensitive(route, "distance", out _));
-        Assert.True(TryGetCaseInsensitive(route, "duration", out _));
-        Assert.True(TryGetCaseInsensitive(route, "fuelCost", out _));
-    }
-
-    // ---------- POST /api/routes/fuel-cost ----------
-
-    [Fact]
-    public void CalculateFuelCost_ReturnsSuccessWithFuelCost()
-    {
-        // Act
-        var result = _controller.CalculateFuelCost();
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        Assert.NotNull(ok.Value);
-
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-
-        // Placeholder returns a fuelCost value
-        var fuelCost = GetPropertyValue<double>(ok.Value, "fuelCost");
-        Assert.True(fuelCost > 0, $"Expected fuelCost > 0 but got {fuelCost}");
-    }
-
-    [Fact]
-    public void CalculateFuelCost_ReturnsExpectedPlaceholderValue()
-    {
-        // Act
-        var result = _controller.CalculateFuelCost();
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var fuelCost = GetPropertyValue<double>(ok.Value, "fuelCost");
-        // Placeholder always returns 10.5
-        Assert.Equal(10.5, fuelCost);
-    }
-
-    // ---------- Helpers ----------
-
-    private static T? GetPropertyValue<T>(object? obj, string propertyName)
-    {
-        if (obj == null) return default;
-        var json = JsonSerializer.Serialize(obj);
-        using var doc = JsonDocument.Parse(json);
-        foreach (var prop in doc.RootElement.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-                return JsonSerializer.Deserialize<T>(prop.Value.GetRawText());
-        }
-        return default;
-    }
-
-    private static string? GetRawProperty(object? obj, string propertyName)
-    {
-        if (obj == null) return null;
-        var json = JsonSerializer.Serialize(obj);
-        using var doc = JsonDocument.Parse(json);
-        foreach (var prop in doc.RootElement.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-                return prop.Value.GetRawText();
-        }
-        return null;
-    }
-
-    private static bool TryGetCaseInsensitive(JsonElement element, string propertyName, out JsonElement value)
-    {
-        foreach (var prop in element.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
+        var result = await CreateController().SelectRoute(
+            new SelectRouteRequest
             {
-                value = prop.Value;
-                return true;
+                Origin = string.Empty,
+                Destination = "Kandy",
+                Route = new RouteOption
+                {
+                    RouteId = "id",
+                    Summary = "s",
+                    Distance = "1 km",
+                    Duration = "1 min",
+                    PolylinePoints = "p"
+                }
+            },
+            CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(400, badRequest.StatusCode);
+    }
+
+    [Fact]
+    public async Task SelectRoute_ReturnsSavedRoute()
+    {
+        var request = new SelectRouteRequest
+        {
+            Origin = "Colombo",
+            Destination = "Kandy",
+            Route = new RouteOption
+            {
+                RouteId = "id",
+                Summary = "s",
+                Distance = "100 km",
+                DistanceValue = 100000,
+                Duration = "2 hr",
+                DurationValue = 7200,
+                FuelCost = 2500,
+                PolylinePoints = "p"
             }
-        }
-        value = default;
-        return false;
+        };
+
+        _routeDecisionServiceMock
+            .Setup(x => x.SaveSelectedRouteAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HistoryRouteDto
+            {
+                RouteId = Guid.NewGuid(),
+                Origin = "Colombo",
+                Destination = "Kandy",
+                DistanceKm = 100,
+                DurationMinutes = 120,
+                FuelCostLkr = 2500,
+                FuelConsumptionLitres = 8.2m,
+                Polyline = "p",
+                Selected = true,
+                CreatedAt = DateTime.UtcNow
+            });
+
+        var result = await CreateController().SelectRoute(request, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(200, ok.StatusCode);
     }
 
-    private static string? GetStringProperty(JsonElement element, string propertyName)
+    [Fact]
+    public async Task GetRouteHistory_ReturnsBadRequest_WhenQueryMissing()
     {
-        foreach (var prop in element.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-                return prop.Value.GetString();
-        }
-        return null;
+        var result = await CreateController().GetRouteHistory(" ", "Kandy", CancellationToken.None);
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(400, badRequest.StatusCode);
     }
 
-    private static double GetDoubleProperty(JsonElement element, string propertyName)
+    [Fact]
+    public async Task CompareRoutes_ReturnsCombinedResponse()
     {
-        foreach (var prop in element.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-                return prop.Value.GetDouble();
-        }
-        throw new KeyNotFoundException($"Property '{propertyName}' not found.");
+        _routeDecisionServiceMock
+            .Setup(x => x.CompareRoutesAsync("Colombo", "Kandy", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CompareRoutesResponse
+            {
+                HistoryRoutes = [],
+                SuggestedRoutes =
+                [
+                    new SuggestedRouteDto
+                    {
+                        RouteId = "r1",
+                        Summary = "Primary Route",
+                        DistanceKm = 100,
+                        DurationMinutes = 120,
+                        FuelCostLkr = 3000,
+                        Polyline = "p"
+                    }
+                ],
+                Comparison =
+                [
+                    new ComparisonRouteItem
+                    {
+                        RouteId = "r1",
+                        IsHistorical = false,
+                        DistanceKm = 100,
+                        DurationMinutes = 120,
+                        FuelCostLkr = 3000,
+                        RankScore = 688
+                    }
+                ]
+            });
+
+        var result = await CreateController().CompareRoutes("Colombo", "Kandy", CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(200, ok.StatusCode);
+        var response = Assert.IsType<CompareRoutesResponse>(ok.Value);
+        Assert.Single(response.SuggestedRoutes);
+        Assert.Single(response.Comparison);
     }
 }

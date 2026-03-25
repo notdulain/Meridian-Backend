@@ -12,14 +12,27 @@ public class VehicleService : IVehicleService
         _repository = repository;
     }
 
-    public Task<Vehicle> CreateVehicleAsync(Vehicle vehicle)
+    public async Task<Vehicle> CreateVehicleAsync(Vehicle vehicle)
     {
-        return _repository.CreateAsync(vehicle);
+        if (string.IsNullOrWhiteSpace(vehicle.CurrentLocation))
+            throw new ArgumentException("Current location is required.");
+
+        if (vehicle.CapacityKg <= 0)
+            throw new ArgumentException("Capacity (Kg) must be greater than zero.");
+        
+        if (vehicle.CapacityM3 <= 0)
+            throw new ArgumentException("Capacity (M3) must be greater than zero.");
+            
+        var existing = await _repository.GetByPlateNumberAsync(vehicle.PlateNumber);
+        if (existing != null)
+            throw new ArgumentException($"A vehicle with plate number '{vehicle.PlateNumber}' already exists.");
+
+        return await _repository.CreateAsync(vehicle);
     }
 
-    public Task<(IEnumerable<Vehicle> Vehicles, int TotalCount)> GetVehiclesAsync(int page, int pageSize, string? status)
+    public Task<(IEnumerable<Vehicle> Vehicles, int TotalCount)> GetVehiclesAsync(int page, int pageSize, string? status, bool? isActive = null)
     {
-        return _repository.GetAllAsync(page, pageSize, status);
+        return _repository.GetAllAsync(page, pageSize, status, isActive);
     }
 
     public Task<Vehicle?> GetVehicleByIdAsync(int id)
@@ -29,6 +42,23 @@ public class VehicleService : IVehicleService
 
     public async Task<Vehicle> UpdateVehicleAsync(int id, Vehicle vehicle)
     {
+        if (string.IsNullOrWhiteSpace(vehicle.CurrentLocation))
+            throw new ArgumentException("Current location is required.");
+
+        if (vehicle.CapacityKg <= 0)
+            throw new ArgumentException("Capacity (Kg) must be greater than zero.");
+
+        if (vehicle.CapacityM3 <= 0)
+            throw new ArgumentException("Capacity (M3) must be greater than zero.");
+
+        var validStatuses = new[] { "Available", "OnTrip", "Maintenance", "Retired" };
+        if (!validStatuses.Contains(vehicle.Status))
+            throw new ArgumentException($"Invalid status '{vehicle.Status}'. Must be one of: {string.Join(", ", validStatuses)}.");
+
+        var existing = await _repository.GetByPlateNumberAsync(vehicle.PlateNumber);
+        if (existing != null && existing.VehicleId != id)
+            throw new ArgumentException($"A vehicle with plate number '{vehicle.PlateNumber}' already exists.");
+
         vehicle.VehicleId = id;
         return await _repository.UpdateAsync(vehicle);
     }

@@ -1,10 +1,18 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Meridian.VehicleGrpc;
 using Meridian.DriverGrpc;
+using System.Text;
+using Microsoft.Data.SqlClient;
+using Dapper;
+using AssignmentService.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Allow unencrypted HTTP/2 for gRPC clients (h2c)
+AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
 // Configure Serilog
 builder.Host.UseSerilog((context, configuration) =>
@@ -48,30 +56,122 @@ builder.Services.AddGrpcClient<DriverGrpc.DriverGrpcClient>(o =>
 // Configure HttpClient for DeliveryService
 builder.Services.AddHttpClient("DeliveryService", client =>
 {
-    client.BaseAddress = new Uri("http://localhost:6001");
+    client.BaseAddress = new Uri(builder.Configuration["Services:DeliveryServiceUrl"]!);
 });
 
-// Keycloak Authentication
+// Register repository
+builder.Services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+
+// JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = builder.Configuration["Keycloak:Authority"];
-        options.Audience = builder.Configuration["Keycloak:Audience"];
-        options.RequireHttpsMetadata = false; // dev only
+        options.RequireHttpsMetadata = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+            ClockSkew = TimeSpan.Zero
+        };
     });
 
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// Run DB migration
+var connectionString = builder.Configuration.GetConnectionString("AssignmentDb");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    try
+    {
+        // 1. Ensure database exists
+        var masterConnectionString = connectionString.Replace("Database=assignment_db;", "Database=master;");
+        using (var masterConn = new SqlConnection(masterConnectionString))
+        {
+            await masterConn.ExecuteAsync("IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'assignment_db') CREATE DATABASE assignment_db;");
+        }
+
+        // 2. Run table migration
+        using var conn = new SqlConnection(connectionString);
+        var sql = @"
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Assignments' AND xtype='U')
+            BEGIN
+                CREATE TABLE Assignments (
+                    AssignmentId INT IDENTITY(1,1) PRIMARY KEY,
+                    DeliveryId INT NOT NULL,
+                    VehicleId INT NOT NULL,
+                    DriverId INT NOT NULL,
+                    AssignedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+                    AssignedBy NVARCHAR(255) NOT NULL,
+                    Status NVARCHAR(50) NOT NULL DEFAULT 'Active',
+                    Notes NVARCHAR(MAX) NULL,
+                    CreatedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+                    UpdatedAt DATETIME NOT NULL DEFAULT GETUTCDATE()
+                )
+            END
+
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='AssignmentHistory' AND xtype='U')
+            BEGIN
+                CREATE TABLE AssignmentHistory (
+                    AssignmentHistoryId INT IDENTITY(1,1) PRIMARY KEY,
+                    AssignmentId INT NOT NULL,
+                    DeliveryId INT NOT NULL,
+                    VehicleId INT NOT NULL,
+                    DriverId INT NOT NULL,
+                    PreviousStatus NVARCHAR(50) NULL,
+                    NewStatus NVARCHAR(50) NOT NULL,
+                    Action NVARCHAR(50) NOT NULL,
+                    ChangedBy NVARCHAR(255) NOT NULL,
+                    ChangedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+                    Notes NVARCHAR(MAX) NULL,
+                    CONSTRAINT FK_AssignmentHistory_Assignments FOREIGN KEY (AssignmentId) REFERENCES Assignments(AssignmentId)
+                )
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AssignmentHistory_ChangedAt' AND object_id = OBJECT_ID('AssignmentHistory'))
+            BEGIN
+                CREATE INDEX IX_AssignmentHistory_ChangedAt ON AssignmentHistory(ChangedAt DESC)
+            END";
+        await conn.ExecuteAsync(sql);
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Database migration successful!");
+        Console.ResetColor();
+    }
+    catch (Exception ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"Database migration failed: {ex.Message}");
+        Console.ResetColor();
+    }
+}
+
 app.UseSerilogRequestLogging();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
-    app.UseSwagger();
+    app.UseSwagger(c =>
+    {
+        c.PreSerializeFilters.Add((swagger, _) =>
+        {
+            var serverBasePath = app.Configuration["Swagger:ServerBasePath"];
+            if (!string.IsNullOrWhiteSpace(serverBasePath))
+            {
+                swagger.Servers = new List<OpenApiServer> { new() { Url = serverBasePath } };
+            }
+        });
+    });
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "AssignmentService v1");
+        c.SwaggerEndpoint("v1/swagger.json", "AssignmentService v1");
         c.RoutePrefix = "swagger";
     });
 }

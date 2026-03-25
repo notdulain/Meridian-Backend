@@ -11,12 +11,14 @@ namespace DeliveryService.Tests;
 public class DeliveriesControllerTests
 {
     private readonly Mock<IDeliveryManagerService> _serviceMock;
+    private readonly Mock<IVehicleRecommendationService> _recommendationServiceMock;
     private readonly DeliveriesController _controller;
 
     public DeliveriesControllerTests()
     {
         _serviceMock = new Mock<IDeliveryManagerService>();
-        _controller = new DeliveriesController(_serviceMock.Object);
+        _recommendationServiceMock = new Mock<IVehicleRecommendationService>();
+        _controller = new DeliveriesController(_serviceMock.Object, _recommendationServiceMock.Object);
     }
 
     // ---------- GET /api/deliveries ----------
