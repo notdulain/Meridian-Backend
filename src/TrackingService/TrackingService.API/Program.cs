@@ -37,6 +37,24 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddSignalR();
 
+// CORS — required for browser SignalR clients (negotiate is an HTTP request)
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (allowedOrigins is null || allowedOrigins.Length == 0)
+{
+    allowedOrigins = ["http://localhost:3000", "null"];
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("TrackingFrontend", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
@@ -101,6 +119,7 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger
     });
 }
 
+app.UseCors("TrackingFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
