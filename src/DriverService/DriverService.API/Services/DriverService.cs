@@ -60,6 +60,14 @@ public class DriverService : IDriverService
         return _repository.UpdateWorkingHoursAsync(id, hoursToAdd);
     }
 
+    public Task<IEnumerable<DriverPerformanceMetrics>> GetDriverPerformanceReportAsync(DateTime? startDateUtc, DateTime? endDateUtc)
+    {
+        if (startDateUtc.HasValue && endDateUtc.HasValue && endDateUtc <= startDateUtc)
+            throw new ArgumentException("End date must be greater than start date.");
+
+        return _repository.GetDriverPerformanceReportAsync(startDateUtc, endDateUtc);
+    }
+
     // ---------- Private Helpers ----------
 
     private static void ValidateDriver(Driver driver, bool allowDefaultMaxWorkingHours)

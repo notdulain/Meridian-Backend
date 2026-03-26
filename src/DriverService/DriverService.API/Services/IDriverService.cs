@@ -12,4 +12,5 @@ public interface IDriverService
     Task<bool> DeleteDriverAsync(int id);
     Task<IEnumerable<Driver>> GetAvailableDriversAsync();
     Task<bool> UpdateWorkingHoursAsync(int id, double hoursToAdd);
+    Task<IEnumerable<DriverPerformanceMetrics>> GetDriverPerformanceReportAsync(DateTime? startDateUtc, DateTime? endDateUtc);
 }
