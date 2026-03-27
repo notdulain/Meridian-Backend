@@ -11,22 +11,41 @@ namespace UserService.API.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUserService userService)
+    public UsersController(IUserService userService, ILogger<UsersController> logger)
     {
         _userService = userService;
+        _logger = logger;
     }
 
     // GET /api/users — Admin only
     [Authorize(Roles = "Admin")]
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> GetAll()
     {
-        var users = await _userService.GetAllAsync();
-        return Ok(users);
+        try
+        {
+            var users = (await _userService.GetAllAsync()).ToList();
+
+            if (users.Count == 0)
+            {
+                return NotFound(new { message = "No users found." });
+            }
+
+            return Ok(users);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve users from UserService.");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "An error occurred while retrieving users." });
+        }
     }
 
     // GET /api/users/{id} — any authenticated user
