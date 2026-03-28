@@ -51,6 +51,9 @@ public class AuthService : IAuthService
         if (!Enum.TryParse<UserRole>(request.Role, ignoreCase: true, out var role))
             throw new ArgumentException($"Invalid role '{request.Role}'.");
 
+        if (role == UserRole.Driver)
+            throw new InvalidOperationException("Driver accounts must be created by an admin.");
+
         var user = new User
         {
             FullName = request.FullName,

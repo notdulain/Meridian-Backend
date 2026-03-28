@@ -23,8 +23,19 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var response = await _authService.RegisterAsync(request);
-        return CreatedAtAction(nameof(Register), response);
+        try
+        {
+            var response = await _authService.RegisterAsync(request);
+            return CreatedAtAction(nameof(Register), response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // POST /api/auth/login — public
