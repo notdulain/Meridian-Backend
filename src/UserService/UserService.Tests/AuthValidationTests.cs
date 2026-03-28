@@ -45,6 +45,7 @@ public class UserServiceApplicationFactory : WebApplicationFactory<Program>
         {
             // Replace IUserService with a test double that does not hit a real database
             services.AddScoped<IUserService, FakeUserService>();
+            services.AddScoped<IDriverAccountProvisioningService, FakeDriverAccountProvisioningService>();
         });
     }
 }
@@ -213,3 +214,16 @@ internal class FakeUserService : IUserService
         Task.FromResult(false);
 }
 
+internal class FakeDriverAccountProvisioningService : IDriverAccountProvisioningService
+{
+    public Task<CreateDriverAccountResponse> CreateDriverAccountAsync(
+        CreateDriverAccountRequest request,
+        string authorizationHeader,
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        return Task.FromResult(new CreateDriverAccountResponse(
+            new UserResponse(1, request.FullName, request.Email, "Driver", true, now, now),
+            new DriverProfileResponse(1, "1", request.FullName, request.LicenseNumber, request.LicenseExpiry, request.PhoneNumber, request.MaxWorkingHoursPerDay, 0, true, now, now)));
+    }
+}
