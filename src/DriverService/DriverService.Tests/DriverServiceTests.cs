@@ -180,6 +180,23 @@ public class DriverServiceTests
         _repositoryMock.Verify(r => r.CreateAsync(It.IsAny<Driver>()), Times.Once);
     }
 
+    [Fact]
+    public async Task GetDriverByUserIdAsync_CallsRepository()
+    {
+        var driver = CreateValidDriver();
+        driver.DriverId = 7;
+
+        _repositoryMock
+            .Setup(r => r.GetByUserIdAsync("user-001"))
+            .ReturnsAsync(driver);
+
+        var result = await _service.GetDriverByUserIdAsync("user-001");
+
+        Assert.NotNull(result);
+        Assert.Equal(7, result!.DriverId);
+        _repositoryMock.Verify(r => r.GetByUserIdAsync("user-001"), Times.Once);
+    }
+
     // ---------- UpdateDriverAsync ----------
 
     [Fact]

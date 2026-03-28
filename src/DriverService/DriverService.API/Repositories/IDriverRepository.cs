@@ -8,6 +8,7 @@ public interface IDriverRepository
     Task<(IEnumerable<Driver> Drivers, int TotalCount)> GetAllAsync(int page, int pageSize);
     Task<(IEnumerable<Driver> Drivers, int TotalCount)> GetDeletedAsync(int page, int pageSize);
     Task<Driver?> GetByIdAsync(int id);
+    Task<Driver?> GetByUserIdAsync(string userId);
     Task<Driver?> GetByLicenseNumberAsync(string licenseNumber);
     Task<Driver> UpdateAsync(Driver driver);
     Task<bool> DeleteAsync(int id);

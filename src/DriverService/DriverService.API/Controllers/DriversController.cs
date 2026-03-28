@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DriverService.API.Models;
 using DriverService.API.Services;
+using System.Security.Claims;
 
 namespace DriverService.API.Controllers;
 
@@ -80,10 +81,19 @@ public class DriversController : ControllerBase
 
     [HttpGet("me")]
     [Authorize(Roles = "Driver")]
-    public IActionResult GetMyProfile()
+    public async Task<IActionResult> GetMyProfile()
     {
-        var sub = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        return Ok(new { success = true, userId = sub });
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized(new { success = false, message = "User ID claim is missing.", errors = Array.Empty<string>() });
+
+        var driver = await _service.GetDriverByUserIdAsync(userId);
+        if (driver == null)
+            return NotFound(new { success = false, message = "Driver profile not found", errors = Array.Empty<string>() });
+
+        return Ok(new { success = true, data = driver });
     }
 
     [HttpPut("{id}")]

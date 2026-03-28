@@ -99,6 +99,20 @@ public class DriverRepository : IDriverRepository
         return null;
     }
 
+    public async Task<Driver?> GetByUserIdAsync(string userId)
+    {
+        using var connection = GetConnection();
+        await connection.OpenAsync();
+
+        var query = "SELECT * FROM Drivers WHERE UserId = @UserId AND IsActive = 1";
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@UserId", userId);
+
+        using var reader = await command.ExecuteReaderAsync();
+        if (await reader.ReadAsync()) return MapToDriver(reader);
+        return null;
+    }
+
     public async Task<Driver?> GetByLicenseNumberAsync(string licenseNumber)
     {
         using var connection = GetConnection();
