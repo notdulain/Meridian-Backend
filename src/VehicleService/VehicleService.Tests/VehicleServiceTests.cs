@@ -478,6 +478,44 @@ public class VehicleServiceTests
         Assert.All(resultVehicles, v => Assert.NotEqual("Retired", v.Status));
     }
 
+    // ---------- GetVehicleUtilizationReportAsync ----------
+
+    [Fact]
+    public async Task GetVehicleUtilizationReportAsync_ThrowsArgumentException_WhenDateRangeIsInvalid()
+    {
+        var start = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.GetVehicleUtilizationReportAsync(start, end));
+
+        Assert.Equal("End date must be greater than start date.", ex.Message);
+    }
+
+    [Fact]
+    public async Task GetVehicleUtilizationReportAsync_CallsRepository()
+    {
+        var data = new List<VehicleUtilizationMetrics>
+        {
+            new()
+            {
+                VehicleId = 1,
+                TripsCount = 3,
+                KilometersDriven = 120.5,
+                IdleTimeMinutes = 300
+            }
+        };
+
+        _repositoryMock
+            .Setup(r => r.GetVehicleUtilizationReportAsync(null, null))
+            .ReturnsAsync(data);
+
+        var result = await _service.GetVehicleUtilizationReportAsync(null, null);
+
+        Assert.Single(result);
+        _repositoryMock.Verify(r => r.GetVehicleUtilizationReportAsync(null, null), Times.Once);
+    }
+
     // ---------- Helpers ----------
 
     private static Vehicle CreateValidVehicle() => new()
