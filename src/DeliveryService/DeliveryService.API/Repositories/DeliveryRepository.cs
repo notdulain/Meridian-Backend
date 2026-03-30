@@ -206,4 +206,46 @@ public class DeliveryRepository
             return rowsAffected > 0;
         }
     }
+
+    public async Task<DeliverySuccessRateSummary> GetDeliverySuccessRateSummaryAsync(
+        DateTime? startDateUtc,
+        DateTime? endDateUtc,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var sql = DeliverySuccessRateReportQueryBuilder.BuildSuccessRateAggregationQuery();
+
+        await using var cmd = new SqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue("@StartDateUtc", (object?)startDateUtc ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@EndDateUtc", (object?)endDateUtc ?? DBNull.Value);
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new DeliverySuccessRateSummary();
+        }
+
+        return new DeliverySuccessRateSummary
+        {
+            DeliveredCount = ReadInt(reader, 0),
+            FailedCount = ReadInt(reader, 1),
+            CancelledCount = ReadInt(reader, 2),
+            TerminalCount = ReadInt(reader, 3),
+            SuccessRatePercentage = ReadDecimal(reader, 4)
+        };
+    }
+
+    private static int ReadInt(SqlDataReader reader, int ordinal)
+    {
+        if (reader.IsDBNull(ordinal)) return 0;
+        return Convert.ToInt32(reader.GetValue(ordinal));
+    }
+
+    private static decimal ReadDecimal(SqlDataReader reader, int ordinal)
+    {
+        if (reader.IsDBNull(ordinal)) return 0m;
+        return Convert.ToDecimal(reader.GetValue(ordinal));
+    }
 }
