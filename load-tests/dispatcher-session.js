@@ -10,10 +10,6 @@
  *   DELIVERY_ID  (default 1)
  *   VEHICLE_ID   (default 1)
  *   DRIVER_ID    (default 1)
- *
- * Run:
- *   cd load-tests
- *   K6_LOGIN_EMAIL=... K6_LOGIN_PASSWORD=... k6 run dispatcher-session.js
  */
 import http from "k6/http";
 import { check, sleep } from "k6";
@@ -26,12 +22,29 @@ function mustEnv(name) {
   return v;
 }
 
-const httpParams = { timeout: "60s" };
+const httpParams = {
+  timeout: "60s",
+  http2: false,
+};
 
 export const options = {
+  httpDebug: "full",
   scenarios: {
-    smoke: {
+    login: {
       executor: "constant-vus",
+      exec: "loginScenario",
+      vus: 3,
+      duration: "45s",
+    },
+    fetch_deliveries: {
+      executor: "constant-vus",
+      exec: "fetchDeliveriesScenario",
+      vus: 3,
+      duration: "45s",
+    },
+    assign_vehicle: {
+      executor: "constant-vus",
+      exec: "assignVehicleScenario",
       vus: 3,
       duration: "45s",
     },
@@ -42,11 +55,8 @@ export const options = {
   },
 };
 
-export default function () {
-  const root = base();
-  if (!root) throw new Error("Set BASE_URL");
-
-  const loginRes = http.post(
+function login(root) {
+  return http.post(
     `${root}/api/auth/login`,
     JSON.stringify({
       email: mustEnv("K6_LOGIN_EMAIL"),
@@ -58,35 +68,58 @@ export default function () {
       tags: { name: "login" },
     }
   );
+}
 
+function getAccessToken(loginRes) {
+  try {
+    return JSON.parse(loginRes.body).accessToken;
+  } catch {
+    return "";
+  }
+}
+
+function requireBaseUrl() {
+  const root = base();
+  if (!root) throw new Error("Set BASE_URL");
+  return root;
+}
+
+export function loginScenario() {
+  const root = requireBaseUrl();
+  const loginRes = login(root);
   check(loginRes, {
     "login status 200": (r) => r.status === 200,
   });
+  sleep(1);
+}
 
-  if (loginRes.status !== 200) {
-    return;
-  }
-
-  let accessToken;
-  try {
-    accessToken = JSON.parse(loginRes.body).accessToken;
-  } catch {
-    return;
-  }
+export function fetchDeliveriesScenario() {
+  const root = requireBaseUrl();
+  const loginRes = login(root);
+  if (loginRes.status !== 200) return;
+  const accessToken = getAccessToken(loginRes);
   if (!accessToken) return;
-
   const auth = { Authorization: `Bearer ${accessToken}` };
-
   const listRes = http.get(`${root}/delivery/api/deliveries`, {
     ...httpParams,
     headers: { ...auth, Accept: "application/json" },
     tags: { name: "list_deliveries" },
   });
-
   check(listRes, {
     "deliveries status 200": (r) => r.status === 200,
   });
+  sleep(1);
+}
 
+export function assignVehicleScenario() {
+  const root = requireBaseUrl();
+  const loginRes = login(root);
+  if (loginRes.status !== 200) {
+    return;
+  }
+  const accessToken = getAccessToken(loginRes);
+  if (!accessToken) return;
+  const auth = { Authorization: `Bearer ${accessToken}` };
   const deliveryId = parseInt(__ENV.DELIVERY_ID || "1", 10);
   const vehicleId = parseInt(__ENV.VEHICLE_ID || "1", 10);
   const driverId = parseInt(__ENV.DRIVER_ID || "1", 10);
