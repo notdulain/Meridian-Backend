@@ -1,0 +1,474 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: load-tests/dispatcher-session.js
+        output: -
+
+     scenarios: (100.00%) 3 scenarios, 9 max VUs, 1m15s max duration (incl. graceful stop):
+              * assign_vehicle: 3 looping VUs for 45s (exec: assignVehicleScenario, gracefulStop: 30s)
+              * fetch_deliveries: 3 looping VUs for 45s (exec: fetchDeliveriesScenario, gracefulStop: 30s)
+              * login: 3 looping VUs for 45s (exec: loginScenario, gracefulStop: 30s)
+
+time="2026-04-01T23:04:19+05:30" level=info msg="Request:\nPOST /api/auth/login HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 49\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"email\":\"03dulain@gmail.com\",\"password\":\"12345\"}\n" group= iter=0 name=login request_id=ca8385c0-bfcf-41a7-8d78-779691527487 scenario=fetch_deliveries source=http-debug vu=1
+time="2026-04-01T23:04:19+05:30" level=info msg="Request:\nPOST /api/auth/login HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 49\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"email\":\"03dulain@gmail.com\",\"password\":\"12345\"}\n" group= iter=0 name=login request_id=b39ee503-90d9-42cb-8ba6-c5f21b51b9f1 scenario=fetch_deliveries source=http-debug vu=7
+time="2026-04-01T23:04:19+05:30" level=info msg="Request:\nPOST /api/auth/login HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 49\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"email\":\"03dulain@gmail.com\",\"password\":\"12345\"}\n" group= iter=0 name=login request_id=a1866306-863c-4554-99dc-e10d8e7b0908 scenario=fetch_deliveries source=http-debug vu=8
+time="2026-04-01T23:04:19+05:30" level=info msg="Request:\nPOST /api/auth/login HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 49\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"email\":\"03dulain@gmail.com\",\"password\":\"12345\"}\n" group= iter=0 name=login request_id=1d7a2e1f-e9eb-41f6-a998-2641497fecc0 scenario=assign_vehicle source=http-debug vu=9
+time="2026-04-01T23:04:19+05:30" level=info msg="Request:\nPOST /api/auth/login HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 49\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"email\":\"03dulain@gmail.com\",\"password\":\"12345\"}\n" group= iter=0 name=login request_id=665c95d8-ee23-4ebd-8f69-fa3dcb86facd scenario=assign_vehicle source=http-debug vu=5
+time="2026-04-01T23:04:19+05:30" level=info msg="Request:\nPOST /api/auth/login HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 49\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"email\":\"03dulain@gmail.com\",\"password\":\"12345\"}\n" group= iter=0 name=login request_id=6fedbfb1-34bf-486d-ac6d-19c24cea8a7a scenario=login source=http-debug vu=6
+time="2026-04-01T23:04:19+05:30" level=info msg="Request:\nPOST /api/auth/login HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 49\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"email\":\"03dulain@gmail.com\",\"password\":\"12345\"}\n" group= iter=0 name=login request_id=aae42427-fef2-4dd1-bc33-4f3da52aa77f scenario=login source=http-debug vu=4
+time="2026-04-01T23:04:19+05:30" level=info msg="Request:\nPOST /api/auth/login HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 49\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"email\":\"03dulain@gmail.com\",\"password\":\"12345\"}\n" group= iter=0 name=login request_id=c111c60a-edda-4c4a-9d06-8f66e0feef20 scenario=assign_vehicle source=http-debug vu=3
+time="2026-04-01T23:04:19+05:30" level=info msg="Request:\nPOST /api/auth/login HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 49\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"email\":\"03dulain@gmail.com\",\"password\":\"12345\"}\n" group= iter=0 name=login request_id=ecc1382c-469d-474f-984e-b577fb63a616 scenario=login source=http-debug vu=2
+
+running (0m01.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [   2% ] 3 VUs  01.0s/45s
+fetch_deliveries   [   2% ] 3 VUs  01.0s/45s
+login              [   2% ] 3 VUs  01.0s/45s
+
+running (0m02.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [   4% ] 3 VUs  02.0s/45s
+fetch_deliveries   [   4% ] 3 VUs  02.0s/45s
+login              [   4% ] 3 VUs  02.0s/45s
+
+running (0m03.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [   7% ] 3 VUs  03.0s/45s
+fetch_deliveries   [   7% ] 3 VUs  03.0s/45s
+login              [   7% ] 3 VUs  03.0s/45s
+
+running (0m04.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [   9% ] 3 VUs  04.0s/45s
+fetch_deliveries   [   9% ] 3 VUs  04.0s/45s
+login              [   9% ] 3 VUs  04.0s/45s
+
+running (0m05.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  11% ] 3 VUs  05.0s/45s
+fetch_deliveries   [  11% ] 3 VUs  05.0s/45s
+login              [  11% ] 3 VUs  05.0s/45s
+
+running (0m05.2s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  12% ] 3 VUs  05.2s/45s
+fetch_deliveries   [  12% ] 3 VUs  05.2s/45s
+login              [  12% ] 3 VUs  05.2s/45s
+
+running (0m05.2s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  12% ] 3 VUs  05.2s/45s
+fetch_deliveries   [  12% ] 3 VUs  05.2s/45s
+login              [  12% ] 3 VUs  05.2s/45s
+
+running (0m05.2s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  12% ] 3 VUs  05.2s/45s
+fetch_deliveries   [  12% ] 3 VUs  05.2s/45s
+login              [  12% ] 3 VUs  05.2s/45s
+
+running (0m06.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  13% ] 3 VUs  06.0s/45s
+fetch_deliveries   [  13% ] 3 VUs  06.0s/45s
+login              [  13% ] 3 VUs  06.0s/45s
+
+running (0m07.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  16% ] 3 VUs  07.0s/45s
+fetch_deliveries   [  16% ] 3 VUs  07.0s/45s
+login              [  16% ] 3 VUs  07.0s/45s
+
+running (0m08.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  18% ] 3 VUs  08.0s/45s
+fetch_deliveries   [  18% ] 3 VUs  08.0s/45s
+login              [  18% ] 3 VUs  08.0s/45s
+
+running (0m09.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  20% ] 3 VUs  09.0s/45s
+fetch_deliveries   [  20% ] 3 VUs  09.0s/45s
+login              [  20% ] 3 VUs  09.0s/45s
+
+running (0m10.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  22% ] 3 VUs  10.0s/45s
+fetch_deliveries   [  22% ] 3 VUs  10.0s/45s
+login              [  22% ] 3 VUs  10.0s/45s
+
+running (0m11.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  24% ] 3 VUs  11.0s/45s
+fetch_deliveries   [  24% ] 3 VUs  11.0s/45s
+login              [  24% ] 3 VUs  11.0s/45s
+
+running (0m12.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  27% ] 3 VUs  12.0s/45s
+fetch_deliveries   [  27% ] 3 VUs  12.0s/45s
+login              [  27% ] 3 VUs  12.0s/45s
+
+running (0m13.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  29% ] 3 VUs  13.0s/45s
+fetch_deliveries   [  29% ] 3 VUs  13.0s/45s
+login              [  29% ] 3 VUs  13.0s/45s
+
+running (0m14.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  31% ] 3 VUs  14.0s/45s
+fetch_deliveries   [  31% ] 3 VUs  14.0s/45s
+login              [  31% ] 3 VUs  14.0s/45s
+
+running (0m15.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  33% ] 3 VUs  15.0s/45s
+fetch_deliveries   [  33% ] 3 VUs  15.0s/45s
+login              [  33% ] 3 VUs  15.0s/45s
+
+running (0m16.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  36% ] 3 VUs  16.0s/45s
+fetch_deliveries   [  36% ] 3 VUs  16.0s/45s
+login              [  36% ] 3 VUs  16.0s/45s
+
+running (0m17.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  38% ] 3 VUs  17.0s/45s
+fetch_deliveries   [  38% ] 3 VUs  17.0s/45s
+login              [  38% ] 3 VUs  17.0s/45s
+
+running (0m18.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  40% ] 3 VUs  18.0s/45s
+fetch_deliveries   [  40% ] 3 VUs  18.0s/45s
+login              [  40% ] 3 VUs  18.0s/45s
+
+running (0m19.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  42% ] 3 VUs  19.0s/45s
+fetch_deliveries   [  42% ] 3 VUs  19.0s/45s
+login              [  42% ] 3 VUs  19.0s/45s
+
+running (0m20.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  44% ] 3 VUs  20.0s/45s
+fetch_deliveries   [  44% ] 3 VUs  20.0s/45s
+login              [  44% ] 3 VUs  20.0s/45s
+
+running (0m21.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  47% ] 3 VUs  21.0s/45s
+fetch_deliveries   [  47% ] 3 VUs  21.0s/45s
+login              [  47% ] 3 VUs  21.0s/45s
+
+running (0m22.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  49% ] 3 VUs  22.0s/45s
+fetch_deliveries   [  49% ] 3 VUs  22.0s/45s
+login              [  49% ] 3 VUs  22.0s/45s
+
+running (0m23.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  51% ] 3 VUs  23.0s/45s
+fetch_deliveries   [  51% ] 3 VUs  23.0s/45s
+login              [  51% ] 3 VUs  23.0s/45s
+
+running (0m24.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  53% ] 3 VUs  24.0s/45s
+fetch_deliveries   [  53% ] 3 VUs  24.0s/45s
+login              [  53% ] 3 VUs  24.0s/45s
+
+running (0m25.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  56% ] 3 VUs  25.0s/45s
+fetch_deliveries   [  56% ] 3 VUs  25.0s/45s
+login              [  56% ] 3 VUs  25.0s/45s
+
+running (0m26.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  58% ] 3 VUs  26.0s/45s
+fetch_deliveries   [  58% ] 3 VUs  26.0s/45s
+login              [  58% ] 3 VUs  26.0s/45s
+
+running (0m27.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  60% ] 3 VUs  27.0s/45s
+fetch_deliveries   [  60% ] 3 VUs  27.0s/45s
+login              [  60% ] 3 VUs  27.0s/45s
+
+running (0m28.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  62% ] 3 VUs  28.0s/45s
+fetch_deliveries   [  62% ] 3 VUs  28.0s/45s
+login              [  62% ] 3 VUs  28.0s/45s
+
+running (0m29.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  64% ] 3 VUs  29.0s/45s
+fetch_deliveries   [  64% ] 3 VUs  29.0s/45s
+login              [  64% ] 3 VUs  29.0s/45s
+
+running (0m30.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  67% ] 3 VUs  30.0s/45s
+fetch_deliveries   [  67% ] 3 VUs  30.0s/45s
+login              [  67% ] 3 VUs  30.0s/45s
+
+running (0m31.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  69% ] 3 VUs  31.0s/45s
+fetch_deliveries   [  69% ] 3 VUs  31.0s/45s
+login              [  69% ] 3 VUs  31.0s/45s
+
+running (0m32.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  71% ] 3 VUs  32.0s/45s
+fetch_deliveries   [  71% ] 3 VUs  32.0s/45s
+login              [  71% ] 3 VUs  32.0s/45s
+
+running (0m33.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  73% ] 3 VUs  33.0s/45s
+fetch_deliveries   [  73% ] 3 VUs  33.0s/45s
+login              [  73% ] 3 VUs  33.0s/45s
+
+running (0m34.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  76% ] 3 VUs  34.0s/45s
+fetch_deliveries   [  76% ] 3 VUs  34.0s/45s
+login              [  76% ] 3 VUs  34.0s/45s
+
+running (0m35.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  78% ] 3 VUs  35.0s/45s
+fetch_deliveries   [  78% ] 3 VUs  35.0s/45s
+login              [  78% ] 3 VUs  35.0s/45s
+
+running (0m36.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  80% ] 3 VUs  36.0s/45s
+fetch_deliveries   [  80% ] 3 VUs  36.0s/45s
+login              [  80% ] 3 VUs  36.0s/45s
+
+running (0m37.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  82% ] 3 VUs  37.0s/45s
+fetch_deliveries   [  82% ] 3 VUs  37.0s/45s
+login              [  82% ] 3 VUs  37.0s/45s
+
+running (0m38.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  84% ] 3 VUs  38.0s/45s
+fetch_deliveries   [  84% ] 3 VUs  38.0s/45s
+login              [  84% ] 3 VUs  38.0s/45s
+
+running (0m39.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  87% ] 3 VUs  39.0s/45s
+fetch_deliveries   [  87% ] 3 VUs  39.0s/45s
+login              [  87% ] 3 VUs  39.0s/45s
+
+running (0m40.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  89% ] 3 VUs  40.0s/45s
+fetch_deliveries   [  89% ] 3 VUs  40.0s/45s
+login              [  89% ] 3 VUs  40.0s/45s
+
+running (0m41.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  91% ] 3 VUs  41.0s/45s
+fetch_deliveries   [  91% ] 3 VUs  41.0s/45s
+login              [  91% ] 3 VUs  41.0s/45s
+
+running (0m42.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  93% ] 3 VUs  42.0s/45s
+fetch_deliveries   [  93% ] 3 VUs  42.0s/45s
+login              [  93% ] 3 VUs  42.0s/45s
+
+running (0m43.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  96% ] 3 VUs  43.0s/45s
+fetch_deliveries   [  96% ] 3 VUs  43.0s/45s
+login              [  96% ] 3 VUs  43.0s/45s
+time="2026-04-01T23:05:03+05:30" level=info msg="Response:\nHTTP/2.0 200 OK\nConnection: close\nContent-Type: application/json; charset=utf-8\nDate: Wed, 01 Apr 2026 17:35:03 GMT\nServer: Kestrel\n\n{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6ImNjY2Y4NDA3LTRiZGQtNGUwYy04Y2FlLWE3M2YxZDVjYTgwMCIsImV4cCI6MTc3NTA2ODUwMiwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.8fLl7lTCdkeGNWt-tBiLWCBaZVaOY1XFUsQ1lalNQik\",\"refreshToken\":\"3Ec4/ZAxAJRhhrvdwQT/1x2zo9sXhSDbfIr7f2Enf0ywVtJteAdoKqsPRBOqdjG+FteWGF2CR6dMjuaSBo41rg==\",\"expiresIn\":3600}\n" group= iter=0 name=login request_id=ca8385c0-bfcf-41a7-8d78-779691527487 scenario=fetch_deliveries source=http-debug vu=1
+time="2026-04-01T23:05:03+05:30" level=info msg="Request:\nGET /delivery/api/deliveries HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nAccept: application/json\nAuthorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6ImNjY2Y4NDA3LTRiZGQtNGUwYy04Y2FlLWE3M2YxZDVjYTgwMCIsImV4cCI6MTc3NTA2ODUwMiwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.8fLl7lTCdkeGNWt-tBiLWCBaZVaOY1XFUsQ1lalNQik\nAccept-Encoding: gzip\n\n\n" group= iter=0 name=list_deliveries request_id=7ab850f8-5a6a-472a-b99a-f114e01c27e7 scenario=fetch_deliveries source=http-debug vu=1
+time="2026-04-01T23:05:03+05:30" level=info msg="Response:\nHTTP/2.0 200 OK\nConnection: close\nContent-Type: application/json; charset=utf-8\nDate: Wed, 01 Apr 2026 17:35:03 GMT\nServer: Kestrel\n\n{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjM2ZDI0NDU3LWE4MjMtNDM1MS05ODc4LTA2ODI4MDYxNDRlMSIsImV4cCI6MTc3NTA2ODUwMywiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.Nkbe3N9iXBSaM1C_Fl02DfweyCMP8Ulks3k_hpyOVcw\",\"refreshToken\":\"z/I0u/qxiavOHdXvJ4Zr1zL2yg/2ovC04cKBCmiGc5XKk4W/6wMH220+FKvTUeqrKQtCNNt/n37r0uPlxfe0kA==\",\"expiresIn\":3600}\n" group= iter=0 name=login request_id=1d7a2e1f-e9eb-41f6-a998-2641497fecc0 scenario=assign_vehicle source=http-debug vu=9
+time="2026-04-01T23:05:03+05:30" level=info msg="Request:\nPOST /assignment/api/assignments HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 75\nAuthorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjM2ZDI0NDU3LWE4MjMtNDM1MS05ODc4LTA2ODI4MDYxNDRlMSIsImV4cCI6MTc3NTA2ODUwMywiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.Nkbe3N9iXBSaM1C_Fl02DfweyCMP8Ulks3k_hpyOVcw\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"deliveryId\":1,\"vehicleId\":1,\"driverId\":1,\"notes\":\"k6 dispatcher-session\"}\n" group= iter=0 name=create_assignment request_id=64bb635a-59d2-444d-83df-264bde50baf7 scenario=assign_vehicle source=http-debug vu=9
+time="2026-04-01T23:05:03+05:30" level=info msg="Response:\nHTTP/2.0 200 OK\nConnection: close\nContent-Type: application/json; charset=utf-8\nDate: Wed, 01 Apr 2026 17:35:03 GMT\nServer: Kestrel\n\n{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjljMjJkMGQyLWIxYmYtNGVjYi1hYzI0LTcyZmU2ZTJhZDBiYiIsImV4cCI6MTc3NTA2ODUwMywiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9._EjQlgYO9rncITZTMd8A9zI3ddr0mJrke9HyvVc5Xk0\",\"refreshToken\":\"ElKQKjsvqRh/jWtmtEPwuinysIi99u1e2ZZYXAWdSsex9p9X9gVofS5x6kyPSxXxiVDqp0SchylnScfRoAnh3g==\",\"expiresIn\":3600}\n" group= iter=0 name=login request_id=c111c60a-edda-4c4a-9d06-8f66e0feef20 scenario=assign_vehicle source=http-debug vu=3
+time="2026-04-01T23:05:03+05:30" level=info msg="Request:\nPOST /assignment/api/assignments HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 75\nAuthorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjljMjJkMGQyLWIxYmYtNGVjYi1hYzI0LTcyZmU2ZTJhZDBiYiIsImV4cCI6MTc3NTA2ODUwMywiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9._EjQlgYO9rncITZTMd8A9zI3ddr0mJrke9HyvVc5Xk0\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"deliveryId\":1,\"vehicleId\":1,\"driverId\":1,\"notes\":\"k6 dispatcher-session\"}\n" group= iter=0 name=create_assignment request_id=4780fb80-f126-4ea1-8b09-7248f6cb76cd scenario=assign_vehicle source=http-debug vu=3
+
+running (0m44.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle     [  98% ] 3 VUs  44.0s/45s
+fetch_deliveries   [  98% ] 3 VUs  44.0s/45s
+login              [  98% ] 3 VUs  44.0s/45s
+time="2026-04-01T23:05:04+05:30" level=info msg="Response:\nHTTP/2.0 200 OK\nConnection: close\nContent-Type: application/json; charset=utf-8\nDate: Wed, 01 Apr 2026 17:35:04 GMT\nServer: Kestrel\n\n{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjcwMzRiN2ZmLTMyYTktNGE3OC05YmQyLTJiN2U1Y2E5ZjM5OSIsImV4cCI6MTc3NTA2ODUwNCwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.R2uvyFhDtSkmgHSEuRacFSWlhTPrUXzZ9_GT_SESKM4\",\"refreshToken\":\"SwlNg8vL3ipioHhPBaMz9i/8p6tJJWN9tKJqWStbGOVvfwcHr8gGhlaGInDSqfsuHF8qt12lbkKgC+DMUepWIQ==\",\"expiresIn\":3600}\n" group= iter=0 name=login request_id=ecc1382c-469d-474f-984e-b577fb63a616 scenario=login source=http-debug vu=2
+time="2026-04-01T23:05:04+05:30" level=info msg="Response:\nHTTP/2.0 200 OK\nConnection: close\nContent-Type: application/json; charset=utf-8\nDate: Wed, 01 Apr 2026 17:35:04 GMT\nServer: Kestrel\n\n{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjdjNTIzNDgxLTQwYTktNDg5NS1hMTdjLWZlYzdlNzdjZjkxYiIsImV4cCI6MTc3NTA2ODUwNCwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.lkb2x9zssvqXJFzSE5QscXXDnYrJlNSRr7jdfVJJBmE\",\"refreshToken\":\"DNFgv6qK7sIpExsX8jjvva0U/J0wq0XFiwy5Ygx8gWs+oU8U+35cCMlpjQiLF48u2hl79YEMaUxa7/grEQOShA==\",\"expiresIn\":3600}\n" group= iter=0 name=login request_id=665c95d8-ee23-4ebd-8f69-fa3dcb86facd scenario=assign_vehicle source=http-debug vu=5
+time="2026-04-01T23:05:04+05:30" level=info msg="Request:\nPOST /assignment/api/assignments HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nContent-Length: 75\nAuthorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjdjNTIzNDgxLTQwYTktNDg5NS1hMTdjLWZlYzdlNzdjZjkxYiIsImV4cCI6MTc3NTA2ODUwNCwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.lkb2x9zssvqXJFzSE5QscXXDnYrJlNSRr7jdfVJJBmE\nContent-Type: application/json\nAccept-Encoding: gzip\n\n{\"deliveryId\":1,\"vehicleId\":1,\"driverId\":1,\"notes\":\"k6 dispatcher-session\"}\n" group= iter=0 name=create_assignment request_id=0dc9d8af-811b-44dd-8627-1418929b0dc1 scenario=assign_vehicle source=http-debug vu=5
+
+running (0m45.0s), 9/9 VUs, 0 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login              [ 100% ] 3 VUs  45s
+
+running (0m46.0s), 8/9 VUs, 1 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ↓ [ 100% ] 3 VUs  45s
+time="2026-04-01T23:05:06+05:30" level=info msg="Response:\nHTTP/2.0 200 OK\nConnection: close\nContent-Type: application/json; charset=utf-8\nDate: Wed, 01 Apr 2026 17:35:05 GMT\nServer: Kestrel\n\n{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjFmYzdiZTA4LTAzNjktNDk4Ny05MGI4LTZlYjgxNjhiMmE2MCIsImV4cCI6MTc3NTA2ODUwNSwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.P2yoCcxqZR51Hp__lI5QL3rYXlRCbyDnaftmFfKeXSA\",\"refreshToken\":\"olAgnkgHqmYLCGudPofqH88GhJ/GepyMJJe7CVqzRHqTk2LC6PTcB4ZzJipuB2ugc2bHyIUAU1//bjokoru0DA==\",\"expiresIn\":3600}\n" group= iter=0 name=login request_id=6fedbfb1-34bf-486d-ac6d-19c24cea8a7a scenario=login source=http-debug vu=6
+time="2026-04-01T23:05:06+05:30" level=info msg="Response:\nHTTP/2.0 200 OK\nConnection: close\nContent-Type: application/json; charset=utf-8\nDate: Wed, 01 Apr 2026 17:35:06 GMT\nServer: Kestrel\n\n{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjM3MDdhYTM4LTZhYTctNGM3OC1iZTY5LTQ4NmY4Y2M2MTY5OCIsImV4cCI6MTc3NTA2ODUwNiwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.NbdhjDMflfHxqGWR3qqJCElUGmwEe__B3BjEtlfP7yQ\",\"refreshToken\":\"3t7Z+RM0ZGSmlhIndwBGPmjVX8kIujFux2iqKch/Uk4mGNinDDOWTLQuQfvdXybbbSxaPBI1q1lebpafdXHWRA==\",\"expiresIn\":3600}\n" group= iter=0 name=login request_id=b39ee503-90d9-42cb-8ba6-c5f21b51b9f1 scenario=fetch_deliveries source=http-debug vu=7
+time="2026-04-01T23:05:06+05:30" level=info msg="Response:\nHTTP/2.0 200 OK\nConnection: close\nContent-Type: application/json; charset=utf-8\nDate: Wed, 01 Apr 2026 17:35:06 GMT\nServer: Kestrel\n\n{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjliODY4MzJhLTE1YzQtNGVjNi1iZTZlLWY1M2JkN2Q4ZDk0YyIsImV4cCI6MTc3NTA2ODUwNiwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.oldXUDNTreKLy_RxOKpVDFE_htJWfctsHLHdnUpLQd4\",\"refreshToken\":\"b3McyX0HEiiwvwj+ycNfi93zFrNGI5SVBgvgEtigRZBZpln2SjcZI5SFdMThATkWDrxPh3zmL3QB/5jp1g0hSA==\",\"expiresIn\":3600}\n" group= iter=0 name=login request_id=a1866306-863c-4554-99dc-e10d8e7b0908 scenario=fetch_deliveries source=http-debug vu=8
+time="2026-04-01T23:05:06+05:30" level=info msg="Response:\nHTTP/2.0 200 OK\nConnection: close\nContent-Type: application/json; charset=utf-8\nDate: Wed, 01 Apr 2026 17:35:06 GMT\nServer: Kestrel\n\n{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6ImQ1ZWMzMzI4LTVmMGYtNDA2MS1iZDZjLWE2ODFjMzhmMTdlYSIsImV4cCI6MTc3NTA2ODUwNiwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.YnA7LxRMVvVUR_rNdoMLhkaotntlRhc73AApmpr9YQ4\",\"refreshToken\":\"Esr4BgPzjZsZTUyebzOtqocrOJjl5nyvihFW2REd5hd7nonw/uY5QMB0lZ20SgWbtnx3qc1PehMdeEla9QjZxQ==\",\"expiresIn\":3600}\n" group= iter=0 name=login request_id=aae42427-fef2-4dd1-bc33-4f3da52aa77f scenario=login source=http-debug vu=4
+time="2026-04-01T23:05:06+05:30" level=info msg="Request:\nGET /delivery/api/deliveries HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nAccept: application/json\nAuthorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjM3MDdhYTM4LTZhYTctNGM3OC1iZTY5LTQ4NmY4Y2M2MTY5OCIsImV4cCI6MTc3NTA2ODUwNiwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.NbdhjDMflfHxqGWR3qqJCElUGmwEe__B3BjEtlfP7yQ\nAccept-Encoding: gzip\n\n\n" group= iter=0 name=list_deliveries request_id=d3d4f732-75d7-4f8e-9fb4-9ff1638df11a scenario=fetch_deliveries source=http-debug vu=7
+time="2026-04-01T23:05:06+05:30" level=info msg="Request:\nGET /delivery/api/deliveries HTTP/1.1\nHost: ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io\nUser-Agent: Grafana k6/1.7.0\nAccept: application/json\nAuthorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIwM2R1bGFpbkBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImp0aSI6IjliODY4MzJhLTE1YzQtNGVjNi1iZTZlLWY1M2JkN2Q4ZDk0YyIsImV4cCI6MTc3NTA2ODUwNiwiaXNzIjoibWVyaWRpYW4tZ2F0ZXdheSIsImF1ZCI6Im1lcmlkaWFuLWFwaSJ9.oldXUDNTreKLy_RxOKpVDFE_htJWfctsHLHdnUpLQd4\nAccept-Encoding: gzip\n\n\n" group= iter=0 name=list_deliveries request_id=c42c47c8-faa7-4cc0-9603-0b3d20365a15 scenario=fetch_deliveries source=http-debug vu=8
+
+running (0m47.0s), 8/9 VUs, 1 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ↓ [ 100% ] 3 VUs  45s
+
+running (0m48.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m49.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m50.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m51.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m52.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m53.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m54.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m55.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m56.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m57.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m58.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (0m59.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m00.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m01.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m02.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m03.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m04.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m05.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m06.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m07.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m08.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m09.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m10.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m11.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m12.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m13.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m14.0s), 6/9 VUs, 3 complete and 0 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ↓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+running (1m15.0s), 6/9 VUs, 3 complete and 3 interrupted iterations
+assign_vehicle   ↓ [ 100% ] 3 VUs  45s
+fetch_deliveries ✓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✗ 'p(95)<10000' p(95)=46.61s
+
+    http_req_failed
+    ✓ 'rate<0.5' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 3       0.039998/s
+    checks_succeeded...: 100.00% 3 out of 3
+    checks_failed......: 0.00%   0 out of 3
+
+    ✓ login status 200
+
+    HTTP
+    http_req_duration..............: avg=44.99s min=43.47s med=44.47s max=46.61s p(90)=46.6s  p(95)=46.61s
+      { expected_response:true }...: avg=44.99s min=43.47s med=44.47s max=46.61s p(90)=46.6s  p(95)=46.61s
+    http_req_failed................: 0.00% 0 out of 9
+    http_reqs......................: 9     0.119994/s
+
+    EXECUTION
+    iteration_duration.............: avg=46.72s min=45.26s med=47.12s max=47.79s p(90)=47.65s p(95)=47.72s
+    iterations.....................: 3     0.039998/s
+    vus............................: 1     min=1      max=9
+    vus_max........................: 9     min=9      max=9
+
+    NETWORK
+    data_received..................: 53 kB 710 B/s
+    data_sent......................: 20 kB 270 B/s
+
+
+
+
+running (1m15.0s), 0/9 VUs, 3 complete and 6 interrupted iterations
+assign_vehicle   ✓ [ 100% ] 3 VUs  45s
+fetch_deliveries ✓ [ 100% ] 3 VUs  45s
+login            ✓ [ 100% ] 3 VUs  45s
+time="2026-04-01T23:05:35+05:30" level=error msg="thresholds on metrics 'http_req_duration' have been crossed"

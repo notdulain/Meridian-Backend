@@ -119,3 +119,71 @@ Full detail: docs/load-testing-scenarios.md
 
 - Gateway routes: `docs/MERIDIAN_ARCHITECTURE_v2.md`, `docs/API_GATEWAY.md`
 - Postman collection: `postman/Meridian-Backend.postman_collection.json`
+
+---
+
+## 9. QA results and bottlenecks (MER-292)
+
+**Purpose:** Record what we measured on QA and what to fix next.  
+**Artifact:** Raw k6 console output is saved as `load-tests/results-qa.txt` (regenerate with `k6 run load-tests/dispatcher-session.js | tee load-tests/results-qa.txt`).
+
+### 9.1 Run configuration (this document)
+
+| Item | Value |
+|------|--------|
+| **Environment** | QA API Gateway (`ca-api-gateway.happysand-beec0abe.eastasia.azurecontainerapps.io`) |
+| **Script** | `load-tests/dispatcher-session.js` |
+| **Scenarios** | `login`, `fetch_deliveries`, `assign_vehicle` (each **3 VUs**, **45 s**; max **9 VUs** total) |
+| **Credentials** | Via `K6_LOGIN_EMAIL` / `K6_LOGIN_PASSWORD` (not committed) |
+| **Assignment tuple** | `DELIVERY_ID` / `VEHICLE_ID` / `DRIVER_ID` (defaults `1` when unset) |
+
+### 9.2 Metrics captured (`results-qa.txt` summary)
+
+These numbers come from the **end-of-run** k6 summary in `load-tests/results-qa.txt`.
+
+| Metric | Observed |
+|--------|-----------|
+| **HTTP requests** | 9 |
+| **http_req_failed** | **0.00%** (0 / 9) |
+| **http_req_duration** | avg **~44.99 s**, med **~44.47 s**, max **~46.61 s**, **p(95) ~46.61 s** |
+| **Checks (`login status 200`)** | **100%** (3 / 3) |
+| **Script thresholds** | `http_req_failed` **passed**; `http_req_duration p(95) < 10s` **failed** (p95 ~46.6 s) |
+| **Execution note** | Run ended with **3 complete** and **6 interrupted** iterations (some VUs did not finish cleanly within graceful stop — consistent with very slow responses) |
+
+### 9.3 Bottlenecks flagged
+
+1. **Primary: `/api/auth/login` latency under concurrent load**  
+   All measured HTTP time is dominated by **~45–47 s** response times while still returning **200**. That points to the **auth path** (gateway → identity/auth service → DB or downstream) **not keeping up** when multiple scenarios hit login at once — not a client-side script issue.
+
+2. **Secondary: dependency readiness (QA data / services)**  
+   Manual checks showed **`GET .../driver/api/drivers` returned 503** and **vehicles list empty** at times — assignment scenarios need **valid driver and vehicle rows** and healthy services. Without that, “assign vehicle” load results are harder to interpret even when HTTP errors are zero.
+
+3. **Stability / flakiness**  
+   Separate runs at the same profile sometimes show **login timeouts (~60 s)** and **100% http_req_failed** when QA is cold, overloaded, or unstable. Treat **p95 latency** and **failure rate** together; a “green” error rate with **40+ s** p95 is still a **performance failure** for users.
+
+### 9.4 Recommended follow-ups (for dev / DevOps)
+
+- Inspect **Azure Container Apps** metrics and **application logs** for the gateway and auth service during the test window (CPU, restarts, DB connection pool, slow queries).
+- Consider **min replicas > 0** on QA to reduce cold-start noise when comparing runs.
+- **Seed QA** with at least one **driver** and **vehicle** (and fix driver service **503**) so assignment load is meaningful.
+- For MER-291/MER-292 reporting, store **`--summary-export`** JSON alongside `tee` text for easier charts.
+
+### 9.5 Copy-paste for Jira (MER-292)
+
+```
+MER-292 — QA load test results documented
+
+Environment: QA gateway (see docs/load-testing-scenarios.md §9).
+Script: load-tests/dispatcher-session.js (3 scenarios × 3 VUs × 45s).
+
+Results (from load-tests/results-qa.txt):
+- http_req_failed: 0% (0/9)
+- http_req_duration p(95): ~46.6s (threshold p95<10s failed)
+- Login check: 100% pass
+
+Bottlenecks:
+- Auth/login path extremely slow under concurrent load (~45s+), primary suspect for UX and test duration.
+- QA driver service intermittently 503; vehicle list sometimes empty — blocks reliable assignment testing.
+
+Artifact: load-tests/results-qa.txt
+```

@@ -71,6 +71,16 @@ Focus on these metrics in the summary:
 - **HTTP 500**: server-side error in gateway/auth/delivery/assignment path
 - **All requests fail immediately**: missing/invalid env vars or wrong `BASE_URL`
 
+## Documenting results (MER-292)
+
+After a QA run, save the console output and summarize bottlenecks for the team:
+
+```bash
+k6 run load-tests/dispatcher-session.js 2>&1 | tee load-tests/results-qa.txt
+```
+
+See **`docs/load-testing-scenarios.md` §9** for the template: metrics table, flagged bottlenecks, and a Jira-ready blurb.
+
 Quick connectivity check before running k6:
 
 ```bash
