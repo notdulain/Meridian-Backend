@@ -237,6 +237,42 @@ public class DeliveryRepository
         };
     }
 
+    public async Task<IEnumerable<DeliveryTrendPoint>> GetDeliveryTrendsAsync(
+        string range,
+        DateTime? from,
+        DateTime? to,
+        CancellationToken cancellationToken = default)
+    {
+        var results = new List<DeliveryTrendPoint>();
+
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var sql = DeliveryTrendQueryBuilder.Build(range);
+
+        await using var cmd = new SqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue("@From", (object?)from ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@To",   (object?)to   ?? DBNull.Value);
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new DeliveryTrendPoint
+            {
+                Period    = reader.GetString(0),
+                Total     = ReadInt(reader, 1),
+                Pending   = ReadInt(reader, 2),
+                Assigned  = ReadInt(reader, 3),
+                InTransit = ReadInt(reader, 4),
+                Delivered = ReadInt(reader, 5),
+                Failed    = ReadInt(reader, 6),
+                Canceled  = ReadInt(reader, 7),
+            });
+        }
+
+        return results;
+    }
+
     private static int ReadInt(SqlDataReader reader, int ordinal)
     {
         if (reader.IsDBNull(ordinal)) return 0;

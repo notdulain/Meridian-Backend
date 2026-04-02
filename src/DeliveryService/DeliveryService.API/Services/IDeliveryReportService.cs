@@ -8,4 +8,10 @@ public interface IDeliveryReportService
         DateTime? startDateUtc,
         DateTime? endDateUtc,
         CancellationToken cancellationToken = default);
-}
+
+    Task<IEnumerable<DeliveryTrendPoint>> GetDeliveryTrendsAsync(
+        string range,
+        DateTime? from,
+        DateTime? to,
+        CancellationToken cancellationToken = default);
+}
