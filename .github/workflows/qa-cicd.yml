@@ -419,6 +419,9 @@ jobs:
             --environment "$CAE_NAME" \
             --image "$ACR_LOGIN_SERVER/meridian-vehicleservice:$IMAGE_TAG" \
             "${REGISTRY_ARGS[@]}" \
+            --target-port 8080 \
+            --ingress internal \
+            --transport http2 \
             --min-replicas 0 \
             --max-replicas 3 \
             --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "${SHARED_ENV[@]}"
@@ -437,6 +440,9 @@ jobs:
             --environment "$CAE_NAME" \
             --image "$ACR_LOGIN_SERVER/meridian-driverservice:$IMAGE_TAG" \
             "${REGISTRY_ARGS[@]}" \
+            --target-port 8080 \
+            --ingress internal \
+            --transport http2 \
             --min-replicas 0 \
             --max-replicas 3 \
             --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "${SHARED_ENV[@]}"
