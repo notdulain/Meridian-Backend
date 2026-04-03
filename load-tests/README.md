@@ -2,6 +2,29 @@
 
 This folder contains load tests for dispatcher workflows against the QA API gateway.
 
+**Report generation (MER-92):** scenarios are in [`docs/report-load-testing-scenarios.md`](../docs/report-load-testing-scenarios.md). Simulate concurrent report traffic with:
+
+```bash
+export BASE_URL="https://<your-gateway>.azurecontainerapps.io"
+export K6_LOGIN_EMAIL="<qa user>"
+export K6_LOGIN_PASSWORD="<secret>"
+
+# Defaults: setup auth, variant r2 (sequential reports), 2 VUs, ramping 30s→2 VUs then 90s hold,
+# report HTTP timeout 120s, login timeout 90s (QA-friendly).
+export K6_REPORT_VARIANT=r2   # r1 | r2 | r3 (parallel batch — heavier on backends)
+# export K6_REPORT_EXECUTOR=constant K6_REPORT_DURATION=90s   # instead of ramping
+# export K6_REPORT_VUS=5
+# export K6_REPORT_HTTP_TIMEOUT=180s   # if QA still times out
+# MER-295: default auth = one login in setup(), all VUs hit reports.
+# export K6_REPORT_AUTH_MODE=per_iteration   # login every iteration
+# Optional date range:
+# export MER_REPORT_START_UTC="2026-01-01T00:00:00Z"
+# export MER_REPORT_END_UTC="2026-04-01T23:59:59Z"
+
+k6 run load-tests/report-generation.js
+# End of run prints "MER-295: report endpoint timings" (p95 per tagged endpoint).
+```
+
 ## What this test covers
 
 `dispatcher-session.js` runs 3 concurrent scenarios:
