@@ -11,4 +11,5 @@ public interface IVehicleService
     Task<bool> UpdateVehicleStatusAsync(int id, string status);
     Task<bool> DeleteVehicleAsync(int id);
     Task<IEnumerable<Vehicle>> GetAvailableVehiclesAsync();
+    Task<IEnumerable<VehicleUtilizationMetrics>> GetVehicleUtilizationReportAsync(DateTime? startDateUtc, DateTime? endDateUtc);
 }

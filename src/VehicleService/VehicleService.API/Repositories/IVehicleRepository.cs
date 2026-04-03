@@ -12,4 +12,5 @@ public interface IVehicleRepository
     Task<bool> UpdateStatusAsync(int id, string status);
     Task<bool> DeleteAsync(int id); // soft delete
     Task<IEnumerable<Vehicle>> GetAvailableAsync();
+    Task<IEnumerable<VehicleUtilizationMetrics>> GetVehicleUtilizationReportAsync(DateTime? startDateUtc, DateTime? endDateUtc);
 }

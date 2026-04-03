@@ -4,6 +4,7 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text;
 using TrackingService.API.Hubs;
+using TrackingService.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,7 @@ builder.Host.UseSerilog((context, configuration) =>
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddTransient<ITrackingRepository, TrackingRepository>();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "TrackingService API", Version = "v1" });
@@ -125,5 +127,11 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<TrackingHub>("/hubs/tracking");
+
+using (var scope = app.Services.CreateScope())
+{
+    var repo = scope.ServiceProvider.GetRequiredService<ITrackingRepository>();
+    await repo.EnsureDatabaseAsync();
+}
 
 app.Run();

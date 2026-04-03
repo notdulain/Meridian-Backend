@@ -34,6 +34,14 @@ public class DriverService : IDriverService
     public Task<Driver?> GetDriverByIdAsync(int id)
         => _repository.GetByIdAsync(id);
 
+    public Task<Driver?> GetDriverByUserIdAsync(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User ID is required.");
+
+        return _repository.GetByUserIdAsync(userId.Trim());
+    }
+
     public async Task<Driver> UpdateDriverAsync(int id, Driver driver)
     {
         ValidateDriver(driver, allowDefaultMaxWorkingHours: false);
@@ -58,6 +66,14 @@ public class DriverService : IDriverService
             throw new ArgumentException("Hours to add must be greater than zero.");
 
         return _repository.UpdateWorkingHoursAsync(id, hoursToAdd);
+    }
+
+    public Task<IEnumerable<DriverPerformanceMetrics>> GetDriverPerformanceReportAsync(DateTime? startDateUtc, DateTime? endDateUtc)
+    {
+        if (startDateUtc.HasValue && endDateUtc.HasValue && endDateUtc <= startDateUtc)
+            throw new ArgumentException("End date must be greater than start date.");
+
+        return _repository.GetDriverPerformanceReportAsync(startDateUtc, endDateUtc);
     }
 
     // ---------- Private Helpers ----------

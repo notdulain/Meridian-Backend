@@ -1,8 +1,11 @@
+using ApiGateway.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using System.Text;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,6 +67,16 @@ var jwtIssuer = builder.Configuration["Jwt:Issuer"]
 var jwtAudience = builder.Configuration["Jwt:Audience"]
     ?? throw new InvalidOperationException("Jwt:Audience is not configured.");
 
+string ResolveServiceBaseUrl(string localBaseUrl, string envName)
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        return localBaseUrl;
+    }
+
+    return $"https://{ResolveRequiredGatewaySetting(envName)}";
+}
+
 // ─────────────────────────────────────────────
 // CORS – allow the React frontend with credentials
 // ─────────────────────────────────────────────
@@ -106,6 +119,31 @@ builder.Services
         };
     });
 
+builder.Services.AddAuthorization();
+builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IDashboardSummaryService, DashboardSummaryService>();
+builder.Services.AddHttpClient("DeliveryService", client =>
+{
+    client.BaseAddress = new Uri(ResolveServiceBaseUrl("http://localhost:6001", "DELIVERY_SERVICE_HOST"));
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddHttpClient("VehicleService", client =>
+{
+    client.BaseAddress = new Uri(ResolveServiceBaseUrl("http://localhost:6002", "VEHICLE_SERVICE_HOST"));
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddHttpClient("DriverService", client =>
+{
+    client.BaseAddress = new Uri(ResolveServiceBaseUrl("http://localhost:6003", "DRIVER_SERVICE_HOST"));
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddHttpClient("AssignmentService", client =>
+{
+    client.BaseAddress = new Uri(ResolveServiceBaseUrl("http://localhost:6004", "ASSIGNMENT_SERVICE_HOST"));
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+
 // ─────────────────────────────────────────────
 // Ocelot
 // ─────────────────────────────────────────────
@@ -120,6 +158,57 @@ app.UseCors("ReactFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapControllers();
+
+app.UseWhen(
+    context => context.Request.Path.Equals("/api/dashboard/summary", StringComparison.OrdinalIgnoreCase),
+    dashboardApp =>
+{
+    dashboardApp.Run(async context =>
+    {
+        if (!HttpMethods.IsGet(context.Request.Method))
+        {
+            context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
+            return;
+        }
+
+        var authResult = await context.AuthenticateAsync("MeridianBearer");
+        if (!authResult.Succeeded || authResult.Principal is null)
+        {
+            await context.ChallengeAsync("MeridianBearer");
+            return;
+        }
+
+        context.User = authResult.Principal;
+
+        if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Dispatcher"))
+        {
+            await context.ForbidAsync("MeridianBearer");
+            return;
+        }
+
+        var dashboardSummaryService = context.RequestServices.GetRequiredService<IDashboardSummaryService>();
+
+        try
+        {
+            var summary = await dashboardSummaryService.GetSummaryAsync(context.RequestAborted);
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new { success = true, data = summary }));
+        }
+        catch (HttpRequestException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                success = false,
+                message = "Dashboard summary is temporarily unavailable.",
+                errors = new[] { ex.Message }
+            }));
+        }
+    });
+});
 
 // Azure Container Apps health probe endpoint
 app.MapGet("/", () => Results.Ok("Meridian API Gateway is running."));

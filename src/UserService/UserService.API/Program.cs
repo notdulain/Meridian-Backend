@@ -65,6 +65,12 @@ builder.Services.AddSwaggerGen(c =>
 // HttpContextAccessor
 // ─────────────────────────────────────────────
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<IDriverProvisioningClient, DriverProvisioningClient>((serviceProvider, client) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var baseUrl = configuration["Services:DriverServiceBaseUrl"] ?? "http://localhost:6003";
+    client.BaseAddress = new Uri(baseUrl);
+});
 
 // ─────────────────────────────────────────────
 // JWT Authentication — symmetric signing key
@@ -136,6 +142,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService.API.Services.UserService>();
+builder.Services.AddScoped<IDriverAccountProvisioningService, DriverAccountProvisioningService>();
 
 // ─────────────────────────────────────────────
 // Build & configure pipeline

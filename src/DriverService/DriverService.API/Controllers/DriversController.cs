@@ -80,10 +80,24 @@ public class DriversController : ControllerBase
 
     [HttpGet("me")]
     [Authorize(Roles = "Driver")]
-    public IActionResult GetMyProfile()
+    public async Task<IActionResult> GetMyProfile()
     {
-        var sub = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        return Ok(new { success = true, userId = sub });
+        try
+        {
+            var sub = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(sub))
+                return Unauthorized(new { success = false, message = "Missing user identity.", errors = Array.Empty<string>() });
+
+            var driver = await _service.GetDriverByUserIdAsync(sub);
+            if (driver == null)
+                return NotFound(new { success = false, message = "Driver profile not found.", errors = Array.Empty<string>() });
+
+            return Ok(new { success = true, data = driver });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to fetch current driver profile", errors = new[] { ex.Message } });
+        }
     }
 
     [HttpPut("{id}")]

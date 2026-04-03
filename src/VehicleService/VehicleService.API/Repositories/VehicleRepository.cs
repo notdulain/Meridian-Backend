@@ -6,11 +6,15 @@ namespace VehicleService.API.Repositories;
 public class VehicleRepository : IVehicleRepository
 {
     private readonly string _connectionString;
+    private readonly string _deliveryDatabaseName;
+    private readonly string _routeDatabaseName;
 
     public VehicleRepository(IConfiguration configuration)
     {
         _connectionString = configuration.GetConnectionString("VehicleDb") 
             ?? throw new InvalidOperationException("Connection string 'VehicleDb' not found.");
+        _deliveryDatabaseName = configuration.GetValue<string>("Reporting:DeliveryDatabaseName") ?? "delivery_db";
+        _routeDatabaseName = configuration.GetValue<string>("Reporting:RouteDatabaseName") ?? "route_db";
     }
 
     private SqlConnection GetConnection() => new(_connectionString);
@@ -196,6 +200,32 @@ public class VehicleRepository : IVehicleRepository
         }
 
         return vehicles;
+    }
+
+    public async Task<IEnumerable<VehicleUtilizationMetrics>> GetVehicleUtilizationReportAsync(DateTime? startDateUtc, DateTime? endDateUtc)
+    {
+        using var connection = GetConnection();
+        await connection.OpenAsync();
+
+        var query = VehicleUtilizationReportQueryBuilder.BuildMetricsQuery(_deliveryDatabaseName, _routeDatabaseName);
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@StartDateUtc", (object?)startDateUtc ?? DBNull.Value);
+        command.Parameters.AddWithValue("@EndDateUtc", (object?)endDateUtc ?? DBNull.Value);
+
+        var results = new List<VehicleUtilizationMetrics>();
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            results.Add(new VehicleUtilizationMetrics
+            {
+                VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId")),
+                TripsCount = reader.GetInt32(reader.GetOrdinal("TripsCount")),
+                KilometersDriven = Convert.ToDouble(reader["KilometersDriven"]),
+                IdleTimeMinutes = Convert.ToDouble(reader["IdleTimeMinutes"])
+            });
+        }
+
+        return results;
     }
 
     private static Vehicle MapToVehicle(System.Data.Common.DbDataReader dbReader)
