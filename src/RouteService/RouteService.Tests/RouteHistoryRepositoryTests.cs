@@ -94,7 +94,7 @@ public class RouteHistoryRepositoryTests
         await using var queryContext = CreateDbContext(databaseName);
         var repository = new RouteHistoryRepository(queryContext);
 
-        var result = await repository.GetFuelCostAggregatesAsync(null, null, CancellationToken.None);
+        var result = await repository.GetFuelCostAggregatesAsync(null, null, null, CancellationToken.None);
 
         Assert.Equal(2, result.Count);
 
@@ -158,10 +158,63 @@ public class RouteHistoryRepositoryTests
         await using var queryContext = CreateDbContext(databaseName);
         var repository = new RouteHistoryRepository(queryContext);
 
-        var result = await repository.GetFuelCostAggregatesAsync(dayTwo, null, CancellationToken.None);
+        var result = await repository.GetFuelCostAggregatesAsync(null, dayTwo, null, CancellationToken.None);
 
         var aggregate = Assert.Single(result);
         Assert.Equal(dayTwo.Date, aggregate.PeriodStartUtc.Date);
         Assert.Equal(600m, aggregate.TotalFuelCostLkr);
+    }
+
+    [Fact]
+    public async Task GetFuelCostAggregatesAsync_AppliesVehicleFilter()
+    {
+        var databaseName = Guid.NewGuid().ToString("N");
+        var now = new DateTime(2026, 04, 03, 8, 0, 0, DateTimeKind.Utc);
+
+        await using (var seededContext = CreateDbContext(databaseName))
+        {
+            seededContext.RouteHistories.AddRange(
+                new RouteHistory
+                {
+                    RouteId = Guid.NewGuid(),
+                    Origin = "A",
+                    Destination = "B",
+                    VehicleId = 7,
+                    DriverId = 1,
+                    DistanceKm = 10,
+                    DurationMinutes = 20,
+                    FuelCostLkr = 200m,
+                    FuelConsumptionLitres = 1m,
+                    Polyline = "p1",
+                    Selected = true,
+                    CreatedAt = now
+                },
+                new RouteHistory
+                {
+                    RouteId = Guid.NewGuid(),
+                    Origin = "A",
+                    Destination = "C",
+                    VehicleId = 8,
+                    DriverId = 1,
+                    DistanceKm = 30,
+                    DurationMinutes = 40,
+                    FuelCostLkr = 600m,
+                    FuelConsumptionLitres = 3m,
+                    Polyline = "p2",
+                    Selected = true,
+                    CreatedAt = now
+                });
+
+            await seededContext.SaveChangesAsync();
+        }
+
+        await using var queryContext = CreateDbContext(databaseName);
+        var repository = new RouteHistoryRepository(queryContext);
+
+        var result = await repository.GetFuelCostAggregatesAsync(7, null, null, CancellationToken.None);
+
+        var aggregate = Assert.Single(result);
+        Assert.Equal(7, aggregate.VehicleId);
+        Assert.Equal(200m, aggregate.TotalFuelCostLkr);
     }
 }

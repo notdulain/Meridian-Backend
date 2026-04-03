@@ -31,10 +31,10 @@ public class ReportsControllerTests
         };
 
         _reportServiceMock
-            .Setup(x => x.GetFuelCostReportAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetFuelCostReportAsync(null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(report);
 
-        var result = await CreateController().GetFuelCostReport(CancellationToken.None);
+        var result = await CreateController().GetFuelCostReport(null, null, null, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.NotNull(ok.Value);
@@ -44,10 +44,22 @@ public class ReportsControllerTests
     public async Task GetFuelCostReport_Returns400_WhenServiceThrows()
     {
         _reportServiceMock
-            .Setup(x => x.GetFuelCostReportAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetFuelCostReportAsync(null, null, null, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("db failure"));
 
-        var result = await CreateController().GetFuelCostReport(CancellationToken.None);
+        var result = await CreateController().GetFuelCostReport(null, null, null, CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.NotNull(badRequest.Value);
+    }
+
+    [Fact]
+    public async Task GetFuelCostReport_Returns400_WhenDateRangeIsInvalid()
+    {
+        var startDateUtc = new DateTime(2026, 4, 10, 0, 0, 0, DateTimeKind.Utc);
+        var endDateUtc = new DateTime(2026, 4, 9, 0, 0, 0, DateTimeKind.Utc);
+
+        var result = await CreateController().GetFuelCostReport(11, startDateUtc, endDateUtc, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.NotNull(badRequest.Value);
