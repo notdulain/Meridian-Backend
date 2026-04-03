@@ -63,6 +63,7 @@ builder.Services.AddDbContext<RouteServiceDbContext>(options =>
     options.UseSqlServer(routeDbConnectionString));
 builder.Services.AddScoped<IRouteHistoryRepository, RouteHistoryRepository>();
 builder.Services.AddScoped<IRouteDecisionService, RouteDecisionService>();
+builder.Services.AddScoped<IFuelCostReportService, FuelCostReportService>();
 
 // Configure gRPC Client
 builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
