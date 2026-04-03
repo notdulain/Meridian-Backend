@@ -279,7 +279,7 @@ create_app_if_missing ca-vehicle-service \
     $REGISTRY_FLAGS \
     --target-port 8080 \
     --ingress internal \
-    --transport http2 \
+    --transport auto \
     --min-replicas 0 \
     --max-replicas 3 \
     --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Swagger__ServerBasePath=/vehicle" "${SHARED_ENV[@]}"
@@ -291,7 +291,7 @@ create_app_if_missing ca-driver-service \
     $REGISTRY_FLAGS \
     --target-port 8080 \
     --ingress internal \
-    --transport http2 \
+    --transport auto \
     --min-replicas 0 \
     --max-replicas 3 \
     --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Swagger__ServerBasePath=/driver" "${SHARED_ENV[@]}"
