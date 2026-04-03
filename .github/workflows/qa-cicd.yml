@@ -397,7 +397,7 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" "Services__DriverServiceBaseUrl=https://$DRIVER_SERVICE_HOST" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-user-service 8080 internal ""
 
           create_or_update_app ca-delivery-service \

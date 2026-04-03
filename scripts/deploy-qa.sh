@@ -263,7 +263,7 @@ create_app_if_missing ca-user-service \
     --ingress internal \
     --min-replicas 0 \
     --max-replicas 3 \
-    --env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" "${SHARED_ENV[@]}"
+    --env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" "Services__DriverServiceBaseUrl=https://$DRIVER_SERVICE_HOST" "${SHARED_ENV[@]}"
 
 # --- Delivery Service ---
 create_app_if_missing ca-delivery-service \
