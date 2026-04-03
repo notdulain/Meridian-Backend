@@ -32,10 +32,23 @@ builder.WebHost.ConfigureKestrel((context, options) =>
         return;
     }
 
-    // In container environments, expose both REST and gRPC over the ACA target port.
+    var serviceMode = context.Configuration["ServiceMode"];
+
+    // gRPC-only container apps use h2c on the ACA target port.
+    if (string.Equals(serviceMode, "GrpcOnly", StringComparison.OrdinalIgnoreCase))
+    {
+        options.ListenAnyIP(8080, listenOptions =>
+        {
+            listenOptions.Protocols = HttpProtocols.Http2;
+        });
+
+        return;
+    }
+
+    // REST container apps use HTTP/1.1 on the ACA target port.
     options.ListenAnyIP(8080, listenOptions =>
     {
-        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+        listenOptions.Protocols = HttpProtocols.Http1;
     });
 });
 

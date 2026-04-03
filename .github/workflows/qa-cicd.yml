@@ -419,7 +419,7 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Swagger__ServerBasePath=/vehicle" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Swagger__ServerBasePath=/vehicle" "ServiceMode=Rest" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-vehicle-service 8080 internal auto
 
           create_or_update_app ca-vehicle-service-grpc \
@@ -431,7 +431,7 @@ jobs:
             --transport http2 \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-vehicle-service-grpc 8080 internal http2
 
           create_or_update_app ca-driver-service \
@@ -440,7 +440,7 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Swagger__ServerBasePath=/driver" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Swagger__ServerBasePath=/driver" "ServiceMode=Rest" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-driver-service 8080 internal auto
 
           create_or_update_app ca-driver-service-grpc \
@@ -452,7 +452,7 @@ jobs:
             --transport http2 \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-driver-service-grpc 8080 internal http2
 
           create_or_update_app ca-assignment-service \
