@@ -333,7 +333,14 @@ jobs:
               args+=(--transport "$transport")
             fi
 
-            az containerapp ingress update "${args[@]}" --output none
+            local current_ingress
+            current_ingress=$(az containerapp show --name "$app_name" --resource-group "$RESOURCE_GROUP" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)
+
+            if [ -z "$current_ingress" ]; then
+              az containerapp ingress enable "${args[@]}" --output none
+            else
+              az containerapp ingress update "${args[@]}" --output none
+            fi
           }
 
           ACA_DOMAIN=$(az containerapp env show --name "$CAE_NAME" --resource-group "$RESOURCE_GROUP" --query "properties.defaultDomain" -o tsv)

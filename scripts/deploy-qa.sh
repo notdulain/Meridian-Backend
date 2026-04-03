@@ -195,7 +195,14 @@ create_app_if_missing() {
         fi
 
         if [ ${#INGRESS_ARGS[@]} -gt 4 ]; then
-            az containerapp ingress update "${INGRESS_ARGS[@]}" > /dev/null
+            local CURRENT_INGRESS
+            CURRENT_INGRESS=$(az containerapp show --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)
+
+            if [ -z "$CURRENT_INGRESS" ]; then
+                az containerapp ingress enable "${INGRESS_ARGS[@]}" > /dev/null
+            else
+                az containerapp ingress update "${INGRESS_ARGS[@]}" > /dev/null
+            fi
         fi
     else
         echo "🚢 Creating Container App: $APP_NAME"
