@@ -17,12 +17,25 @@ public class ReportsController : ControllerBase
 
     [HttpGet("fuel-cost")]
     [Authorize(Roles = "Admin,Dispatcher,Manager")]
-    public async Task<IActionResult> GetFuelCostReport(CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetFuelCostReport(
+        [FromQuery] int? vehicleId = null,
+        [FromQuery] DateTime? startDateUtc = null,
+        [FromQuery] DateTime? endDateUtc = null,
+        CancellationToken cancellationToken = default)
     {
+        if (startDateUtc.HasValue && endDateUtc.HasValue && endDateUtc.Value < startDateUtc.Value)
+        {
+            return BadRequest(new { success = false, message = "endDateUtc must be greater than or equal to startDateUtc.", errors = Array.Empty<string>() });
+        }
+
         try
         {
-            var report = await _fuelCostReportService.GetFuelCostReportAsync(cancellationToken);
+            var report = await _fuelCostReportService.GetFuelCostReportAsync(vehicleId, startDateUtc, endDateUtc, cancellationToken);
             return Ok(new { success = true, data = report });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message, errors = Array.Empty<string>() });
         }
         catch (Exception ex)
         {

@@ -5,8 +5,12 @@ namespace RouteService.API.Services;
 
 public sealed class FuelCostReportService(IRouteHistoryRepository routeHistoryRepository) : IFuelCostReportService
 {
-    public async Task<IReadOnlyList<FuelCostAggregate>> GetFuelCostReportAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<FuelCostAggregate>> GetFuelCostReportAsync(
+        int? vehicleId,
+        DateTime? startDateUtc,
+        DateTime? endDateUtc,
+        CancellationToken cancellationToken = default)
     {
-        return await routeHistoryRepository.GetFuelCostAggregatesAsync(null, null, cancellationToken);
+        return await routeHistoryRepository.GetFuelCostAggregatesAsync(vehicleId, startDateUtc, endDateUtc, cancellationToken);
     }
 }

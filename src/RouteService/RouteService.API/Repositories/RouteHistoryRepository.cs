@@ -29,6 +29,7 @@ public sealed class RouteHistoryRepository(RouteServiceDbContext dbContext) : IR
     }
 
     public async Task<IReadOnlyList<FuelCostAggregate>> GetFuelCostAggregatesAsync(
+        int? vehicleId,
         DateTime? fromUtc,
         DateTime? toUtc,
         CancellationToken cancellationToken)
@@ -36,6 +37,9 @@ public sealed class RouteHistoryRepository(RouteServiceDbContext dbContext) : IR
         var query = dbContext.RouteHistories
             .AsNoTracking()
             .Where(x => x.VehicleId.HasValue && x.DriverId.HasValue);
+
+        if (vehicleId.HasValue)
+            query = query.Where(x => x.VehicleId == vehicleId.Value);
 
         if (fromUtc.HasValue)
             query = query.Where(x => x.CreatedAt >= fromUtc.Value);

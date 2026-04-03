@@ -4,5 +4,9 @@ namespace RouteService.API.Services;
 
 public interface IFuelCostReportService
 {
-    Task<IReadOnlyList<FuelCostAggregate>> GetFuelCostReportAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<FuelCostAggregate>> GetFuelCostReportAsync(
+        int? vehicleId,
+        DateTime? startDateUtc,
+        DateTime? endDateUtc,
+        CancellationToken cancellationToken = default);
 }

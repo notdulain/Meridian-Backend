@@ -12,6 +12,7 @@ public interface IRouteHistoryRepository
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<FuelCostAggregate>> GetFuelCostAggregatesAsync(
+        int? vehicleId,
         DateTime? fromUtc,
         DateTime? toUtc,
         CancellationToken cancellationToken);
