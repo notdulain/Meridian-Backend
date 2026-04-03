@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using Moq;
 using System.Text.Json;
 using DriverService.API.Controllers;
@@ -17,6 +18,21 @@ public class DriversControllerTests
     {
         _serviceMock = new Mock<IDriverService>();
         _controller = new DriversController(_serviceMock.Object);
+    }
+
+    private void SetAuthenticatedUser(string? userId)
+    {
+        var claims = new List<Claim>();
+        if (userId != null)
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, userId));
+
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"))
+            }
+        };
     }
 
     // ---------- Helpers ----------
@@ -163,6 +179,33 @@ public class DriversControllerTests
         var result = await _controller.GetDriver(5);
 
         // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task GetMyProfile_Returns200_WhenDriverProfileExists()
+    {
+        var driver = CreateValidDriver();
+        driver.DriverId = 7;
+        SetAuthenticatedUser("user-001");
+
+        _serviceMock.Setup(s => s.GetDriverByUserIdAsync("user-001")).ReturnsAsync(driver);
+
+        var result = await _controller.GetMyProfile();
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
+        Assert.NotNull(GetPropertyValue<object>(ok.Value, "data"));
+    }
+
+    [Fact]
+    public async Task GetMyProfile_Returns404_WhenDriverProfileIsMissing()
+    {
+        SetAuthenticatedUser("missing-user");
+        _serviceMock.Setup(s => s.GetDriverByUserIdAsync("missing-user")).ReturnsAsync((Driver?)null);
+
+        var result = await _controller.GetMyProfile();
+
         Assert.IsType<NotFoundObjectResult>(result);
     }
 

@@ -34,6 +34,14 @@ public class DriverService : IDriverService
     public Task<Driver?> GetDriverByIdAsync(int id)
         => _repository.GetByIdAsync(id);
 
+    public Task<Driver?> GetDriverByUserIdAsync(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User ID is required.");
+
+        return _repository.GetByUserIdAsync(userId.Trim());
+    }
+
     public async Task<Driver> UpdateDriverAsync(int id, Driver driver)
     {
         ValidateDriver(driver, allowDefaultMaxWorkingHours: false);

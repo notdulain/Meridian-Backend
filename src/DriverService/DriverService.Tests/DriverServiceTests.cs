@@ -315,6 +315,31 @@ public class DriverServiceTests
     }
 
     [Fact]
+    public async Task GetDriverByUserIdAsync_ReturnsDriver_WhenUserIdExists()
+    {
+        var driver = CreateValidDriver();
+        driver.DriverId = 7;
+
+        _repositoryMock
+            .Setup(r => r.GetByUserIdAsync("user-001"))
+            .ReturnsAsync(driver);
+
+        var result = await _service.GetDriverByUserIdAsync("user-001");
+
+        Assert.NotNull(result);
+        Assert.Equal(7, result!.DriverId);
+    }
+
+    [Fact]
+    public async Task GetDriverByUserIdAsync_Throws_WhenUserIdIsBlank()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.GetDriverByUserIdAsync("   "));
+
+        Assert.Equal("User ID is required.", ex.Message);
+        _repositoryMock.Verify(r => r.GetByUserIdAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
     public async Task GetDeletedDriversAsync_ReturnsPaginatedResults()
     {
         var drivers = new List<Driver> { CreateValidDriver() };
