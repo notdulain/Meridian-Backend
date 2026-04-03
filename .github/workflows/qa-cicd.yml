@@ -383,7 +383,7 @@ jobs:
             --min-replicas 0 \
             --max-replicas 3 \
             --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Swagger__ServerBasePath=/vehicle" "${SHARED_ENV[@]}"
-          create_or_update_ingress ca-vehicle-service 8080 internal auto
+          create_or_update_ingress ca-vehicle-service 8080 internal http2
 
           create_or_update_app ca-driver-service \
             --environment "$CAE_NAME" \
@@ -392,7 +392,7 @@ jobs:
             --min-replicas 0 \
             --max-replicas 3 \
             --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Swagger__ServerBasePath=/driver" "${SHARED_ENV[@]}"
-          create_or_update_ingress ca-driver-service 8080 internal auto
+          create_or_update_ingress ca-driver-service 8080 internal http2
 
           create_or_update_app ca-assignment-service \
             --environment "$CAE_NAME" \
