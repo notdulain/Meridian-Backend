@@ -338,7 +338,7 @@ create_app_if_missing ca-assignment-service \
     --min-replicas 0 \
     --max-replicas 3 \
     --env-vars \
-        "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" \
+        "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=assignment_db;" \
         "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_GRPC_HOST" \
         "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_GRPC_HOST" \
         "Services__DeliveryServiceUrl=https://$DELIVERY_SERVICE_HOST" \

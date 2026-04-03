@@ -93,11 +93,25 @@ if (!string.IsNullOrEmpty(connectionString))
 {
     try
     {
+        var connectionStringBuilder = new SqlConnectionStringBuilder(connectionString);
+        var databaseName = connectionStringBuilder.InitialCatalog;
+
+        if (string.IsNullOrWhiteSpace(databaseName))
+            throw new InvalidOperationException("AssignmentDb connection string must include an initial catalog.");
+
         // 1. Ensure database exists
-        var masterConnectionString = connectionString.Replace("Database=assignment_db;", "Database=master;");
+        var masterConnectionString = new SqlConnectionStringBuilder(connectionString)
+        {
+            InitialCatalog = "master"
+        }.ConnectionString;
         using (var masterConn = new SqlConnection(masterConnectionString))
         {
-            await masterConn.ExecuteAsync("IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'assignment_db') CREATE DATABASE assignment_db;");
+            await masterConn.ExecuteAsync($"""
+                IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '{databaseName}')
+                BEGIN
+                    EXEC('CREATE DATABASE [{databaseName}]')
+                END
+                """);
         }
 
         // 2. Run table migration
@@ -151,6 +165,7 @@ if (!string.IsNullOrEmpty(connectionString))
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine($"Database migration failed: {ex.Message}");
         Console.ResetColor();
+        throw;
     }
 }
 
