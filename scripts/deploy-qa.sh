@@ -208,7 +208,9 @@ ACA_DOMAIN=$(az containerapp env show --name "$CAE_NAME" --resource-group "$RESO
 USER_SERVICE_HOST="ca-user-service.internal.$ACA_DOMAIN"
 DELIVERY_SERVICE_HOST="ca-delivery-service.internal.$ACA_DOMAIN"
 VEHICLE_SERVICE_HOST="ca-vehicle-service.internal.$ACA_DOMAIN"
+VEHICLE_SERVICE_GRPC_HOST="ca-vehicle-service-grpc.internal.$ACA_DOMAIN"
 DRIVER_SERVICE_HOST="ca-driver-service.internal.$ACA_DOMAIN"
+DRIVER_SERVICE_GRPC_HOST="ca-driver-service-grpc.internal.$ACA_DOMAIN"
 ASSIGNMENT_SERVICE_HOST="ca-assignment-service.internal.$ACA_DOMAIN"
 ROUTE_SERVICE_HOST="ca-route-service.internal.$ACA_DOMAIN"
 TRACKING_SERVICE_HOST="ca-tracking-service.internal.$ACA_DOMAIN"
@@ -268,7 +270,7 @@ create_app_if_missing ca-delivery-service \
     --max-replicas 3 \
     --env-vars \
         "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" \
-        "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
+        "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_GRPC_HOST" \
         "Swagger__ServerBasePath=/delivery" \
         "${SHARED_ENV[@]}"
 
@@ -284,6 +286,17 @@ create_app_if_missing ca-vehicle-service \
     --max-replicas 3 \
     --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Swagger__ServerBasePath=/vehicle" "${SHARED_ENV[@]}"
 
+create_app_if_missing ca-vehicle-service-grpc \
+    --environment "$CAE_NAME" \
+    --image "$ACR_LOGIN_SERVER/meridian-vehicleservice:$IMAGE_TAG" \
+    $REGISTRY_FLAGS \
+    --target-port 8080 \
+    --ingress internal \
+    --transport http2 \
+    --min-replicas 0 \
+    --max-replicas 3 \
+    --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "${SHARED_ENV[@]}"
+
 # --- Driver Service ---
 create_app_if_missing ca-driver-service \
     --environment "$CAE_NAME" \
@@ -295,6 +308,17 @@ create_app_if_missing ca-driver-service \
     --min-replicas 0 \
     --max-replicas 3 \
     --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Swagger__ServerBasePath=/driver" "${SHARED_ENV[@]}"
+
+create_app_if_missing ca-driver-service-grpc \
+    --environment "$CAE_NAME" \
+    --image "$ACR_LOGIN_SERVER/meridian-driverservice:$IMAGE_TAG" \
+    $REGISTRY_FLAGS \
+    --target-port 8080 \
+    --ingress internal \
+    --transport http2 \
+    --min-replicas 0 \
+    --max-replicas 3 \
+    --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "${SHARED_ENV[@]}"
 
 # --- Assignment Service ---
 create_app_if_missing ca-assignment-service \
@@ -308,8 +332,8 @@ create_app_if_missing ca-assignment-service \
     --max-replicas 3 \
     --env-vars \
         "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" \
-        "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
-        "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_HOST" \
+        "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_GRPC_HOST" \
+        "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_GRPC_HOST" \
         "Services__DeliveryServiceUrl=https://$DELIVERY_SERVICE_HOST" \
         "Swagger__ServerBasePath=/assignment" \
         "${SHARED_ENV[@]}"
@@ -327,7 +351,7 @@ create_app_if_missing ca-route-service \
     --env-vars \
         "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
         "ConnectionStrings__RedisCache=$REDIS_CONNECTION_STRING" \
-        "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
+        "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_GRPC_HOST" \
         "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
         "Swagger__ServerBasePath=/route" \
         "${SHARED_ENV[@]}"
