@@ -289,8 +289,36 @@ jobs:
 
               az containerapp update "${update_args[@]}" --output none
             else
+              local -a create_args=()
+              local -a create_env_vars=()
+
+              while [ $# -gt 0 ]; do
+                case "$1" in
+                  --set-env-vars)
+                    shift
+                    while [ $# -gt 0 ] && [[ "$1" != --* ]]; do
+                      create_env_vars+=("$1")
+                      shift
+                    done
+                    ;;
+                  *)
+                    local current_arg="$1"
+                    create_args+=("$current_arg")
+                    shift
+                    if [ $# -gt 0 ] && [[ "$current_arg" == --* ]] && [[ "$1" != --* ]]; then
+                      create_args+=("$1")
+                      shift
+                    fi
+                    ;;
+                esac
+              done
+
+              if [ ${#create_env_vars[@]} -gt 0 ]; then
+                create_args+=(--env-vars "${create_env_vars[@]}")
+              fi
+
               echo "Creating $app_name..."
-              az containerapp create --name "$app_name" --resource-group "$RESOURCE_GROUP" "$@" --output none
+              az containerapp create --name "$app_name" --resource-group "$RESOURCE_GROUP" "${create_args[@]}" --output none
             fi
           }
 
