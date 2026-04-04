@@ -2,6 +2,7 @@ using DeliveryService.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace DeliveryService.API.Controllers;
@@ -50,16 +51,16 @@ public class ReportsController : ControllerBase
         try
         {
             var summary = await _deliveryReportService.GetDeliverySuccessRateAsync(startDateUtc, endDateUtc, cancellationToken);
-            var csv = new StringBuilder();
-            csv.AppendLine("DeliveredCount,FailedCount,CancelledCount,TerminalCount,SuccessRatePercentage");
-            csv.AppendLine(string.Join(",",
+            using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
+            csvWriter.WriteLine("DeliveredCount,FailedCount,CancelledCount,TerminalCount,SuccessRatePercentage");
+            csvWriter.WriteLine(string.Join(",",
                 summary.DeliveredCount,
                 summary.FailedCount,
                 summary.CancelledCount,
                 summary.TerminalCount,
                 summary.SuccessRatePercentage.ToString(CultureInfo.InvariantCulture)));
 
-            return BuildCsvFile(csv.ToString(), "delivery-success-report");
+            return BuildCsvFile(csvWriter.ToString(), "delivery-success-report");
         }
         catch (ArgumentException ex)
         {
@@ -116,12 +117,12 @@ public class ReportsController : ControllerBase
         try
         {
             var trends = await _deliveryReportService.GetDeliveryTrendsAsync(range, from, to, cancellationToken);
-            var csv = new StringBuilder();
-            csv.AppendLine("Period,Total,Pending,Assigned,InTransit,Delivered,Failed,Canceled");
+            using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
+            csvWriter.WriteLine("Period,Total,Pending,Assigned,InTransit,Delivered,Failed,Canceled");
 
             foreach (var trend in trends)
             {
-                csv.AppendLine(string.Join(",",
+                csvWriter.WriteLine(string.Join(",",
                     EscapeCsv(trend.Period),
                     trend.Total,
                     trend.Pending,
@@ -132,7 +133,7 @@ public class ReportsController : ControllerBase
                     trend.Canceled));
             }
 
-            return BuildCsvFile(csv.ToString(), "delivery-trends-report");
+            return BuildCsvFile(csvWriter.ToString(), "delivery-trends-report");
         }
         catch (ArgumentException ex)
         {
