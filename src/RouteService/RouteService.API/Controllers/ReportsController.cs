@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RouteService.API.Services;
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace RouteService.API.Controllers;
@@ -61,12 +62,12 @@ public class ReportsController : ControllerBase
         try
         {
             var report = await _fuelCostReportService.GetFuelCostReportAsync(vehicleId, startDateUtc, endDateUtc, cancellationToken);
-            var csv = new StringBuilder();
-            csv.AppendLine("VehicleId,DriverId,PeriodStartUtc,TripCount,TotalDistanceKm,TotalFuelConsumptionLitres,TotalFuelCostLkr");
+            using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
+            csvWriter.WriteLine("VehicleId,DriverId,PeriodStartUtc,TripCount,TotalDistanceKm,TotalFuelConsumptionLitres,TotalFuelCostLkr");
 
             foreach (var item in report)
             {
-                csv.AppendLine(string.Join(",",
+                csvWriter.WriteLine(string.Join(",",
                     item.VehicleId,
                     item.DriverId,
                     item.PeriodStartUtc.ToString("O", CultureInfo.InvariantCulture),
@@ -76,7 +77,7 @@ public class ReportsController : ControllerBase
                     item.TotalFuelCostLkr.ToString(CultureInfo.InvariantCulture)));
             }
 
-            return BuildCsvFile(csv.ToString(), "fuel-cost-report");
+            return BuildCsvFile(csvWriter.ToString(), "fuel-cost-report");
         }
         catch (ArgumentException ex)
         {
