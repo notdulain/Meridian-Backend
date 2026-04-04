@@ -45,6 +45,18 @@ Optional query string (same for all):
 
 **Auth:** `Authorization: Bearer <accessToken>` from `POST /api/auth/login` (same as dispatcher tests).
 
+### 2.1 High `http_req_failed` or 404 — usually not “load”
+
+If k6 shows **~66% failures** with a **valid JWT**, check **HTTP status per route** first (curl or gateway logs).
+
+| Symptom | Likely cause |
+|---------|----------------|
+| **404** on vehicle/driver | **Wrong path** (must be `.../vehicle-utilization` and `.../driver-performance`, not `.../utilization` or `.../performance` alone), **or** QA gateway not forwarding `/vehicle/{everything}` / `/driver/{everything}` (see `src/ApiGateway/ocelot.QA.json`), **or** deployed revision behind repo. |
+| **200** with empty `data` | Route exists; **no rows** in QA for the date range (expected until data is seeded). |
+| **401/403** | Role or token issue (not path). |
+
+This repo’s k6 script uses the **same segments as** `ReportsController` in each service. Override without editing code: `MER_REPORT_SEGMENT_DELIVERY`, `MER_REPORT_SEGMENT_VEHICLE`, `MER_REPORT_SEGMENT_DRIVER` (see `load-tests/report-generation.js`).
+
 ---
 
 ## 3. Primary scenario — “Report burst” (realistic)
@@ -90,13 +102,11 @@ Use **QA only**. Tune after a short smoke run.
 
 ---
 
-## 6. Success criteria (for MER-297 — document later)
+## 6. Success criteria and thresholds (MER-297)
 
-- Record **http_req_duration** (p90, p95) **per tagged report endpoint**.
-- Record **http_req_failed** and **non-2xx** status codes.
-- For MER-296: when CSV exists, add checks for **status code**, **Content-Type**, **body length** (or row count), and **no** obvious truncation (e.g. incomplete last line).
+**Canonical doc:** **`docs/report-load-testing-thresholds-and-results.md`** — acceptable ranges, what k6 enforces by default, how to record a run, pass/fail vs “documented only,” and Jira copy-paste.
 
-Thresholds (e.g. p95 &lt; X s, error rate &lt; Y%) are **agreed after** the first smoke run.
+In short: capture **per-endpoint** `http_req_duration` and **`http_req_failed`**; align **product** targets (e.g. p95 &lt; X s) **after** a smoke run when routes return **200**. For MER-296: when CSV exists, add checks for **status code**, **Content-Type**, **body length** (or row count), and **no** obvious truncation.
 
 ---
 
@@ -117,7 +127,7 @@ Request **tags** for per-endpoint metrics: `report_delivery`, `report_vehicle`, 
 
 **MER-295:** Threshold **p(95)** for reports tracks **`K6_REPORT_HTTP_TIMEOUT` + 5s** (ms); login threshold tracks **`K6_REPORT_LOGIN_TIMEOUT` + 5s**. **`handleSummary`** prints **MER-295: report endpoint timings**.
 
-**Next:** MER-296 (CSV checks when an export URL exists); MER-297 (document thresholds vs results).
+**Next:** MER-296 (CSV checks when an export URL exists). **MER-297:** `docs/report-load-testing-thresholds-and-results.md`.
 
 Run commands: `load-tests/README.md`.
 

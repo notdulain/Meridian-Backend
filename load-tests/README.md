@@ -9,7 +9,7 @@ export BASE_URL="https://<your-gateway>.azurecontainerapps.io"
 export K6_LOGIN_EMAIL="<qa user>"
 export K6_LOGIN_PASSWORD="<secret>"
 
-# Defaults: setup auth, variant r2 (sequential reports), 2 VUs, ramping 30s→2 VUs then 90s hold,
+# Defaults: setup auth, variant r2 (sequential reports), 2 VUs, ramping 30s→2 VUs then 5m hold (r2/r3 need time per iteration on slow QA),
 # report HTTP timeout 120s, login timeout 90s (QA-friendly).
 export K6_REPORT_VARIANT=r2   # r1 | r2 | r3 (parallel batch — heavier on backends)
 # export K6_REPORT_EXECUTOR=constant K6_REPORT_DURATION=90s   # instead of ramping
@@ -22,7 +22,40 @@ export K6_REPORT_VARIANT=r2   # r1 | r2 | r3 (parallel batch — heavier on back
 # export MER_REPORT_END_UTC="2026-04-01T23:59:59Z"
 
 k6 run load-tests/report-generation.js
-# End of run prints "MER-295: report endpoint timings" (p95 per tagged endpoint).
+# End of run prints diagnostics + "MER-295: report endpoint timings" (p95 per tagged endpoint).
+```
+
+Save output for MER-297:
+
+```bash
+k6 run load-tests/report-generation.js 2>&1 | tee load-tests/report-results-qa.txt
+```
+
+**Thresholds and what to put in Jira:** [`docs/report-load-testing-thresholds-and-results.md`](../docs/report-load-testing-thresholds-and-results.md) (MER-297).
+
+### Report test: many failures / 404 with a valid token
+
+The script calls **`/delivery/api/reports/delivery-success`**, **`/vehicle/api/reports/vehicle-utilization`**, **`/driver/api/reports/driver-performance`** (same as the backend controllers). Paths like **`.../utilization`** or **`.../performance`** alone are **wrong** and will 404. If QA still returns **404** on the exact paths above, the **gateway deployment** may not match `ocelot.QA.json` or services may be missing — that is **not** a load-test issue. See **`docs/report-load-testing-scenarios.md` §2.1**. Optional overrides: `MER_REPORT_SEGMENT_VEHICLE`, etc.
+
+### Report test: if `setup()` times out after 60s
+
+k6’s default **`setupTimeout` is 60s**. This script sets **`setupTimeout` to 120s** by default (login can use up to **90s**). Override if needed: `export K6_REPORT_SETUP_TIMEOUT=180s`.
+
+### Report test: if `http_req_failed` threshold fails
+
+1. Read the **full** k6 **TOTAL RESULTS** (failure rate and check pass/fail). The script also prints a short **run diagnostics** block before MER-295 timings.
+2. **False failures at end of test:** the scenario uses **`gracefulStop` (default 120s)** so VUs can finish the current iteration. If it still spikes, increase: `export K6_REPORT_GRACEFUL_STOP=180s`.
+3. **QA still flaky** (document numbers, not a green gate): relax only for reporting: `export K6_REPORT_MAX_FAIL_RATE=0.9` (team should agree).
+4. **Isolate one endpoint:** `export K6_REPORT_VARIANT=r1` and retest.
+5. **Manual check** (get `TOKEN` from login JSON):
+
+```bash
+curl -i -m 120 -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/delivery/api/reports/delivery-success"
+curl -i -m 120 -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/vehicle/api/reports/vehicle-utilization"
+curl -i -m 120 -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/driver/api/reports/driver-performance"
 ```
 
 ## What this test covers
