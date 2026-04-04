@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RouteService.API.Services;
+using System.Globalization;
+using System.Text;
 
 namespace RouteService.API.Controllers;
 
@@ -41,5 +43,54 @@ public class ReportsController : ControllerBase
         {
             return BadRequest(new { success = false, message = "Failed to fetch fuel cost report", errors = new[] { ex.Message } });
         }
+    }
+
+    [HttpGet("fuel-cost/csv")]
+    [Authorize(Roles = "Admin,Dispatcher,Manager")]
+    public async Task<IActionResult> GetFuelCostReportCsv(
+        [FromQuery] int? vehicleId = null,
+        [FromQuery] DateTime? startDateUtc = null,
+        [FromQuery] DateTime? endDateUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (startDateUtc.HasValue && endDateUtc.HasValue && endDateUtc.Value < startDateUtc.Value)
+        {
+            return BadRequest(new { success = false, message = "endDateUtc must be greater than or equal to startDateUtc.", errors = Array.Empty<string>() });
+        }
+
+        try
+        {
+            var report = await _fuelCostReportService.GetFuelCostReportAsync(vehicleId, startDateUtc, endDateUtc, cancellationToken);
+            var csv = new StringBuilder();
+            csv.AppendLine("VehicleId,DriverId,PeriodStartUtc,TripCount,TotalDistanceKm,TotalFuelConsumptionLitres,TotalFuelCostLkr");
+
+            foreach (var item in report)
+            {
+                csv.AppendLine(string.Join(",",
+                    item.VehicleId,
+                    item.DriverId,
+                    item.PeriodStartUtc.ToString("O", CultureInfo.InvariantCulture),
+                    item.TripCount,
+                    item.TotalDistanceKm.ToString(CultureInfo.InvariantCulture),
+                    item.TotalFuelConsumptionLitres.ToString(CultureInfo.InvariantCulture),
+                    item.TotalFuelCostLkr.ToString(CultureInfo.InvariantCulture)));
+            }
+
+            return BuildCsvFile(csv.ToString(), "fuel-cost-report");
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message, errors = Array.Empty<string>() });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to fetch fuel cost report", errors = new[] { ex.Message } });
+        }
+    }
+
+    private FileContentResult BuildCsvFile(string csvContent, string fileNamePrefix)
+    {
+        var fileName = $"{fileNamePrefix}-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+        return File(Encoding.UTF8.GetBytes(csvContent), "text/csv", fileName);
     }
 }
