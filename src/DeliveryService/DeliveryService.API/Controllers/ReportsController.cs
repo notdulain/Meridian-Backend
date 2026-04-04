@@ -1,6 +1,8 @@
 using DeliveryService.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
+using System.Text;
 
 namespace DeliveryService.API.Controllers;
 
@@ -27,6 +29,37 @@ public class ReportsController : ControllerBase
         {
             var summary = await _deliveryReportService.GetDeliverySuccessRateAsync(startDateUtc, endDateUtc, cancellationToken);
             return Ok(new { success = true, data = summary, meta = new { startDateUtc, endDateUtc } });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message, errors = Array.Empty<string>() });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to fetch delivery success report", errors = new[] { ex.Message } });
+        }
+    }
+
+    [HttpGet("delivery-success/csv")]
+    [Authorize(Roles = "Admin,Dispatcher,Manager")]
+    public async Task<IActionResult> GetDeliverySuccessReportCsv(
+        [FromQuery] DateTime? startDateUtc = null,
+        [FromQuery] DateTime? endDateUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var summary = await _deliveryReportService.GetDeliverySuccessRateAsync(startDateUtc, endDateUtc, cancellationToken);
+            var csv = new StringBuilder();
+            csv.AppendLine("DeliveredCount,FailedCount,CancelledCount,TerminalCount,SuccessRatePercentage");
+            csv.AppendLine(string.Join(",",
+                summary.DeliveredCount,
+                summary.FailedCount,
+                summary.CancelledCount,
+                summary.TerminalCount,
+                summary.SuccessRatePercentage.ToString(CultureInfo.InvariantCulture)));
+
+            return BuildCsvFile(csv.ToString(), "delivery-success-report");
         }
         catch (ArgumentException ex)
         {
@@ -68,4 +101,65 @@ public class ReportsController : ControllerBase
             return StatusCode(500, new { success = false, message = "Failed to fetch delivery trends", errors = new[] { ex.Message } });
         }
     }
-}
+
+    [HttpGet("delivery-trends/csv")]
+    [Authorize(Roles = "Admin,Dispatcher,Manager")]
+    public async Task<IActionResult> GetDeliveryTrendsCsv(
+        [FromQuery] string range = "daily",
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (range is not ("daily" or "weekly" or "monthly"))
+            return BadRequest(new { success = false, message = "range must be 'daily', 'weekly', or 'monthly'." });
+
+        try
+        {
+            var trends = await _deliveryReportService.GetDeliveryTrendsAsync(range, from, to, cancellationToken);
+            var csv = new StringBuilder();
+            csv.AppendLine("Period,Total,Pending,Assigned,InTransit,Delivered,Failed,Canceled");
+
+            foreach (var trend in trends)
+            {
+                csv.AppendLine(string.Join(",",
+                    EscapeCsv(trend.Period),
+                    trend.Total,
+                    trend.Pending,
+                    trend.Assigned,
+                    trend.InTransit,
+                    trend.Delivered,
+                    trend.Failed,
+                    trend.Canceled));
+            }
+
+            return BuildCsvFile(csv.ToString(), "delivery-trends-report");
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message, errors = Array.Empty<string>() });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to fetch delivery trends", errors = new[] { ex.Message } });
+        }
+    }
+
+    private FileContentResult BuildCsvFile(string csvContent, string fileNamePrefix)
+    {
+        var fileName = $"{fileNamePrefix}-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+        return File(Encoding.UTF8.GetBytes(csvContent), "text/csv", fileName);
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var escaped = value.Replace("\"", "\"\"");
+        return escaped.Contains(',') || escaped.Contains('"') || escaped.Contains('\n') || escaped.Contains('\r')
+            ? $"\"{escaped}\""
+            : escaped;
+    }
+}
