@@ -63,6 +63,7 @@ builder.Services.AddDbContext<RouteServiceDbContext>(options =>
     options.UseSqlServer(routeDbConnectionString));
 builder.Services.AddScoped<IRouteHistoryRepository, RouteHistoryRepository>();
 builder.Services.AddScoped<IRouteDecisionService, RouteDecisionService>();
+builder.Services.AddScoped<IFuelCostReportService, FuelCostReportService>();
 
 // Configure gRPC Client
 builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
@@ -103,6 +104,8 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+await EnsureRouteHistoryFuelReportColumnsAsync(app);
+
 app.UseSerilogRequestLogging();
 
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
@@ -133,3 +136,49 @@ app.MapControllers();
 // EF Core migrations are disabled. Database schema is managed manually and considered final.
 
 app.Run();
+
+static async Task EnsureRouteHistoryFuelReportColumnsAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<RouteServiceDbContext>();
+    var logger = scope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("RouteHistorySchemaGuard");
+
+    const string sql =
+        """
+        IF OBJECT_ID(N'[dbo].[RouteHistories]', N'U') IS NOT NULL
+        BEGIN
+            IF COL_LENGTH(N'[dbo].[RouteHistories]', N'VehicleId') IS NULL
+            BEGIN
+                ALTER TABLE [dbo].[RouteHistories] ADD [VehicleId] int NULL;
+            END
+
+            IF COL_LENGTH(N'[dbo].[RouteHistories]', N'DriverId') IS NULL
+            BEGIN
+                ALTER TABLE [dbo].[RouteHistories] ADD [DriverId] int NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM sys.indexes
+                WHERE name = N'IX_RouteHistories_VehicleId_DriverId_CreatedAt'
+                  AND object_id = OBJECT_ID(N'[dbo].[RouteHistories]')
+            )
+            BEGIN
+                CREATE INDEX [IX_RouteHistories_VehicleId_DriverId_CreatedAt]
+                ON [dbo].[RouteHistories]([VehicleId], [DriverId], [CreatedAt]);
+            END
+        END
+        """;
+
+    try
+    {
+        await dbContext.Database.ExecuteSqlRawAsync(sql);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to ensure RouteHistories fuel report schema changes.");
+        throw;
+    }
+}

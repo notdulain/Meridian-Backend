@@ -27,4 +27,46 @@ public sealed class RouteHistoryRepository(RouteServiceDbContext dbContext) : IR
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<FuelCostAggregate>> GetFuelCostAggregatesAsync(
+        int? vehicleId,
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.RouteHistories
+            .AsNoTracking()
+            .Where(x => x.VehicleId.HasValue && x.DriverId.HasValue);
+
+        if (vehicleId.HasValue)
+            query = query.Where(x => x.VehicleId == vehicleId.Value);
+
+        if (fromUtc.HasValue)
+            query = query.Where(x => x.CreatedAt >= fromUtc.Value);
+
+        if (toUtc.HasValue)
+            query = query.Where(x => x.CreatedAt <= toUtc.Value);
+
+        return await query
+            .GroupBy(x => new
+            {
+                VehicleId = x.VehicleId!.Value,
+                DriverId = x.DriverId!.Value,
+                PeriodStartUtc = x.CreatedAt.Date
+            })
+            .Select(g => new FuelCostAggregate
+            {
+                VehicleId = g.Key.VehicleId,
+                DriverId = g.Key.DriverId,
+                PeriodStartUtc = g.Key.PeriodStartUtc,
+                TripCount = g.Count(),
+                TotalDistanceKm = g.Sum(x => x.DistanceKm),
+                TotalFuelConsumptionLitres = g.Sum(x => x.FuelConsumptionLitres),
+                TotalFuelCostLkr = g.Sum(x => x.FuelCostLkr)
+            })
+            .OrderByDescending(x => x.PeriodStartUtc)
+            .ThenBy(x => x.VehicleId)
+            .ThenBy(x => x.DriverId)
+            .ToListAsync(cancellationToken);
+    }
 }

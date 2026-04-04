@@ -14,6 +14,7 @@ public sealed class RouteServiceDbContext(DbContextOptions<RouteServiceDbContext
         routeHistory.ToTable("RouteHistories");
         routeHistory.HasKey(x => x.RouteId);
         routeHistory.HasIndex(x => new { x.Origin, x.Destination });
+        routeHistory.HasIndex(x => new { x.VehicleId, x.DriverId, x.CreatedAt });
         routeHistory.Property(x => x.FuelCostLkr).HasPrecision(18, 2);
         routeHistory.Property(x => x.FuelConsumptionLitres).HasPrecision(18, 2);
         routeHistory.Property(x => x.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
