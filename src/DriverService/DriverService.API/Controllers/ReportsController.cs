@@ -2,6 +2,7 @@ using DriverService.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace DriverService.API.Controllers;
@@ -43,19 +44,19 @@ public class ReportsController : ControllerBase
         try
         {
             var report = await _driverService.GetDriverPerformanceReportAsync(startDateUtc, endDateUtc);
-            var csv = new StringBuilder();
-            csv.AppendLine("DriverId,DeliveriesCompleted,AverageDeliveryTimeMinutes,OnTimeRatePercent");
+            using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
+            csvWriter.WriteLine("DriverId,DeliveriesCompleted,AverageDeliveryTimeMinutes,OnTimeRatePercent");
 
             foreach (var item in report)
             {
-                csv.AppendLine(string.Join(",",
+                csvWriter.WriteLine(string.Join(",",
                     item.DriverId,
                     item.DeliveriesCompleted,
                     item.AverageDeliveryTimeMinutes.ToString(CultureInfo.InvariantCulture),
                     item.OnTimeRatePercent.ToString(CultureInfo.InvariantCulture)));
             }
 
-            return BuildCsvFile(csv.ToString(), "driver-performance-report");
+            return BuildCsvFile(csvWriter.ToString(), "driver-performance-report");
         }
         catch (ArgumentException ex)
         {
