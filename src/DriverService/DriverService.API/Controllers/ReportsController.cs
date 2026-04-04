@@ -37,7 +37,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("driver-performance/csv")]
-    [Authorize(Roles = "Admin,Dispatcher")]
+    [Authorize(Roles = "Admin,Dispatcher,Manager")]
     public async Task<IActionResult> GetDriverPerformanceReportCsv([FromQuery] DateTime? startDateUtc = null, [FromQuery] DateTime? endDateUtc = null)
     {
         try
