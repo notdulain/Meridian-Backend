@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
+using System.IO;
 using System.Text;
 using VehicleService.API.Services;
 
@@ -43,19 +44,19 @@ public class ReportsController : ControllerBase
         try
         {
             var report = await _vehicleService.GetVehicleUtilizationReportAsync(startDateUtc, endDateUtc);
-            var csv = new StringBuilder();
-            csv.AppendLine("VehicleId,TripsCount,KilometersDriven,IdleTimeMinutes");
+            using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
+            csvWriter.WriteLine("VehicleId,TripsCount,KilometersDriven,IdleTimeMinutes");
 
             foreach (var item in report)
             {
-                csv.AppendLine(string.Join(",",
+                csvWriter.WriteLine(string.Join(",",
                     item.VehicleId,
                     item.TripsCount,
                     item.KilometersDriven.ToString(CultureInfo.InvariantCulture),
                     item.IdleTimeMinutes.ToString(CultureInfo.InvariantCulture)));
             }
 
-            return BuildCsvFile(csv.ToString(), "vehicle-utilization-report");
+            return BuildCsvFile(csvWriter.ToString(), "vehicle-utilization-report");
         }
         catch (ArgumentException ex)
         {
