@@ -104,6 +104,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+await ApplyRouteMigrationsAsync(app);
 await EnsureRouteHistoryFuelReportColumnsAsync(app);
 
 app.UseSerilogRequestLogging();
@@ -133,9 +134,26 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// EF Core migrations are disabled. Database schema is managed manually and considered final.
-
 app.Run();
+
+static async Task ApplyRouteMigrationsAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<RouteServiceDbContext>();
+    var logger = scope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("RouteHistoryMigrations");
+
+    try
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to apply RouteService migrations.");
+        throw;
+    }
+}
 
 static async Task EnsureRouteHistoryFuelReportColumnsAsync(WebApplication app)
 {
