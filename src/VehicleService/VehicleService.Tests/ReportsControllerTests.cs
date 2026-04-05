@@ -87,7 +87,7 @@ public class ReportsControllerTests
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/octet-stream", file.ContentType);
         var csv = Encoding.UTF8.GetString(file.FileContents);
-        Assert.Contains("VehicleId,TripsCount,KilometersDriven,IdleTimeMinutes", csv);
+        Assert.Contains("Vehicle ID,Trips Count,Kilometers Driven,Idle Time (min)", csv);
         Assert.Contains("1,4,180,240", csv);
     }
 

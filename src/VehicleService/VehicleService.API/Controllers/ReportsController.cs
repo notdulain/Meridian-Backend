@@ -45,7 +45,7 @@ public class ReportsController : ControllerBase
         {
             var report = await _vehicleService.GetVehicleUtilizationReportAsync(startDateUtc, endDateUtc);
             using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
-            csvWriter.WriteLine("VehicleId,TripsCount,KilometersDriven,IdleTimeMinutes");
+            csvWriter.WriteLine("Vehicle ID,Trips Count,Kilometers Driven,Idle Time (min)");
 
             foreach (var item in report)
             {
