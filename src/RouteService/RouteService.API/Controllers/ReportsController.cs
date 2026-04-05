@@ -63,14 +63,14 @@ public class ReportsController : ControllerBase
         {
             var report = await _fuelCostReportService.GetFuelCostReportAsync(vehicleId, startDateUtc, endDateUtc, cancellationToken);
             using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
-            csvWriter.WriteLine("VehicleId,DriverId,PeriodStartUtc,TripCount,TotalDistanceKm,TotalFuelConsumptionLitres,TotalFuelCostLkr");
+            csvWriter.WriteLine("Period,Vehicle ID,Driver ID,Trips,Distance (km),Fuel (L),Total Cost (LKR)");
 
             foreach (var item in report)
             {
                 csvWriter.WriteLine(string.Join(",",
+                    item.PeriodStartUtc.ToString("O", CultureInfo.InvariantCulture),
                     item.VehicleId,
                     item.DriverId,
-                    item.PeriodStartUtc.ToString("O", CultureInfo.InvariantCulture),
                     item.TripCount,
                     item.TotalDistanceKm.ToString(CultureInfo.InvariantCulture),
                     item.TotalFuelConsumptionLitres.ToString(CultureInfo.InvariantCulture),

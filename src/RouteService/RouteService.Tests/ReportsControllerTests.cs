@@ -92,7 +92,7 @@ public class ReportsControllerTests
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/octet-stream", file.ContentType);
         var csv = Encoding.UTF8.GetString(file.FileContents);
-        Assert.Contains("VehicleId,DriverId,PeriodStartUtc,TripCount,TotalDistanceKm,TotalFuelConsumptionLitres,TotalFuelCostLkr", csv);
-        Assert.Contains("11,21,2026-04-01T00:00:00.0000000Z,2,220,22,6600", csv);
+        Assert.Contains("Period,Vehicle ID,Driver ID,Trips,Distance (km),Fuel (L),Total Cost (LKR)", csv);
+        Assert.Contains("2026-04-01T00:00:00.0000000Z,11,21,2,220,22,6600", csv);
     }
 }
