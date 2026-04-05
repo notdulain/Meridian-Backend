@@ -42,7 +42,7 @@ public class ReportsControllerTests
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/octet-stream", file.ContentType);
         var csv = Encoding.UTF8.GetString(file.FileContents);
-        Assert.Contains("DriverId,DeliveriesCompleted,AverageDeliveryTimeMinutes,OnTimeRatePercent", csv);
+        Assert.Contains("Driver ID,Deliveries Completed,Avg Delivery Time (min),On-Time Rate (%)", csv);
         Assert.Contains("7,14,22.5,92.3", csv);
     }
 }

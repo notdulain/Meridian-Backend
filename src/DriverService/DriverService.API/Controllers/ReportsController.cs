@@ -45,7 +45,7 @@ public class ReportsController : ControllerBase
         {
             var report = await _driverService.GetDriverPerformanceReportAsync(startDateUtc, endDateUtc);
             using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
-            csvWriter.WriteLine("DriverId,DeliveriesCompleted,AverageDeliveryTimeMinutes,OnTimeRatePercent");
+            csvWriter.WriteLine("Driver ID,Deliveries Completed,Avg Delivery Time (min),On-Time Rate (%)");
 
             foreach (var item in report)
             {
