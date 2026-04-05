@@ -291,7 +291,7 @@ create_app_if_missing ca-vehicle-service \
     --transport auto \
     --min-replicas 0 \
     --max-replicas 3 \
-    --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Swagger__ServerBasePath=/vehicle" "ServiceMode=Rest" "${SHARED_ENV[@]}"
+    --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Reporting__DeliveryDatabaseName=meridian_delivery" "Reporting__RouteDatabaseName=meridian_route" "Swagger__ServerBasePath=/vehicle" "ServiceMode=Rest" "${SHARED_ENV[@]}"
 
 create_app_if_missing ca-vehicle-service-grpc \
     --environment "$CAE_NAME" \
@@ -302,7 +302,7 @@ create_app_if_missing ca-vehicle-service-grpc \
     --transport http2 \
     --min-replicas 0 \
     --max-replicas 3 \
-    --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
+    --env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Reporting__DeliveryDatabaseName=meridian_delivery" "Reporting__RouteDatabaseName=meridian_route" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
 
 # --- Driver Service ---
 create_app_if_missing ca-driver-service \

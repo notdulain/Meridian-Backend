@@ -14,8 +14,8 @@ public class VehicleRepository : IVehicleRepository
         _connectionString = configuration.GetConnectionString("VehicleDb") 
             ?? throw new InvalidOperationException("Connection string 'VehicleDb' not found.");
 
-        var deliveryDatabaseName = configuration.GetValue<string>("Reporting:DeliveryDatabaseName") ?? "delivery_db";
-        var routeDatabaseName = configuration.GetValue<string>("Reporting:RouteDatabaseName") ?? "route_db";
+        var deliveryDatabaseName = configuration.GetValue<string>("Reporting:DeliveryDatabaseName") ?? "meridian_delivery";
+        var routeDatabaseName = configuration.GetValue<string>("Reporting:RouteDatabaseName") ?? "meridian_route";
 
         _deliveryConnectionString = new SqlConnectionStringBuilder(_connectionString)
         {
