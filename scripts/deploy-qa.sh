@@ -314,7 +314,7 @@ create_app_if_missing ca-driver-service \
     --transport auto \
     --min-replicas 0 \
     --max-replicas 3 \
-    --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Swagger__ServerBasePath=/driver" "ServiceMode=Rest" "${SHARED_ENV[@]}"
+    --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Reporting__DeliveryDatabaseName=meridian_delivery" "Swagger__ServerBasePath=/driver" "ServiceMode=Rest" "${SHARED_ENV[@]}"
 
 create_app_if_missing ca-driver-service-grpc \
     --environment "$CAE_NAME" \
@@ -325,7 +325,7 @@ create_app_if_missing ca-driver-service-grpc \
     --transport http2 \
     --min-replicas 0 \
     --max-replicas 3 \
-    --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
+    --env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Reporting__DeliveryDatabaseName=meridian_delivery" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
 
 # --- Assignment Service ---
 create_app_if_missing ca-assignment-service \

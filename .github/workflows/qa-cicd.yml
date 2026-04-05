@@ -440,7 +440,7 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Swagger__ServerBasePath=/driver" "ServiceMode=Rest" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Reporting__DeliveryDatabaseName=meridian_delivery" "Swagger__ServerBasePath=/driver" "ServiceMode=Rest" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-driver-service 8080 internal auto
 
           create_or_update_app ca-driver-service-grpc \
@@ -452,7 +452,7 @@ jobs:
             --transport http2 \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Reporting__DeliveryDatabaseName=meridian_delivery" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-driver-service-grpc 8080 internal http2
 
           create_or_update_app ca-assignment-service \

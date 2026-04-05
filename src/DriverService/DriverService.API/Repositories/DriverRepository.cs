@@ -12,7 +12,7 @@ public class DriverRepository : IDriverRepository
     {
         _connectionString = configuration.GetConnectionString("DriverDb")
             ?? throw new InvalidOperationException("DriverDb connection string is not configured.");
-        var deliveryDatabaseName = configuration.GetValue<string>("Reporting:DeliveryDatabaseName") ?? "delivery_db";
+        var deliveryDatabaseName = configuration.GetValue<string>("Reporting:DeliveryDatabaseName") ?? "meridian_delivery";
         var deliveryConnectionBuilder = new SqlConnectionStringBuilder(_connectionString)
         {
             InitialCatalog = deliveryDatabaseName
