@@ -85,7 +85,7 @@ public class ReportsControllerTests
         var result = await _controller.GetVehicleUtilizationReportCsv();
 
         var file = Assert.IsType<FileContentResult>(result);
-        Assert.Equal("text/csv", file.ContentType);
+        Assert.Equal("application/octet-stream", file.ContentType);
         var csv = Encoding.UTF8.GetString(file.FileContents);
         Assert.Contains("VehicleId,TripsCount,KilometersDriven,IdleTimeMinutes", csv);
         Assert.Contains("1,4,180,240", csv);
