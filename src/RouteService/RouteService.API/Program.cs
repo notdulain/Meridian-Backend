@@ -146,7 +146,9 @@ static async Task ApplyRouteMigrationsAsync(WebApplication app)
 
     try
     {
+        logger.LogInformation("Applying RouteService migrations.");
         await dbContext.Database.MigrateAsync();
+        logger.LogInformation("RouteService migrations applied successfully.");
     }
     catch (Exception ex)
     {
@@ -193,6 +195,7 @@ static async Task EnsureRouteHistoryFuelReportColumnsAsync(WebApplication app)
     try
     {
         await dbContext.Database.ExecuteSqlRawAsync(sql);
+        logger.LogInformation("RouteHistories fuel report schema guard completed.");
     }
     catch (Exception ex)
     {
