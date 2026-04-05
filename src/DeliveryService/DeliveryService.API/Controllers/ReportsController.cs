@@ -52,7 +52,7 @@ public class ReportsController : ControllerBase
         {
             var summary = await _deliveryReportService.GetDeliverySuccessRateAsync(startDateUtc, endDateUtc, cancellationToken);
             using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
-            csvWriter.WriteLine("DeliveredCount,FailedCount,CancelledCount,TerminalCount,SuccessRatePercentage");
+            csvWriter.WriteLine("Delivered,Failed,Cancelled,Terminal Deliveries,Success Rate (%)");
             csvWriter.WriteLine(string.Join(",",
                 summary.DeliveredCount,
                 summary.FailedCount,
@@ -118,7 +118,7 @@ public class ReportsController : ControllerBase
         {
             var trends = await _deliveryReportService.GetDeliveryTrendsAsync(range, from, to, cancellationToken);
             using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
-            csvWriter.WriteLine("Period,Total,Pending,Assigned,InTransit,Delivered,Failed,Canceled");
+            csvWriter.WriteLine("Period,Total Deliveries,Pending,Assigned,In Transit,Delivered,Failed,Canceled");
 
             foreach (var trend in trends)
             {

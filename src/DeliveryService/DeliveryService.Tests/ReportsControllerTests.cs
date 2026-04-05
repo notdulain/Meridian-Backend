@@ -91,7 +91,7 @@ public class ReportsControllerTests
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/octet-stream", file.ContentType);
         var csv = Encoding.UTF8.GetString(file.FileContents);
-        Assert.Contains("DeliveredCount,FailedCount,CancelledCount,TerminalCount,SuccessRatePercentage", csv);
+        Assert.Contains("Delivered,Failed,Cancelled,Terminal Deliveries,Success Rate (%)", csv);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public class ReportsControllerTests
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/octet-stream", file.ContentType);
         var csv = Encoding.UTF8.GetString(file.FileContents);
-        Assert.Contains("Period,Total,Pending,Assigned,InTransit,Delivered,Failed,Canceled", csv);
+        Assert.Contains("Period,Total Deliveries,Pending,Assigned,In Transit,Delivered,Failed,Canceled", csv);
         Assert.Contains("2026-04-01,10,1,1,2,5,1,0", csv);
     }
 }
