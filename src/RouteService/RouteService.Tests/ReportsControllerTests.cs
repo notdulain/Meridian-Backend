@@ -90,7 +90,7 @@ public class ReportsControllerTests
         var result = await CreateController().GetFuelCostReportCsv(null, null, null, CancellationToken.None);
 
         var file = Assert.IsType<FileContentResult>(result);
-        Assert.Equal("text/csv", file.ContentType);
+        Assert.Equal("application/octet-stream", file.ContentType);
         var csv = Encoding.UTF8.GetString(file.FileContents);
         Assert.Contains("VehicleId,DriverId,PeriodStartUtc,TripCount,TotalDistanceKm,TotalFuelConsumptionLitres,TotalFuelCostLkr", csv);
         Assert.Contains("11,21,2026-04-01T00:00:00.0000000Z,2,220,22,6600", csv);
