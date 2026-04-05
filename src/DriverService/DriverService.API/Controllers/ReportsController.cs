@@ -1,6 +1,9 @@
 using DriverService.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
+using System.IO;
+using System.Text;
 
 namespace DriverService.API.Controllers;
 
@@ -32,5 +35,42 @@ public class ReportsController : ControllerBase
         {
             return BadRequest(new { success = false, message = "Failed to fetch driver performance report", errors = new[] { ex.Message } });
         }
+    }
+
+    [HttpGet("driver-performance/csv")]
+    [Authorize(Roles = "Admin,Dispatcher,Manager")]
+    public async Task<IActionResult> GetDriverPerformanceReportCsv([FromQuery] DateTime? startDateUtc = null, [FromQuery] DateTime? endDateUtc = null)
+    {
+        try
+        {
+            var report = await _driverService.GetDriverPerformanceReportAsync(startDateUtc, endDateUtc);
+            using var csvWriter = new StringWriter(CultureInfo.InvariantCulture);
+            csvWriter.WriteLine("Driver ID,Deliveries Completed,Avg Delivery Time (min),On-Time Rate (%)");
+
+            foreach (var item in report)
+            {
+                csvWriter.WriteLine(string.Join(",",
+                    item.DriverId,
+                    item.DeliveriesCompleted,
+                    item.AverageDeliveryTimeMinutes.ToString(CultureInfo.InvariantCulture),
+                    item.OnTimeRatePercent.ToString(CultureInfo.InvariantCulture)));
+            }
+
+            return BuildCsvFile(csvWriter.ToString(), "driver-performance-report");
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message, errors = Array.Empty<string>() });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = "Failed to fetch driver performance report", errors = new[] { ex.Message } });
+        }
+    }
+
+    private FileContentResult BuildCsvFile(string csvContent, string fileNamePrefix)
+    {
+        var fileName = $"{fileNamePrefix}-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+        return File(Encoding.UTF8.GetBytes(csvContent), "application/octet-stream", fileName);
     }
 }

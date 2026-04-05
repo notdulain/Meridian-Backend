@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using System.Text.Json;
+using System.Text;
 using VehicleService.API.Controllers;
 using VehicleService.API.Models;
 using VehicleService.API.Services;
@@ -67,6 +68,27 @@ public class ReportsControllerTests
         Assert.NotNull(badRequest.Value);
         var success = GetPropertyValue<bool>(badRequest.Value, "success");
         Assert.False(success);
+    }
+
+    [Fact]
+    public async Task GetVehicleUtilizationReportCsv_ReturnsFile_WhenServiceSucceeds()
+    {
+        var report = new List<VehicleUtilizationMetrics>
+        {
+            new() { VehicleId = 1, TripsCount = 4, KilometersDriven = 180, IdleTimeMinutes = 240 }
+        };
+
+        _serviceMock
+            .Setup(s => s.GetVehicleUtilizationReportAsync(null, null))
+            .ReturnsAsync(report);
+
+        var result = await _controller.GetVehicleUtilizationReportCsv();
+
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/octet-stream", file.ContentType);
+        var csv = Encoding.UTF8.GetString(file.FileContents);
+        Assert.Contains("Vehicle ID,Trips Count,Kilometers Driven,Idle Time (min)", csv);
+        Assert.Contains("1,4,180,240", csv);
     }
 
     private static T? GetPropertyValue<T>(object? obj, string propertyName)
