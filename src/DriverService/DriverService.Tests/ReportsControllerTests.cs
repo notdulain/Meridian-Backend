@@ -40,7 +40,7 @@ public class ReportsControllerTests
         var result = await _controller.GetDriverPerformanceReportCsv();
 
         var file = Assert.IsType<FileContentResult>(result);
-        Assert.Equal("text/csv", file.ContentType);
+        Assert.Equal("application/octet-stream", file.ContentType);
         var csv = Encoding.UTF8.GetString(file.FileContents);
         Assert.Contains("DriverId,DeliveriesCompleted,AverageDeliveryTimeMinutes,OnTimeRatePercent", csv);
         Assert.Contains("7,14,22.5,92.3", csv);

@@ -71,6 +71,6 @@ public class ReportsController : ControllerBase
     private FileContentResult BuildCsvFile(string csvContent, string fileNamePrefix)
     {
         var fileName = $"{fileNamePrefix}-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
-        return File(Encoding.UTF8.GetBytes(csvContent), "text/csv", fileName);
+        return File(Encoding.UTF8.GetBytes(csvContent), "application/octet-stream", fileName);
     }
 }
