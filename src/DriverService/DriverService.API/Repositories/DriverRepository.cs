@@ -6,13 +6,18 @@ namespace DriverService.API.Repositories;
 public class DriverRepository : IDriverRepository
 {
     private readonly string _connectionString;
-    private readonly string _deliveryDatabaseName;
+    private readonly string _deliveryConnectionString;
 
     public DriverRepository(IConfiguration configuration)
     {
         _connectionString = configuration.GetConnectionString("DriverDb")
             ?? throw new InvalidOperationException("DriverDb connection string is not configured.");
-        _deliveryDatabaseName = configuration.GetValue<string>("Reporting:DeliveryDatabaseName") ?? "delivery_db";
+        var deliveryDatabaseName = configuration.GetValue<string>("Reporting:DeliveryDatabaseName") ?? "delivery_db";
+        var deliveryConnectionBuilder = new SqlConnectionStringBuilder(_connectionString)
+        {
+            InitialCatalog = deliveryDatabaseName
+        };
+        _deliveryConnectionString = deliveryConnectionBuilder.ConnectionString;
     }
 
     private SqlConnection GetConnection() => new SqlConnection(_connectionString);
@@ -195,28 +200,52 @@ public class DriverRepository : IDriverRepository
 
     public async Task<IEnumerable<DriverPerformanceMetrics>> GetDriverPerformanceReportAsync(DateTime? startDateUtc, DateTime? endDateUtc)
     {
-        using var connection = GetConnection();
-        await connection.OpenAsync();
-
-        var query = DriverPerformanceReportQueryBuilder.BuildMetricsQuery(_deliveryDatabaseName);
-        using var command = new SqlCommand(query, connection);
-        command.Parameters.AddWithValue("@StartDateUtc", (object?)startDateUtc ?? DBNull.Value);
-        command.Parameters.AddWithValue("@EndDateUtc", (object?)endDateUtc ?? DBNull.Value);
-
-        var results = new List<DriverPerformanceMetrics>();
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        var activeDriverIds = new List<int>();
+        using (var driverConnection = GetConnection())
         {
-            results.Add(new DriverPerformanceMetrics
-            {
-                DriverId = reader.GetInt32(reader.GetOrdinal("DriverId")),
-                DeliveriesCompleted = reader.GetInt32(reader.GetOrdinal("DeliveriesCompleted")),
-                AverageDeliveryTimeMinutes = Convert.ToDouble(reader["AverageDeliveryTimeMinutes"]),
-                OnTimeRatePercent = Convert.ToDouble(reader["OnTimeRatePercent"])
-            });
+            await driverConnection.OpenAsync();
+            const string activeDriversQuery = "SELECT DriverId FROM Drivers WHERE IsActive = 1 ORDER BY DriverId";
+            using var driverCommand = new SqlCommand(activeDriversQuery, driverConnection);
+            using var driverReader = await driverCommand.ExecuteReaderAsync();
+            while (await driverReader.ReadAsync())
+                activeDriverIds.Add(driverReader.GetInt32(0));
         }
 
-        return results;
+        var resultsByDriverId = new Dictionary<int, DriverPerformanceMetrics>();
+        using (var deliveryConnection = new SqlConnection(_deliveryConnectionString))
+        {
+            await deliveryConnection.OpenAsync();
+
+            var query = DriverPerformanceReportQueryBuilder.BuildMetricsQuery();
+            using var command = new SqlCommand(query, deliveryConnection);
+            command.Parameters.AddWithValue("@StartDateUtc", (object?)startDateUtc ?? DBNull.Value);
+            command.Parameters.AddWithValue("@EndDateUtc", (object?)endDateUtc ?? DBNull.Value);
+
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var metric = new DriverPerformanceMetrics
+                {
+                    DriverId = reader.GetInt32(reader.GetOrdinal("DriverId")),
+                    DeliveriesCompleted = reader.GetInt32(reader.GetOrdinal("DeliveriesCompleted")),
+                    AverageDeliveryTimeMinutes = Convert.ToDouble(reader["AverageDeliveryTimeMinutes"]),
+                    OnTimeRatePercent = Convert.ToDouble(reader["OnTimeRatePercent"])
+                };
+                resultsByDriverId[metric.DriverId] = metric;
+            }
+        }
+
+        return activeDriverIds
+            .Select(driverId => resultsByDriverId.TryGetValue(driverId, out var metric)
+                ? metric
+                : new DriverPerformanceMetrics
+                {
+                    DriverId = driverId,
+                    DeliveriesCompleted = 0,
+                    AverageDeliveryTimeMinutes = 0,
+                    OnTimeRatePercent = 0
+                })
+            .ToList();
     }
 
     private static Driver MapToDriver(SqlDataReader reader) => new Driver
