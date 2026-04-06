@@ -99,6 +99,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+await ApplyRouteMigrationsAsync(app);
 await EnsureRouteHistoryFuelReportColumnsAsync(app);
 
 app.UseSerilogRequestLogging();
@@ -166,6 +167,27 @@ static void ConfigureDistributedCache(WebApplicationBuilder builder)
     }
 }
 
+static async Task ApplyRouteMigrationsAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<RouteServiceDbContext>();
+    var logger = scope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("RouteHistoryMigrations");
+
+    try
+    {
+        logger.LogInformation("Applying RouteService migrations.");
+        await dbContext.Database.MigrateAsync();
+        logger.LogInformation("RouteService migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to apply RouteService migrations.");
+        throw;
+    }
+}
+
 static async Task EnsureRouteHistoryFuelReportColumnsAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
@@ -204,6 +226,7 @@ static async Task EnsureRouteHistoryFuelReportColumnsAsync(WebApplication app)
     try
     {
         await dbContext.Database.ExecuteSqlRawAsync(sql);
+        logger.LogInformation("RouteHistories fuel report schema guard completed.");
     }
     catch (Exception ex)
     {
