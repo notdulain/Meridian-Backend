@@ -14,11 +14,16 @@ public class TrackingController : ControllerBase
 {
     private readonly IHubContext<TrackingHub> _hubContext;
     private readonly ITrackingRepository _repository;
+    private readonly ILogger<TrackingController> _logger;
 
-    public TrackingController(IHubContext<TrackingHub> hubContext, ITrackingRepository repository)
+    public TrackingController(
+        IHubContext<TrackingHub> hubContext,
+        ITrackingRepository repository,
+        ILogger<TrackingController> logger)
     {
         _hubContext = hubContext;
         _repository = repository;
+        _logger = logger;
     }
 
     [HttpPost("location")]
@@ -34,6 +39,14 @@ public class TrackingController : ControllerBase
 
         // Broadcast to SignalR group immediately so Dispatchers see it live (MER-250)
         await _hubContext.Clients.Group($"tracking-{update.AssignmentId}").SendAsync("ReceiveLocationUpdate", savedUpdate);
+
+        _logger.LogInformation(
+            "Broadcasted driver coordinates via SignalR. AssignmentId: {AssignmentId}, DriverId: {DriverId}, Latitude: {Latitude}, Longitude: {Longitude}, Timestamp: {Timestamp}",
+            savedUpdate.AssignmentId,
+            savedUpdate.DriverId,
+            savedUpdate.Latitude,
+            savedUpdate.Longitude,
+            savedUpdate.Timestamp);
 
         return Ok(new { success = true, data = savedUpdate });
     }
