@@ -3,6 +3,7 @@ namespace ApiGateway.Models;
 public class DashboardSummaryDto
 {
     public int TotalDeliveries { get; set; }
+    public int PendingDeliveries { get; set; }
     public int ActiveDeliveries { get; set; }
     public int CompletedDeliveries { get; set; }
     public int OverdueDeliveries { get; set; }

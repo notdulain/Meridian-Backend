@@ -53,6 +53,7 @@ public class DashboardSummaryService : IDashboardSummaryService
         return new DashboardSummaryDto
         {
             TotalDeliveries = deliveries.Count,
+            PendingDeliveries = deliveries.Count(d => string.Equals(d.Status, "Pending", StringComparison.OrdinalIgnoreCase)),
             ActiveDeliveries = deliveries.Count(d => ActiveDeliveryStatuses.Contains(d.Status)),
             CompletedDeliveries = deliveries.Count(d => CompletedDeliveryStatuses.Contains(d.Status)),
             OverdueDeliveries = deliveries.Count(d => d.Deadline < now && !TerminalDeliveryStatuses.Contains(d.Status)),
