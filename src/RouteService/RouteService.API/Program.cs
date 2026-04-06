@@ -1,13 +1,14 @@
+using System.Text;
+using Meridian.VehicleGrpc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Serilog;
-using Meridian.VehicleGrpc;
 using RouteService.API.Data;
 using RouteService.API.Repositories;
 using RouteService.API.Services;
-using System.Text;
+using Serilog;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,25 +34,17 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
             Array.Empty<string>()
         }
     });
 });
 
-// Configure Redis distributed cache
-var redisConfiguration = builder.Configuration.GetConnectionString("RedisCache");
-if (string.IsNullOrWhiteSpace(redisConfiguration))
-{
-    throw new InvalidOperationException("ConnectionStrings:RedisCache is not configured.");
-}
-
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = redisConfiguration;
-    options.InstanceName = "MeridianRoutes:";
-});
-
+// Configure distributed cache
+ConfigureDistributedCache(builder);
 
 var routeDbConnectionString = builder.Configuration.GetConnectionString("RouteDb");
 if (string.IsNullOrWhiteSpace(routeDbConnectionString))
@@ -61,17 +54,18 @@ if (string.IsNullOrWhiteSpace(routeDbConnectionString))
 
 builder.Services.AddDbContext<RouteServiceDbContext>(options =>
     options.UseSqlServer(routeDbConnectionString));
+
 builder.Services.AddScoped<IRouteHistoryRepository, RouteHistoryRepository>();
 builder.Services.AddScoped<IRouteDecisionService, RouteDecisionService>();
 builder.Services.AddScoped<IFuelCostReportService, FuelCostReportService>();
 
-// Configure gRPC Client
-builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(o =>
+// Configure gRPC client
+builder.Services.AddGrpcClient<VehicleGrpc.VehicleGrpcClient>(options =>
 {
-    o.Address = new Uri(builder.Configuration["Grpc:VehicleServiceUrl"]!);
+    options.Address = new Uri(builder.Configuration["Grpc:VehicleServiceUrl"]!);
 });
 
-// Configure HttpClient for Google Routes API (v2)
+// Configure HttpClient for Google Routes API
 builder.Services.AddHttpClient(nameof(GoogleMapsService), client =>
 {
     client.BaseAddress = new Uri("https://routes.googleapis.com");
@@ -79,9 +73,10 @@ builder.Services.AddHttpClient(nameof(GoogleMapsService), client =>
 });
 builder.Services.AddScoped<IGoogleMapsService, GoogleMapsService>();
 
-// JWT Authentication
+// JWT authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
+var secretKey = jwtSettings["SecretKey"]
+    ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -122,6 +117,7 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger
             }
         });
     });
+
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("v1/swagger.json", "RouteService v1");
@@ -135,6 +131,41 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static void ConfigureDistributedCache(WebApplicationBuilder builder)
+{
+    string? redisConnectionString =
+        builder.Configuration["Redis:ConnectionString"] ??
+        builder.Configuration.GetConnectionString("RedisCache");
+
+    if (string.IsNullOrWhiteSpace(redisConnectionString))
+    {
+        Log.Warning("Redis cache is not configured. RouteService will continue with in-memory distributed cache.");
+        builder.Services.AddDistributedMemoryCache();
+        return;
+    }
+
+    try
+    {
+        StackExchange.Redis.ConfigurationOptions redisOptions =
+            StackExchange.Redis.ConfigurationOptions.Parse(redisConnectionString);
+        redisOptions.AbortOnConnectFail = false;
+        redisOptions.ConnectRetry = 3;
+        redisOptions.ConnectTimeout = 5000;
+        redisOptions.AsyncTimeout = 5000;
+
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.ConfigurationOptions = redisOptions;
+            options.InstanceName = "MeridianRoutes:";
+        });
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Redis cache configuration is invalid. RouteService will continue with in-memory distributed cache.");
+        builder.Services.AddDistributedMemoryCache();
+    }
+}
 
 static async Task ApplyRouteMigrationsAsync(WebApplication app)
 {
