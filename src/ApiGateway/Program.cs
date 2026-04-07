@@ -194,18 +194,22 @@ app.UseWhen(
             var summary = await dashboardSummaryService.GetSummaryAsync(context.RequestAborted);
             context.Response.StatusCode = StatusCodes.Status200OK;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsync(JsonSerializer.Serialize(new { success = true, data = summary }));
+            
+            var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new { success = true, data = summary }, jsonOptions));
         }
         catch (HttpRequestException ex)
         {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
             context.Response.ContentType = "application/json";
+            
+            var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
             await context.Response.WriteAsync(JsonSerializer.Serialize(new
             {
                 success = false,
                 message = "Dashboard summary is temporarily unavailable.",
                 errors = new[] { ex.Message }
-            }));
+            }, jsonOptions));
         }
     });
 });
