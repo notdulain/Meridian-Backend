@@ -51,7 +51,7 @@ These are **starting points** for discussion, not fixed requirements. Replace wi
 
 **Known QA blockers (not load):**
 
-- **400** with `Reference to database and/or server name in 'delivery_db.dbo.Deliveries'...` — Azure SQL does not support that cross-database pattern as written; fix queries or topology, then re-run.
+- **400** with `Reference to database and/or server name in 'meridian_delivery.dbo.Deliveries'...` — Azure SQL does not support that cross-database pattern as written; fix queries or topology, then re-run.
 - **404** — wrong path or gateway routing; see `docs/report-load-testing-scenarios.md` §2.1.
 
 ---
@@ -76,4 +76,3 @@ These are **starting points** for discussion, not fixed requirements. Replace wi
 | `http_req_duration` | `p(95) < 10000` (10s) |
 
 **MER-292** results and bottlenecks are documented in `docs/load-testing-scenarios.md` 
-

@@ -1,6 +1,6 @@
 # GitHub Actions CI/CD
 
-This repository includes environment-specific GitHub Actions workflows at `.github/workflows/qa-cicd.yml` and `.github/workflows/prod-cicd.yml`.
+This repository includes environment-specific GitHub Actions workflows at `.github/workflows/qa-cicd.yml`, `.github/workflows/staging-cicd.yml`, and `.github/workflows/prod-cicd.yml`.
 
 ## What it does
 
@@ -254,6 +254,111 @@ At a minimum, the identity needs enough rights to:
 
 The workflow uses these values with `azure/login@v2` and requests GitHub `id-token: write` permission for OIDC token exchange.
 
+### Recommended Azure CLI bootstrap for OIDC
+
+The commands below create a user-assigned managed identity, grant it the permissions needed by the workflows, and add federated credentials for the branch and environment subjects used by the current QA, staging, and PROD workflows.
+
+```bash
+export SUBSCRIPTION_ID="<azure-subscription-id>"
+export LOCATION="eastasia"
+export IDENTITY_RG="rg-meridian-identity"
+export IDENTITY_NAME="mi-meridian-github-actions"
+export GH_ORG="<github-org-or-username>"
+export GH_REPO="Meridian-Backend"
+
+az login
+az account set --subscription "$SUBSCRIPTION_ID"
+
+az group create \
+  --name "$IDENTITY_RG" \
+  --location "$LOCATION"
+
+az identity create \
+  --name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --location "$LOCATION"
+
+CLIENT_ID=$(az identity show \
+  --name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --query clientId -o tsv)
+
+PRINCIPAL_ID=$(az identity show \
+  --name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --query principalId -o tsv)
+
+TENANT_ID=$(az account show --query tenantId -o tsv)
+
+az role assignment create \
+  --assignee-object-id "$PRINCIPAL_ID" \
+  --assignee-principal-type ServicePrincipal \
+  --role Contributor \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+for fic_name in qa-branch staging-branch prod-branch qa-env staging-env prod-env; do
+  az identity federated-credential delete \
+    --name "$fic_name" \
+    --identity-name "$IDENTITY_NAME" \
+    --resource-group "$IDENTITY_RG" \
+    --only-show-errors \
+    >/dev/null 2>&1 || true
+done
+
+az identity federated-credential create \
+  --name "qa-branch" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:$GH_ORG/$GH_REPO:ref:refs/heads/develop" \
+  --audiences "api://AzureADTokenExchange"
+
+az identity federated-credential create \
+  --name "staging-branch" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:$GH_ORG/$GH_REPO:ref:refs/heads/staging" \
+  --audiences "api://AzureADTokenExchange"
+
+az identity federated-credential create \
+  --name "prod-branch" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:$GH_ORG/$GH_REPO:ref:refs/heads/main" \
+  --audiences "api://AzureADTokenExchange"
+
+az identity federated-credential create \
+  --name "qa-env" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:$GH_ORG/$GH_REPO:environment:qa" \
+  --audiences "api://AzureADTokenExchange"
+
+az identity federated-credential create \
+  --name "staging-env" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:$GH_ORG/$GH_REPO:environment:staging" \
+  --audiences "api://AzureADTokenExchange"
+
+az identity federated-credential create \
+  --name "prod-env" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:$GH_ORG/$GH_REPO:environment:prod" \
+  --audiences "api://AzureADTokenExchange"
+
+printf 'AZURE_CLIENT_ID=%s\nAZURE_TENANT_ID=%s\nAZURE_SUBSCRIPTION_ID=%s\n' \
+  "$CLIENT_ID" "$TENANT_ID" "$SUBSCRIPTION_ID"
+```
+
+Because the workflows authenticate both in branch-triggered build jobs and in environment-scoped deploy jobs, the managed identity needs both branch subjects and environment subjects.
+
 ## Default deployment values
 
 The workflow currently assumes:
@@ -267,10 +372,10 @@ The workflow currently assumes:
 
 The seven application databases are expected to already exist on the logical server:
 
-- `user_db`
+- `meridian_user`
 - `meridian_delivery`
 - `meridian_vehicle`
-- `driver_db`
+- `meridian_driver`
 - `meridian_assignment`
 - `meridian_route`
 - `meridian_tracking`

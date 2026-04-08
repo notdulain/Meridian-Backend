@@ -39,7 +39,7 @@ As per the architectural design, Meridian uses three distinct environments, each
 Within each Resource Group, the following resources will be created:
 *   **Azure Container Apps Environment:** The managed cluster hosting the microservices.
 *   **Azure Container Apps:** The actual microservices (`ca-api-gateway`, `ca-user-service`, `ca-delivery-service`, `ca-vehicle-service`, `ca-driver-service`, `ca-assignment-service`, `ca-route-service`, `ca-tracking-service`).
-*   **Azure SQL Database Server:** Hosting the relational databases (`user_db`, `meridian_delivery`, `meridian_vehicle`, `driver_db`, `meridian_assignment`, `meridian_route`, `meridian_tracking`).
+*   **Azure SQL Database Server:** Hosting the relational databases (`meridian_user`, `meridian_delivery`, `meridian_vehicle`, `meridian_driver`, `meridian_assignment`, `meridian_route`, `meridian_tracking`).
 *   **Redis Cloud database:** Used by RouteService for distributed route caching.
 *   **Azure Key Vault:** Securely storing secrets (connection strings, JWT keys).
 *   **Log Analytics Workspace & Application Insights:** For centralized logging and distributed tracing.
@@ -139,7 +139,7 @@ az sql server create --name $SQL_SERVER --resource-group $RESOURCE_GROUP --locat
 az sql server firewall-rule create --resource-group $RESOURCE_GROUP --server $SQL_SERVER --name AllowAllAzureIPs --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
 
 # Manually create these seven databases on the logical server before deployment:
-# user_db, meridian_delivery, meridian_vehicle, driver_db,
+# meridian_user, meridian_delivery, meridian_vehicle, meridian_driver,
 # meridian_assignment, meridian_route, meridian_tracking
 
 # 3. Create Azure Container Registry
