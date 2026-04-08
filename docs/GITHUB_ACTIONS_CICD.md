@@ -244,6 +244,16 @@ gh secret set ACR_PASSWORD --body "<acr-password>"
 
 You must create a user-assigned managed identity, assign it the required Azure role(s), and add a federated credential that trusts this GitHub repository/environment.
 
+This managed identity is not created by the environment bootstrap scripts in `scripts/`. Those scripts only provision the application infrastructure for QA, staging, and PROD:
+
+- resource group
+- Azure SQL logical server
+- SQL firewall rule
+- Azure Container Registry
+- Azure Container Apps environment
+
+The GitHub OIDC managed identity is a separate Azure resource used only by `azure/login@v2`, so it must be created once before the workflows can authenticate.
+
 At a minimum, the identity needs enough rights to:
 
 - create or update the resource group

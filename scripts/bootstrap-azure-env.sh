@@ -42,7 +42,39 @@ resolve_environment_name() {
 
 ensure_command az
 
+register_provider() {
+    local namespace="$1"
+    local attempts="${2:-60}"
+    local sleep_seconds="${3:-10}"
+    local state=""
+
+    state="$(az provider show --namespace "$namespace" --query registrationState -o tsv 2>/dev/null || true)"
+    if [ "$state" = "Registered" ]; then
+        echo "⏭️  Provider '$namespace' is already registered."
+        return 0
+    fi
+
+    echo "🔧 Registering Azure provider: $namespace"
+    az provider register --namespace "$namespace" --output none
+
+    for ((i = 1; i <= attempts; i++)); do
+        state="$(az provider show --namespace "$namespace" --query registrationState -o tsv 2>/dev/null || true)"
+        if [ "$state" = "Registered" ]; then
+            echo "✅ Provider '$namespace' registered."
+            return 0
+        fi
+
+        echo "⏳ Waiting for provider '$namespace' to register... current state: ${state:-unknown} (${i}/${attempts})"
+        sleep "$sleep_seconds"
+    done
+
+    echo "❌ Timed out waiting for provider '$namespace' to register." >&2
+    echo "   Check manually with: az provider show --namespace $namespace --query registrationState -o tsv" >&2
+    exit 1
+}
+
 ENVIRONMENT="$(resolve_environment_name "${1:-${ENVIRONMENT:-}}")"
+ENVIRONMENT_TAG="$(printf '%s' "$ENVIRONMENT" | tr '[:lower:]' '[:upper:]')"
 LOCATION="${LOCATION:-eastasia}"
 RESOURCE_GROUP="${RESOURCE_GROUP:-rg-meridian-$ENVIRONMENT}"
 SQL_SERVER="${SQL_SERVER:-sql-meridian-${ENVIRONMENT}001}"
@@ -55,10 +87,11 @@ DB_ADMIN="${DB_ADMIN:-meridianadmin}"
 echo "🚀 Bootstrapping Meridian Azure resources for '$ENVIRONMENT'..."
 
 az account show >/dev/null
+echo "🔌 Ensuring Azure Container Apps CLI extension is installed..."
 az extension add --name containerapp --upgrade >/dev/null
 
 for provider in Microsoft.ContainerRegistry Microsoft.Sql Microsoft.App; do
-    az provider register --namespace "$provider" --wait >/dev/null
+    register_provider "$provider"
 done
 
 if az group show --name "$RESOURCE_GROUP" >/dev/null 2>&1; then
@@ -99,7 +132,7 @@ else
         --location "$LOCATION" \
         --sku Basic \
         --admin-enabled true \
-        --tags "Project=Meridian" "Environment=${ENVIRONMENT^^}" \
+        --tags "Project=Meridian" "Environment=$ENVIRONMENT_TAG" \
         >/dev/null
 fi
 
