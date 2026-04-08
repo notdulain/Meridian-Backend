@@ -369,6 +369,133 @@ printf 'AZURE_CLIENT_ID=%s\nAZURE_TENANT_ID=%s\nAZURE_SUBSCRIPTION_ID=%s\n' \
 
 Because the workflows authenticate both in branch-triggered build jobs and in environment-scoped deploy jobs, the managed identity needs both branch subjects and environment subjects.
 
+### Federated credential troubleshooting
+
+If GitHub Actions fails during `azure/login@v2`, inspect the current federated credentials on the managed identity first:
+
+```bash
+az identity federated-credential list \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  -o table
+```
+
+#### Error: no configured federated identity credentials
+
+If the login step fails with an error like:
+
+```text
+AADSTS70025: The client has no configured federated identity credentials
+```
+
+then Azure does not have a federated credential whose `subject` matches the GitHub OIDC token exactly.
+
+For example, if the workflow log shows this subject:
+
+```text
+repo:notdulain/Meridian-Backend:ref:refs/heads/develop
+```
+
+create the matching branch credential with:
+
+```bash
+az identity federated-credential create \
+  --name "qa-branch-develop" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:notdulain/Meridian-Backend:ref:refs/heads/develop" \
+  --audiences "api://AzureADTokenExchange"
+```
+
+If the deploy job uses the GitHub Environment named `qa`, also create:
+
+```bash
+az identity federated-credential create \
+  --name "qa-environment" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:notdulain/Meridian-Backend:environment:qa" \
+  --audiences "api://AzureADTokenExchange"
+```
+
+Equivalent commands for the other environments:
+
+```bash
+az identity federated-credential create \
+  --name "staging-branch" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:notdulain/Meridian-Backend:ref:refs/heads/staging" \
+  --audiences "api://AzureADTokenExchange"
+
+az identity federated-credential create \
+  --name "prod-branch-main" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:notdulain/Meridian-Backend:ref:refs/heads/main" \
+  --audiences "api://AzureADTokenExchange"
+
+az identity federated-credential create \
+  --name "staging-environment" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:notdulain/Meridian-Backend:environment:staging" \
+  --audiences "api://AzureADTokenExchange"
+
+az identity federated-credential create \
+  --name "prod-environment" \
+  --identity-name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --issuer "https://token.actions.githubusercontent.com" \
+  --subject "repo:notdulain/Meridian-Backend:environment:prod" \
+  --audiences "api://AzureADTokenExchange"
+```
+
+#### Error: no subscriptions found
+
+If the login step fails with:
+
+```text
+No subscriptions found for <client-id>
+```
+
+then the managed identity exists and OIDC is working, but the identity has not been granted access to the Azure subscription.
+
+Get the identity principal ID:
+
+```bash
+PRINCIPAL_ID=$(az identity show \
+  --name "$IDENTITY_NAME" \
+  --resource-group "$IDENTITY_RG" \
+  --query principalId -o tsv)
+```
+
+Assign subscription-level `Contributor`:
+
+```bash
+az role assignment create \
+  --assignee-object-id "$PRINCIPAL_ID" \
+  --assignee-principal-type ServicePrincipal \
+  --role Contributor \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
+```
+
+Verify the role assignment:
+
+```bash
+az role assignment list \
+  --assignee-object-id "$PRINCIPAL_ID" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID" \
+  -o table
+```
+
+After creating a role assignment, wait a minute or two before re-running the workflow because Azure RBAC propagation is not always immediate.
+
 ## Default deployment values
 
 The workflow currently assumes:
