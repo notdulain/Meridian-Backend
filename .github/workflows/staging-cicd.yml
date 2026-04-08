@@ -1,9 +1,9 @@
-name: PROD CI/CD
+name: STAGING CI/CD
 
 on:
   push:
     branches:
-      - main
+      - staging
   workflow_dispatch:
     inputs:
       image_tag:
@@ -12,7 +12,7 @@ on:
         type: string
 
 concurrency:
-  group: prod-cicd
+  group: staging-cicd
   cancel-in-progress: false
 
 permissions:
@@ -20,11 +20,11 @@ permissions:
   contents: read
 
 env:
-  ACR_NAME: acrmeridianprod
-  RESOURCE_GROUP: rg-meridian-prod
+  ACR_NAME: acrmeridianstaging
+  RESOURCE_GROUP: rg-meridian-staging
   LOCATION: eastasia
-  CAE_NAME: cae-meridian-prod
-  SQL_SERVER: sql-meridian-prod001
+  CAE_NAME: cae-meridian-staging
+  SQL_SERVER: sql-meridian-staging001
   REDIS_ENDPOINT: redis-17031.c251.east-us-mz.azure.cloud.redislabs.com:17031
   DB_ADMIN: meridianadmin
 
@@ -80,7 +80,7 @@ jobs:
               --location "$LOCATION" \
               --sku Basic \
               --admin-enabled true \
-              --tags Project=Meridian Environment=PROD \
+              --tags Project=Meridian Environment=STAGING \
               --output none
           fi
 
@@ -127,10 +127,10 @@ jobs:
           build_and_push "Route Service" "meridian-routeservice" "src/RouteService/RouteService.API/Dockerfile" "."
           build_and_push "Tracking Service" "meridian-trackingservice" "src/TrackingService/TrackingService.API/Dockerfile" "src/TrackingService/TrackingService.API"
 
-  deploy-prod:
+  deploy-staging:
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: prod
+    environment: staging
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -361,7 +361,7 @@ jobs:
           )
 
           SHARED_ENV=(
-            "ASPNETCORE_ENVIRONMENT=PROD"
+            "ASPNETCORE_ENVIRONMENT=STAGING"
             "Swagger__Enabled=true"
             "Jwt__Issuer=meridian-gateway"
             "Jwt__Audience=meridian-api"
@@ -532,4 +532,4 @@ jobs:
       - name: Show gateway URL
         shell: bash
         run: |
-          echo "PROD gateway: ${{ steps.deploy.outputs.gateway_url }}"
+          echo "STAGING gateway: ${{ steps.deploy.outputs.gateway_url }}"

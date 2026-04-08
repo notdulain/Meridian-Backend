@@ -96,7 +96,7 @@ Meridian is a microservices-based fleet management and route optimization platfo
                     ┌──────────┴──────────┐
                     │     UserService      │
                     │ Port :6007           │
-                    │ user_db (SQL Server) │
+                    │ meridian_user (SQL Server) │
                     └─────────────────────┘
 
 ┌───────────────────────────────────────────────────────────────┐
@@ -129,7 +129,7 @@ Meridian is a microservices-based fleet management and route optimization platfo
 | **AssignmentService** | Vehicle-driver-delivery assignment engine | 6004 | `meridian_assignment` | 7004 |
 | **RouteService** | Route optimization, Google Maps, fuel calc | 6005 | — (Redis cache) | 7005 |
 | **TrackingService** | Real-time GPS tracking, SignalR hub | 6006 | `meridian_tracking` | — |
-| **UserService** | User management, auth token issuance | 6007 | `user_db` | — |
+| **UserService** | User management, auth token issuance | 6007 | `meridian_user` | — |
 | **ApiGateway** | Routing, JWT validation (MeridianBearer), CORS | 5050 | — | — |
 
 > [!IMPORTANT]
@@ -470,7 +470,7 @@ public class TrackingHub : Hub
 
 #### Technology
 - ASP.NET Core 8.0 Web API
-- **Database:** SQL Server — `user_db`
+- **Database:** SQL Server — `meridian_user`
 - **Auth:** Validates `MeridianBearer` JWT on its own protected endpoints (same shared secret as the gateway)
 - **Startup:** `DatabaseInitializer` creates `Users` and `RefreshTokens` tables on first run if they don't exist
 
@@ -532,10 +532,10 @@ public enum UserRole { Admin, Dispatcher, Driver }
 |---|---|---|
 | DeliveryService | `meridian_delivery` | `Server=localhost,1433;Database=meridian_delivery;...` |
 | VehicleService | `meridian_vehicle` | `Server=localhost,1433;Database=meridian_vehicle;...` |
-| DriverService | `driver_db` | `Server=localhost,1433;Database=driver_db;...` |
+| DriverService | `meridian_driver` | `Server=localhost,1433;Database=meridian_driver;...` |
 | AssignmentService | `meridian_assignment` | `Server=localhost,1433;Database=meridian_assignment;...` |
 | TrackingService | `meridian_tracking` | `Server=localhost,1433;Database=meridian_tracking;...` |
-| UserService | `user_db` | `Server=localhost,1433;Database=user_db;...` |
+| UserService | `meridian_user` | `Server=localhost,1433;Database=meridian_user;...` |
 | RouteService | `meridian_route` | `Server=localhost,1433;Database=meridian_route;...` plus Redis cache |
 
 **Credentials:** `User Id=sa; Password=<in appsettings.Development.json>; TrustServerCertificate=True;`
