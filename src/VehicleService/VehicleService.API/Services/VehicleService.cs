@@ -77,4 +77,12 @@ public class VehicleService : IVehicleService
     {
         return _repository.GetAvailableAsync();
     }
+
+    public Task<IEnumerable<VehicleUtilizationMetrics>> GetVehicleUtilizationReportAsync(DateTime? startDateUtc, DateTime? endDateUtc)
+    {
+        if (startDateUtc.HasValue && endDateUtc.HasValue && endDateUtc <= startDateUtc)
+            throw new ArgumentException("End date must be greater than start date.");
+
+        return _repository.GetVehicleUtilizationReportAsync(startDateUtc, endDateUtc);
+    }
 }

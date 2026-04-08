@@ -6,11 +6,26 @@ namespace VehicleService.API.Repositories;
 public class VehicleRepository : IVehicleRepository
 {
     private readonly string _connectionString;
+    private readonly string _deliveryConnectionString;
+    private readonly string _routeConnectionString;
 
     public VehicleRepository(IConfiguration configuration)
     {
         _connectionString = configuration.GetConnectionString("VehicleDb") 
             ?? throw new InvalidOperationException("Connection string 'VehicleDb' not found.");
+
+        var deliveryDatabaseName = configuration.GetValue<string>("Reporting:DeliveryDatabaseName") ?? "meridian_delivery";
+        var routeDatabaseName = configuration.GetValue<string>("Reporting:RouteDatabaseName") ?? "meridian_route";
+
+        _deliveryConnectionString = new SqlConnectionStringBuilder(_connectionString)
+        {
+            InitialCatalog = deliveryDatabaseName
+        }.ConnectionString;
+
+        _routeConnectionString = new SqlConnectionStringBuilder(_connectionString)
+        {
+            InitialCatalog = routeDatabaseName
+        }.ConnectionString;
     }
 
     private SqlConnection GetConnection() => new(_connectionString);
@@ -196,6 +211,95 @@ public class VehicleRepository : IVehicleRepository
         }
 
         return vehicles;
+    }
+
+    public async Task<IEnumerable<VehicleUtilizationMetrics>> GetVehicleUtilizationReportAsync(DateTime? startDateUtc, DateTime? endDateUtc)
+    {
+        var windowStartUtc = startDateUtc ?? DateTime.UtcNow.AddDays(-30);
+        var windowEndUtc = endDateUtc ?? DateTime.UtcNow;
+        var reportWindowMinutes = Math.Max(0, (windowEndUtc - windowStartUtc).TotalMinutes);
+
+        var activeVehicleIds = new List<int>();
+        using (var vehicleConnection = GetConnection())
+        {
+            await vehicleConnection.OpenAsync();
+            const string vehicleIdsQuery = "SELECT VehicleId FROM Vehicles WHERE Status <> 'Retired' ORDER BY VehicleId";
+            using var vehicleCommand = new SqlCommand(vehicleIdsQuery, vehicleConnection);
+            using var vehicleReader = await vehicleCommand.ExecuteReaderAsync();
+            while (await vehicleReader.ReadAsync())
+                activeVehicleIds.Add(vehicleReader.GetInt32(0));
+        }
+
+        var latestRouteDistanceByPath = new Dictionary<(string Origin, string Destination), (double DistanceKm, DateTime CreatedAt)>();
+        using (var routeConnection = new SqlConnection(_routeConnectionString))
+        {
+            await routeConnection.OpenAsync();
+            using var routeCommand = new SqlCommand(VehicleUtilizationReportQueryBuilder.BuildSelectedRouteHistoriesQuery(), routeConnection);
+            using var routeReader = await routeCommand.ExecuteReaderAsync();
+            while (await routeReader.ReadAsync())
+            {
+                var origin = routeReader.GetString(routeReader.GetOrdinal("Origin")).Trim().ToUpperInvariant();
+                var destination = routeReader.GetString(routeReader.GetOrdinal("Destination")).Trim().ToUpperInvariant();
+                var createdAt = routeReader.GetDateTime(routeReader.GetOrdinal("CreatedAt"));
+                var key = (origin, destination);
+
+                if (!latestRouteDistanceByPath.TryGetValue(key, out var existing) || createdAt > existing.CreatedAt)
+                {
+                    latestRouteDistanceByPath[key] = (
+                        Convert.ToDouble(routeReader["DistanceKm"]),
+                        createdAt
+                    );
+                }
+            }
+        }
+
+        var metricsByVehicleId = new Dictionary<int, (int TripsCount, double KilometersDriven, double ActiveTripMinutes)>();
+        using (var deliveryConnection = new SqlConnection(_deliveryConnectionString))
+        {
+            await deliveryConnection.OpenAsync();
+            using var deliveryCommand = new SqlCommand(VehicleUtilizationReportQueryBuilder.BuildDeliveredTripsQuery(), deliveryConnection);
+            deliveryCommand.Parameters.AddWithValue("@StartDateUtc", (object?)startDateUtc ?? DBNull.Value);
+            deliveryCommand.Parameters.AddWithValue("@EndDateUtc", (object?)endDateUtc ?? DBNull.Value);
+
+            using var deliveryReader = await deliveryCommand.ExecuteReaderAsync();
+            while (await deliveryReader.ReadAsync())
+            {
+                var vehicleId = deliveryReader.GetInt32(deliveryReader.GetOrdinal("VehicleId"));
+                var pickupAddress = deliveryReader.GetString(deliveryReader.GetOrdinal("PickupAddress")).Trim().ToUpperInvariant();
+                var deliveryAddress = deliveryReader.GetString(deliveryReader.GetOrdinal("DeliveryAddress")).Trim().ToUpperInvariant();
+                var tripMinutes = Convert.ToDouble(deliveryReader["TripMinutes"]);
+                var routeKey = (pickupAddress, deliveryAddress);
+                var distanceKm = latestRouteDistanceByPath.TryGetValue(routeKey, out var routeMatch)
+                    ? routeMatch.DistanceKm
+                    : 0;
+
+                if (!metricsByVehicleId.TryGetValue(vehicleId, out var metric))
+                    metric = (TripsCount: 0, KilometersDriven: 0d, ActiveTripMinutes: 0d);
+
+                metricsByVehicleId[vehicleId] = (
+                    metric.TripsCount + 1,
+                    metric.KilometersDriven + distanceKm,
+                    metric.ActiveTripMinutes + tripMinutes
+                );
+            }
+        }
+
+        return activeVehicleIds
+            .Select(vehicleId =>
+            {
+                var metric = metricsByVehicleId.TryGetValue(vehicleId, out var value)
+                    ? value
+                    : (TripsCount: 0, KilometersDriven: 0d, ActiveTripMinutes: 0d);
+
+                return new VehicleUtilizationMetrics
+                {
+                    VehicleId = vehicleId,
+                    TripsCount = metric.TripsCount,
+                    KilometersDriven = metric.KilometersDriven,
+                    IdleTimeMinutes = Math.Max(0, reportWindowMinutes - metric.ActiveTripMinutes)
+                };
+            })
+            .ToList();
     }
 
     private static Vehicle MapToVehicle(System.Data.Common.DbDataReader dbReader)

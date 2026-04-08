@@ -1,24 +1,23 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using Moq;
 using System.Text.Json;
 using TrackingService.API.Controllers;
 using TrackingService.API.Hubs;
 using TrackingService.API.Models;
+using TrackingService.API.Repositories;
 using Xunit;
 
 namespace TrackingService.Tests;
 
-/// <summary>
-/// Tests for TrackingController.
-/// PostLocation mocks IHubContext&lt;TrackingHub&gt; to verify SignalR SendAsync is called.
-/// GetAssignmentHistory and GetDriverLastKnown are pure placeholder implementations.
-/// </summary>
 public class TrackingControllerTests
 {
     private readonly Mock<IHubContext<TrackingHub>> _hubContextMock;
     private readonly Mock<IHubClients> _clientsMock;
     private readonly Mock<IClientProxy> _clientProxyMock;
+    private readonly Mock<ITrackingRepository> _repositoryMock;
+    private readonly Mock<ILogger<TrackingController>> _loggerMock;
     private readonly TrackingController _controller;
 
     public TrackingControllerTests()
@@ -26,184 +25,164 @@ public class TrackingControllerTests
         _hubContextMock = new Mock<IHubContext<TrackingHub>>();
         _clientsMock = new Mock<IHubClients>();
         _clientProxyMock = new Mock<IClientProxy>();
+        _repositoryMock = new Mock<ITrackingRepository>();
+        _loggerMock = new Mock<ILogger<TrackingController>>();
 
-        // Wire up: HubContext.Clients.Group(...) => clientProxy
         _hubContextMock.Setup(h => h.Clients).Returns(_clientsMock.Object);
         _clientsMock
             .Setup(c => c.Group(It.IsAny<string>()))
             .Returns(_clientProxyMock.Object);
 
-        _controller = new TrackingController(_hubContextMock.Object);
-    }
+        _repositoryMock
+            .Setup(r => r.LogLocationAsync(It.IsAny<LocationUpdate>()))
+            .ReturnsAsync((LocationUpdate update) =>
+            {
+                update.LocationUpdateId = 1;
+                return update;
+            });
 
-    // ---------- POST /api/tracking/location ----------
+        _repositoryMock
+            .Setup(r => r.GetHistoryAsync(It.IsAny<int>()))
+            .ReturnsAsync(Array.Empty<LocationUpdate>());
+
+        _controller = new TrackingController(
+            _hubContextMock.Object,
+            _repositoryMock.Object,
+            _loggerMock.Object);
+    }
 
     [Fact]
     public async Task PostLocation_ValidUpdate_Returns200()
     {
-        // Arrange
         var update = CreateValidLocationUpdate();
 
-        // Act
         var result = await _controller.PostLocation(update);
 
-        // Assert
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Equal(200, ok.StatusCode);
-        Assert.NotNull(ok.Value);
-
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
     }
 
     [Fact]
     public async Task PostLocation_ValidUpdate_BroadcastsToCorrectSignalRGroup()
     {
-        // Arrange
         var update = CreateValidLocationUpdate();
         update.AssignmentId = 7;
 
-        // Act
         await _controller.PostLocation(update);
 
-        // Assert — SignalR Group called with correct group name
-        _clientsMock.Verify(
-            c => c.Group("tracking-7"),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task PostLocation_ValidUpdate_CallsSendAsync()
-    {
-        // Arrange
-        var update = CreateValidLocationUpdate();
-
-        // Act
-        await _controller.PostLocation(update);
-
-        // Assert — SendAsync("ReceiveLocationUpdate", ...) was called once
+        _clientsMock.Verify(c => c.Group("tracking-7"), Times.Once);
         _clientProxyMock.Verify(
             cp => cp.SendCoreAsync(
                 "ReceiveLocationUpdate",
-                It.IsAny<object[]>(),
+                It.Is<object[]>(args => MatchesLocationUpdate(args, update)),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
     [Fact]
-    public async Task PostLocation_SetsLocationUpdateIdAndTimestamp()
+    public async Task PostLocation_MissingTimestamp_SetsUtcTimestampBeforeSave()
     {
-        // Arrange
         var update = CreateValidLocationUpdate();
-        update.LocationUpdateId = 0; // starts at 0
+        update.Timestamp = default;
 
-        // Act
-        var result = await _controller.PostLocation(update);
+        await _controller.PostLocation(update);
 
-        // Assert — Placeholder sets LocationUpdateId = 1 and Timestamp to UtcNow
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var data = JsonSerializer.Deserialize<JsonElement>(dataJson!);
-        Assert.Equal(1, GetInt32Property(data, "locationUpdateId"));
+        _repositoryMock.Verify(
+            r => r.LogLocationAsync(It.Is<LocationUpdate>(x => x.Timestamp != default)),
+            Times.Once);
     }
 
     [Fact]
-    public async Task PostLocation_ResponseContainsLocationData()
+    public async Task PostLocation_LogsBroadcastCoordinates()
     {
-        // Arrange
         var update = CreateValidLocationUpdate();
-        update.DriverId = 42;
-        update.AssignmentId = 5;
-        update.Latitude = 6.9271m;
-        update.Longitude = 79.8612m;
 
-        // Act
-        var result = await _controller.PostLocation(update);
+        await _controller.PostLocation(update);
 
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var data = JsonSerializer.Deserialize<JsonElement>(dataJson!);
-        Assert.Equal(42, GetInt32Property(data, "driverId"));
-        Assert.Equal(5, GetInt32Property(data, "assignmentId"));
-    }
-
-    // ---------- GET /api/tracking/assignment/{assignmentId}/history ----------
-
-    [Fact]
-    public void GetAssignmentHistory_ReturnsEmptyList()
-    {
-        // Act
-        var result = _controller.GetAssignmentHistory(10);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        Assert.NotNull(ok.Value);
-
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var dataArray = JsonSerializer.Deserialize<List<JsonElement>>(dataJson!);
-        Assert.NotNull(dataArray);
-        Assert.Empty(dataArray);
+        _loggerMock.Verify(
+            logger => logger.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) =>
+                    state.ToString()!.Contains("Broadcasted driver coordinates via SignalR.") &&
+                    state.ToString()!.Contains("AssignmentId: 1") &&
+                    state.ToString()!.Contains("DriverId: 3") &&
+                    state.ToString()!.Contains("Latitude: 6.9271") &&
+                    state.ToString()!.Contains("Longitude: 79.8612")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 
     [Fact]
-    public void GetAssignmentHistory_Returns200ForAnyAssignmentId()
+    public async Task GetAssignmentHistory_ReturnsRepositoryData()
     {
-        // Act
-        var result = _controller.GetAssignmentHistory(999);
+        var history = new[]
+        {
+            new LocationUpdate
+            {
+                LocationUpdateId = 4,
+                AssignmentId = 10,
+                DriverId = 99,
+                Latitude = 6.9m,
+                Longitude = 79.8m,
+                Timestamp = DateTime.UtcNow
+            }
+        };
 
-        // Assert
+        _repositoryMock
+            .Setup(r => r.GetHistoryAsync(10))
+            .ReturnsAsync(history);
+
+        var result = await _controller.GetAssignmentHistory(10);
+
         var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-    }
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
 
-    // ---------- GET /api/tracking/driver/{driverId}/last-known ----------
-
-    [Fact]
-    public void GetDriverLastKnown_ReturnsLocationUpdate()
-    {
-        // Act
-        var result = _controller.GetDriverLastKnown(15);
-
-        // Assert
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(200, ok.StatusCode);
-        Assert.NotNull(ok.Value);
-
-        var success = GetPropertyValue<bool>(ok.Value, "success");
-        Assert.True(success);
-
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        Assert.NotEmpty(dataJson!);
+        var data = JsonSerializer.Deserialize<List<LocationUpdate>>(GetRawProperty(ok.Value, "data")!);
+        Assert.NotNull(data);
+        Assert.Single(data);
+        Assert.Equal(99, data[0].DriverId);
     }
 
     [Fact]
-    public void GetDriverLastKnown_ResponseContainsMatchingDriverId()
+    public async Task GetDriverLastKnown_WhenFound_ReturnsLocationUpdate()
     {
-        // Act
-        var result = _controller.GetDriverLastKnown(15);
+        _repositoryMock
+            .Setup(r => r.GetLastKnownLocationAsync(15))
+            .ReturnsAsync(new LocationUpdate
+            {
+                LocationUpdateId = 2,
+                AssignmentId = 5,
+                DriverId = 15,
+                Latitude = 6.9271m,
+                Longitude = 79.8612m,
+                Timestamp = DateTime.UtcNow
+            });
 
-        // Assert
+        var result = await _controller.GetDriverLastKnown(15);
+
         var ok = Assert.IsType<OkObjectResult>(result);
-        var dataJson = GetRawProperty(ok.Value, "data");
-        Assert.NotNull(dataJson);
-        var data = JsonSerializer.Deserialize<JsonElement>(dataJson!);
+        Assert.True(GetPropertyValue<bool>(ok.Value, "success"));
 
-        // Placeholder echoes back the driverId
-        Assert.Equal(15, GetInt32Property(data, "driverId"));
+        var data = JsonSerializer.Deserialize<LocationUpdate>(GetRawProperty(ok.Value, "data")!);
+        Assert.NotNull(data);
+        Assert.Equal(15, data.DriverId);
     }
 
-    // ---------- Helpers ----------
+    [Fact]
+    public async Task GetDriverLastKnown_WhenMissing_ReturnsNotFound()
+    {
+        _repositoryMock
+            .Setup(r => r.GetLastKnownLocationAsync(15))
+            .ReturnsAsync((LocationUpdate?)null);
+
+        var result = await _controller.GetDriverLastKnown(15);
+
+        var notFound = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.False(GetPropertyValue<bool>(notFound.Value, "success"));
+    }
 
     private static LocationUpdate CreateValidLocationUpdate() => new()
     {
@@ -215,39 +194,42 @@ public class TrackingControllerTests
         Timestamp = DateTime.UtcNow
     };
 
+    private static bool MatchesLocationUpdate(object[] args, LocationUpdate expected)
+    {
+        if (args.Length != 1 || args[0] is not LocationUpdate actual)
+            return false;
+
+        return actual.AssignmentId == expected.AssignmentId &&
+               actual.DriverId == expected.DriverId &&
+               actual.Latitude == expected.Latitude &&
+               actual.Longitude == expected.Longitude;
+    }
+
     private static T? GetPropertyValue<T>(object? obj, string propertyName)
     {
         if (obj == null) return default;
-        var json = JsonSerializer.Serialize(obj);
-        using var doc = JsonDocument.Parse(json);
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(obj));
         foreach (var prop in doc.RootElement.EnumerateObject())
         {
             if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
                 return JsonSerializer.Deserialize<T>(prop.Value.GetRawText());
         }
+
         return default;
     }
 
     private static string? GetRawProperty(object? obj, string propertyName)
     {
         if (obj == null) return null;
-        var json = JsonSerializer.Serialize(obj);
-        using var doc = JsonDocument.Parse(json);
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(obj));
         foreach (var prop in doc.RootElement.EnumerateObject())
         {
             if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
                 return prop.Value.GetRawText();
         }
-        return null;
-    }
 
-    private static int GetInt32Property(JsonElement element, string propertyName)
-    {
-        foreach (var prop in element.EnumerateObject())
-        {
-            if (prop.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-                return prop.Value.GetInt32();
-        }
-        throw new KeyNotFoundException($"Property '{propertyName}' not found.");
+        return null;
     }
 }

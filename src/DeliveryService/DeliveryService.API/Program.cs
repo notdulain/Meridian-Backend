@@ -16,6 +16,7 @@ builder.Services.AddEndpointsApiExplorer();
 // Repository and manager service
 builder.Services.AddScoped<DeliveryRepository>();
 builder.Services.AddScoped<IDeliveryManagerService, DeliveryManagerService>();
+builder.Services.AddScoped<IDeliveryReportService, DeliveryReportService>();
 builder.Services.AddScoped<IVehicleRecommendationService, VehicleRecommendationService>();
 builder.Services.AddHttpClient<IRouteDistanceService, RouteDistanceService>((serviceProvider, client) =>
 {

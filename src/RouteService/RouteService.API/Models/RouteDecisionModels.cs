@@ -4,6 +4,8 @@ public sealed class SelectRouteRequest
 {
     public required string Origin { get; set; }
     public required string Destination { get; set; }
+    public int? VehicleId { get; set; }
+    public int? DriverId { get; set; }
     public required RouteOption Route { get; set; }
 }
 
@@ -12,6 +14,8 @@ public sealed class HistoryRouteDto
     public Guid RouteId { get; set; }
     public string Origin { get; set; } = string.Empty;
     public string Destination { get; set; } = string.Empty;
+    public int? VehicleId { get; set; }
+    public int? DriverId { get; set; }
     public double DistanceKm { get; set; }
     public int DurationMinutes { get; set; }
     public decimal FuelCostLkr { get; set; }

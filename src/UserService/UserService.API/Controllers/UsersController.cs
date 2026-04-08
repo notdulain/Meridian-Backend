@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UserService.API.DTOs;
+using UserService.API.Exceptions;
 using UserService.API.Services;
 using System.Security.Claims;
 
@@ -11,22 +12,79 @@ namespace UserService.API.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IDriverAccountProvisioningService _driverAccountProvisioningService;
+    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUserService userService)
+    public UsersController(
+        IUserService userService,
+        IDriverAccountProvisioningService driverAccountProvisioningService,
+        ILogger<UsersController> logger)
     {
         _userService = userService;
+        _driverAccountProvisioningService = driverAccountProvisioningService;
+        _logger = logger;
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("driver-accounts")]
+    [ProducesResponseType(typeof(CreateDriverAccountResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateDriverAccount([FromBody] CreateDriverAccountRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var authorizationHeader = Request.Headers.Authorization.ToString();
+            var result = await _driverAccountProvisioningService.CreateDriverAccountAsync(
+                request,
+                authorizationHeader,
+                cancellationToken);
+
+            return StatusCode(StatusCodes.Status201Created, new { success = true, data = result });
+        }
+        catch (ResourceConflictException ex)
+        {
+            return Conflict(new { success = false, message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
     }
 
     // GET /api/users — Admin only
     [Authorize(Roles = "Admin")]
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> GetAll()
     {
-        var users = await _userService.GetAllAsync();
-        return Ok(users);
+        try
+        {
+            var users = (await _userService.GetAllAsync()).ToList();
+
+            if (users.Count == 0)
+            {
+                return NotFound(new { message = "No users found." });
+            }
+
+            return Ok(users);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve users from UserService.");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "An error occurred while retrieving users." });
+        }
     }
 
     // GET /api/users/{id} — any authenticated user

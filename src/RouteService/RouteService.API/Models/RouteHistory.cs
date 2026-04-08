@@ -16,6 +16,10 @@ public sealed class RouteHistory
     [MaxLength(256)]
     public string Destination { get; set; } = string.Empty;
 
+    public int? VehicleId { get; set; }
+
+    public int? DriverId { get; set; }
+
     public double DistanceKm { get; set; }
 
     public int DurationMinutes { get; set; }

@@ -12,9 +12,9 @@ using DriverService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-if (builder.Environment.IsDevelopment())
+builder.WebHost.ConfigureKestrel((context, options) =>
 {
-    builder.WebHost.ConfigureKestrel((context, options) =>
+    if (builder.Environment.IsDevelopment())
     {
         var restPort = context.Configuration.GetValue<int?>("Ports:DriverServiceHttp") ?? 6003;
         var grpcPort = context.Configuration.GetValue<int?>("Ports:DriverServiceGrpc") ?? 7003;
@@ -28,8 +28,29 @@ if (builder.Environment.IsDevelopment())
         {
             listenOptions.Protocols = HttpProtocols.Http2;
         });
+
+        return;
+    }
+
+    var serviceMode = context.Configuration["ServiceMode"];
+
+    // gRPC-only container apps use h2c on the ACA target port.
+    if (string.Equals(serviceMode, "GrpcOnly", StringComparison.OrdinalIgnoreCase))
+    {
+        options.ListenAnyIP(8080, listenOptions =>
+        {
+            listenOptions.Protocols = HttpProtocols.Http2;
+        });
+
+        return;
+    }
+
+    // REST container apps use HTTP/1.1 on the ACA target port.
+    options.ListenAnyIP(8080, listenOptions =>
+    {
+        listenOptions.Protocols = HttpProtocols.Http1;
     });
-}
+});
 
 // Configure Serilog
 builder.Host.UseSerilog((context, configuration) =>
