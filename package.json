@@ -1,0 +1,14 @@
+{
+  "name": "meridian-backend-regression-tests",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:gateway": "playwright test tests/gateway",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.0",
+    "@types/node": "^24.6.0",
+    "dotenv": "^16.6.1"
+  }
+}
