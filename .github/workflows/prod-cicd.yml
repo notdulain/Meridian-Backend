@@ -2,8 +2,8 @@ name: PROD CI/CD
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       image_tag:
@@ -533,3 +533,45 @@ jobs:
         shell: bash
         run: |
           echo "PROD gateway: ${{ steps.deploy.outputs.gateway_url }}"
+
+      - name: Health Check & Rollback
+        shell: bash
+        env:
+          GATEWAY_URL: ${{ steps.deploy.outputs.gateway_url }}
+          RESOURCE_GROUP: ${{ env.RESOURCE_GROUP }}
+        run: |
+          set -e
+          echo "Testing $GATEWAY_URL/diagnostics for 60 seconds..."
+          
+          # Poll the root diagnostics endpoint
+          success=false
+          for i in {1..12}; do
+            status_code=$(curl -s -o /dev/null -w "%{http_code}" "$GATEWAY_URL/diagnostics" || true)
+            if [ "$status_code" = "200" ]; then
+              echo "Gateway gracefully responded with HTTP 200!"
+              success=true
+              break
+            fi
+            echo "Attempt $i: HTTP $status_code. Waiting 5s..."
+            sleep 5
+          done
+          
+          if [ "$success" = false ]; then
+            echo "::error::Health check failed! Automated system-wide rollback initiated."
+            
+            SERVICES=("ca-api-gateway" "ca-user-service" "ca-delivery-service" "ca-vehicle-service" "ca-vehicle-service-grpc" "ca-driver-service" "ca-driver-service-grpc" "ca-assignment-service" "ca-route-service" "ca-tracking-service")
+            
+            for app in "${SERVICES[@]}"; do
+              echo "Reverting $app to previous revision..."
+              PREV_REVISION=$(az containerapp revision list -n "$app" -g "$RESOURCE_GROUP" --query "sort_by([*], &properties.createdTime)[-2].name" -o tsv || echo "")
+              
+              if [ -n "$PREV_REVISION" ] && [ "$PREV_REVISION" != "None" ]; then
+                  echo "Activating previous revision for $app: $PREV_REVISION"
+                  az containerapp revision activate -g "$RESOURCE_GROUP" --revision "$PREV_REVISION" || echo "Warning: Failed to rollback $app"
+              else
+                  echo "Warning: No previous revision found for $app."
+              fi
+            done
+            
+            exit 1
+          fi
