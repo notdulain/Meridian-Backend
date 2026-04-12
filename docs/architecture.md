@@ -194,6 +194,39 @@ JWT for SignalR can be supplied as **`?access_token=<jwt>`** on the negotiate re
 
 ## 5. Database-per-Service Ownership
 
+Each microservice **owns one** SQL Server database and reads/writes it only through its **own** connection string. **ApiGateway** has no database. Physical catalog names (for example `meridian_user`, `meridian_delivery`) are set per environment in those connection strings, not in application code.
+
+```mermaid
+flowchart TB
+    subgraph apps["Microservices (each owns one database)"]
+        UserService[UserService]
+        DeliveryService[DeliveryService]
+        VehicleService[VehicleService]
+        DriverService[DriverService]
+        AssignmentService[AssignmentService]
+        RouteService[RouteService]
+        TrackingService[TrackingService]
+    end
+
+    subgraph sql["SQL Server — logical DB-per-service"]
+        DB_User[("UserDb\nmeridian_user")]
+        DB_Del[("DeliveryDb\nmeridian_delivery")]
+        DB_Veh[("VehicleDb\nmeridian_vehicle")]
+        DB_Drv[("DriverDb\nmeridian_driver")]
+        DB_Asg[("AssignmentDb\nmeridian_assignment")]
+        DB_Rte[("RouteDb\nmeridian_route")]
+        DB_Trk[("TrackingDb\nmeridian_tracking")]
+    end
+
+    UserService --> DB_User
+    DeliveryService --> DB_Del
+    VehicleService --> DB_Veh
+    DriverService --> DB_Drv
+    AssignmentService --> DB_Asg
+    RouteService --> DB_Rte
+    TrackingService --> DB_Trk
+```
+
 | Service | Connection string key | Notes |
 |---------|------------------------|--------|
 | UserService | `ConnectionStrings:UserDb` | DbUp |
