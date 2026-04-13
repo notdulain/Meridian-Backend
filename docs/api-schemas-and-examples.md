@@ -5,6 +5,7 @@ Reference for **MER-340**: request/response schemas and sample JSON payloads for
 Use this with `docs/api-endpoints.md`:
 - `api-endpoints.md` = endpoint inventory
 - `api-schemas-and-examples.md` = payload shapes
+- `api-auth-requirements.md` = authentication and role matrix
 
 ---
 

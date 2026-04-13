@@ -5,7 +5,7 @@ Endpoint catalog for **MER-339**: document all HTTP endpoints across the API Gat
 This document lists implemented HTTP endpoints and gateway route mappings only.
 
 - Request/response schemas with sample payloads: `docs/api-schemas-and-examples.md` (**MER-340**)
-- Per-endpoint authentication requirements: tracked in **MER-341**
+- Per-endpoint authentication requirements: `docs/api-auth-requirements.md` (**MER-341**)
 
 ---
 
