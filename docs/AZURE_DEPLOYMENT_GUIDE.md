@@ -93,6 +93,130 @@ The bootstrap step creates/ensures Azure infrastructure, but **you still need th
 - Required GitHub secrets are set (for workflow-based deployment)
 - SQL databases listed above exist in the target environment
 
+## Step-by-step deployment runbook (MER-346)
+
+This section describes the exact sequence for `deploy-qa.sh` and the production equivalent.
+
+### A. QA deployment via local scripts
+
+#### A1) Login and select subscription
+
+```bash
+az login
+az account show
+# Optional if you use multiple subscriptions:
+# az account set --subscription "<subscription-id-or-name>"
+```
+
+#### A2) Export required secrets/config
+
+```bash
+export DB_PASSWORD="<sql-admin-password>"
+export JWT_SECRET="<jwt-secret>"
+export GOOGLE_MAPS_API_KEY="<google-maps-api-key>"
+export REDIS_CONNECTION_STRING="<host>:<port>,user=default,password=<redis-password>,ssl=True,abortConnect=False"
+```
+
+Optional overrides:
+
+```bash
+export IMAGE_TAG="v1"        # must exist in ACR before deploy
+export LOCATION="eastasia"
+export DB_ADMIN="meridianadmin"
+```
+
+#### A3) Build and push images (required before deploy)
+
+`deploy-qa.sh` uses images already in ACR. Build/push first:
+
+```bash
+export ACR_NAME="acrmeridianqa"
+export RESOURCE_GROUP="rg-meridian-qa"
+export TAG="${IMAGE_TAG:-v1}"
+
+./scripts/build-push.sh
+```
+
+#### A4) Deploy QA apps
+
+```bash
+./scripts/deploy-qa.sh
+```
+
+This wraps:
+- `./scripts/deploy-env.sh qa`
+- `./scripts/bootstrap-azure-env.sh qa`
+
+#### A5) Verify deployment
+
+```bash
+az containerapp show \
+  --resource-group rg-meridian-qa \
+  --name ca-api-gateway \
+  --query "properties.configuration.ingress.fqdn" -o tsv
+```
+
+Then open:
+- `https://<gateway-fqdn>/delivery/swagger`
+- `https://<gateway-fqdn>/user/swagger`
+
+---
+
+### B. Production deployment equivalent
+
+You can deploy production in two supported ways.
+
+#### B1) Local script path (manual)
+
+```bash
+az login
+az account show
+
+export DB_PASSWORD="<sql-admin-password>"
+export JWT_SECRET="<jwt-secret>"
+export GOOGLE_MAPS_API_KEY="<google-maps-api-key>"
+export REDIS_CONNECTION_STRING="<host>:<port>,user=default,password=<redis-password>,ssl=True,abortConnect=False"
+export IMAGE_TAG="<image-tag-in-acr>"
+```
+
+Build/push production tag:
+
+```bash
+export ACR_NAME="acrmeridianprod"
+export RESOURCE_GROUP="rg-meridian-prod"
+export TAG="$IMAGE_TAG"
+
+./scripts/build-push.sh
+```
+
+Deploy production:
+
+```bash
+./scripts/deploy-prod.sh
+```
+
+#### B2) GitHub Actions path (recommended for team deployments)
+
+The production workflow is `.github/workflows/prod-cicd.yml`.
+
+Trigger options:
+
+1. Push a version tag:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+2. Run manually via **Actions -> PROD CI/CD -> Run workflow** (optional `image_tag` input).
+
+Required GitHub secrets for this path:
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `DB_PASSWORD`
+- `JWT_SECRET`
+- `GOOGLE_MAPS_API_KEY`
+- `REDIS_PASSWORD`
+
 ## Azure Acronym Legend
 
 To keep resource names concise while adhering to naming standards, the following abbreviations (prefixes/suffixes) are used throughout the guide and in the deployment script:
