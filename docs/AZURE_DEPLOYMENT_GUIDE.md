@@ -8,11 +8,90 @@ Important deployment notes:
 - Local `appsettings.Development.json` files are for local development only and should not be baked into container images.
 - Secrets such as JWT keys, database connection strings, Redis connection strings, and Google Maps API keys should be supplied through Container App environment variables or a secret store.
 
-## Prerequisites
+## Prerequisites (MER-345)
 
-1.  **Azure Account:** An active Microsoft Azure account.
-2.  **Azure CLI:** Installed on your local machine (`brew update && brew install azure-cli` on Mac).
-3.  **Docker Desktop:** Running locally.
+Complete these prerequisites before running any `bootstrap-*` or `deploy-*` script.
+
+### 1. Access and permissions
+
+1. **Azure account and subscription**
+   - You must be able to create/update:
+     - Resource groups
+     - Azure SQL logical servers
+     - Azure Container Registry (ACR)
+     - Azure Container Apps environments/apps
+2. **GitHub repository access**
+   - Permission to update repository/environment secrets (for CI/CD workflows).
+
+### 2. Required local tools
+
+1. **Azure CLI** (required)
+   - Install (macOS): `brew install azure-cli`
+   - Login: `az login`
+   - Confirm active subscription: `az account show`
+2. **Container Apps extension for Azure CLI** (required by scripts/workflows)
+   - Install/upgrade: `az extension add --name containerapp --upgrade`
+3. **Docker + Buildx** (required if building images locally)
+   - Docker Desktop running (`docker version`)
+   - Buildx available (`docker buildx version`)
+4. **Bash shell** (required)
+   - Scripts under `scripts/` are bash scripts (`#!/bin/bash`).
+
+### 3. Local environment variables required by deployment scripts
+
+The script `scripts/deploy-env.sh` requires these variables:
+
+| Variable | Why it is required |
+|---|---|
+| `DB_PASSWORD` | SQL server admin password used in connection strings |
+| `JWT_SECRET` | Shared JWT signing secret used by gateway/services |
+| `GOOGLE_MAPS_API_KEY` | RouteService external API integration |
+| `REDIS_CONNECTION_STRING` | RouteService distributed cache connection |
+
+Optional overrides:
+
+| Variable | Default |
+|---|---|
+| `IMAGE_TAG` | `v1` |
+| `LOCATION` | `eastasia` |
+| `DB_ADMIN` | `meridianadmin` |
+| `ACR_NAME` | `acrmeridian<env>` |
+
+### 4. GitHub secrets required for CI/CD workflows
+
+The QA/Staging/Prod workflows (`.github/workflows/*-cicd.yml`) require:
+
+| Secret | Purpose |
+|---|---|
+| `AZURE_CLIENT_ID` | OIDC login to Azure from GitHub Actions |
+| `AZURE_TENANT_ID` | OIDC login to Azure from GitHub Actions |
+| `AZURE_SUBSCRIPTION_ID` | Target Azure subscription |
+| `DB_PASSWORD` | SQL admin password during infrastructure/deploy jobs |
+| `JWT_SECRET` | Injected into gateway/services runtime environment |
+| `GOOGLE_MAPS_API_KEY` | RouteService runtime dependency |
+| `REDIS_PASSWORD` | Combined with `REDIS_ENDPOINT` to form Redis connection string |
+
+> `REDIS_ENDPOINT` is defined in workflows as an environment value, while `REDIS_PASSWORD` must come from secrets.
+
+### 5. Azure resources/data prerequisites
+
+The bootstrap step creates/ensures Azure infrastructure, but **you still need these databases** in each environment before app deploy:
+
+- `meridian_user`
+- `meridian_delivery`
+- `meridian_vehicle`
+- `meridian_driver`
+- `meridian_assignment`
+- `meridian_route`
+- `meridian_tracking`
+
+### 6. Quick preflight checklist
+
+- `az account show` works and points to the correct subscription
+- `az extension show --name containerapp` succeeds
+- Required environment variables are exported (for local deployment scripts)
+- Required GitHub secrets are set (for workflow-based deployment)
+- SQL databases listed above exist in the target environment
 
 ## Azure Acronym Legend
 
