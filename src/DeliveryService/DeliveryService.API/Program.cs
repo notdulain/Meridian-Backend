@@ -12,6 +12,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+// ─────────────────────────────────────────────
+// Application Insights – MER-323
+// ─────────────────────────────────────────────
+builder.Services.AddApplicationInsightsTelemetry();
 
 // Repository and manager service
 builder.Services.AddScoped<DeliveryRepository>();

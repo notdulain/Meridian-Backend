@@ -1,4 +1,4 @@
-name: PROD CI/CD
+﻿name: PROD CI/CD
 
 on:
   push:
@@ -27,6 +27,8 @@ env:
   SQL_SERVER: sql-meridian-prod001
   REDIS_ENDPOINT: redis-17031.c251.east-us-mz.azure.cloud.redislabs.com:17031
   DB_ADMIN: meridianadmin
+  LAW_NAME: law-meridian-prod
+  APPI_NAME: appi-meridian-prod
 
 jobs:
   build-and-push:
@@ -146,14 +148,21 @@ jobs:
         shell: bash
         run: az extension add --name containerapp --upgrade
 
+      - name: Install Application Insights CLI extension
+        shell: bash
+        run: az extension add --name application-insights --upgrade --allow-preview true || true
+
       - name: Register required Azure providers
         shell: bash
         run: |
           az provider register --namespace Microsoft.ContainerRegistry --wait
           az provider register --namespace Microsoft.Sql --wait
           az provider register --namespace Microsoft.App --wait
+          az provider register --namespace Microsoft.Insights --wait
+          az provider register --namespace Microsoft.OperationalInsights --wait
 
       - name: Ensure Azure infrastructure
+        id: infra
         shell: bash
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -210,6 +219,53 @@ jobs:
               --output none
           fi
 
+          # -- MER-326: Log Analytics Workspace -----------------------------------
+          if az monitor log-analytics workspace show \
+              --resource-group "$RESOURCE_GROUP" \
+              --workspace-name "$LAW_NAME" \
+              --output none 2>/dev/null; then
+            echo "Log Analytics Workspace $LAW_NAME already exists."
+          else
+            az monitor log-analytics workspace create \
+              --resource-group "$RESOURCE_GROUP" \
+              --workspace-name "$LAW_NAME" \
+              --location "$LOCATION" \
+              --sku PerGB2018 \
+              --retention-time 30 \
+              --tags Project=Meridian Environment=PROD MER=MER-326 \
+              --output none
+            echo "Log Analytics Workspace $LAW_NAME created."
+          fi
+
+          # -- MER-323: Application Insights --------------------------------------
+          if az monitor app-insights component show \
+              --app "$APPI_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --output none 2>/dev/null; then
+            echo "Application Insights $APPI_NAME already exists."
+          else
+            LAW_FULL_ID=$(az monitor log-analytics workspace show \
+              --resource-group "$RESOURCE_GROUP" \
+              --workspace-name "$LAW_NAME" \
+              --query id -o tsv)
+            az monitor app-insights component create \
+              --app "$APPI_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --location "$LOCATION" \
+              --kind web \
+              --application-type web \
+              --workspace "$LAW_FULL_ID" \
+              --tags Project=Meridian Environment=PROD MER=MER-323 \
+              --output none
+            echo "Application Insights $APPI_NAME created."
+          fi
+
+          APPI_CONNECTION_STRING=$(az monitor app-insights component show \
+            --app "$APPI_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query connectionString -o tsv)
+          echo "appi_connection_string=$APPI_CONNECTION_STRING" >> "$GITHUB_OUTPUT"
+
       - name: Deploy Container Apps
         id: deploy
         shell: bash
@@ -220,6 +276,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          APPI_CONNECTION_STRING: ${{ steps.infra.outputs.appi_connection_string }}
         run: |
           set -euo pipefail
 
@@ -367,6 +424,7 @@ jobs:
             "Jwt__Audience=meridian-api"
             "Jwt__SecretKey=$JWT_SECRET"
             "Jwt__Secret=$JWT_SECRET"
+            "APPLICATIONINSIGHTS_CONNECTION_STRING=$APPI_CONNECTION_STRING"
           )
 
           GATEWAY_ENV=(
