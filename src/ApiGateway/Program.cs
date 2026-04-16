@@ -121,6 +121,10 @@ builder.Services
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+// ─────────────────────────────────────────────
+// Application Insights – MER-323
+// ─────────────────────────────────────────────
+builder.Services.AddApplicationInsightsTelemetry();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IDashboardSummaryService, DashboardSummaryService>();
 builder.Services.AddHttpClient("DeliveryService", client =>

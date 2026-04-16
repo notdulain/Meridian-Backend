@@ -31,6 +31,10 @@ builder.Host.UseSerilog((ctx, lc) => lc
 // ─────────────────────────────────────────────
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+// ─────────────────────────────────────────────
+// Application Insights – MER-323
+// ─────────────────────────────────────────────
+builder.Services.AddApplicationInsightsTelemetry();
 
 // ─────────────────────────────────────────────
 // Swagger / OpenAPI

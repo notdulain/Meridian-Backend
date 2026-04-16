@@ -19,6 +19,10 @@ builder.Host.UseSerilog((context, configuration) =>
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+// ─────────────────────────────────────────────
+// Application Insights – MER-323
+// ─────────────────────────────────────────────
+builder.Services.AddApplicationInsightsTelemetry();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "RouteService API", Version = "v1" });
