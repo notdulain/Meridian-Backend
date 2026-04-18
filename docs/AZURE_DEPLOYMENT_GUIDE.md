@@ -217,6 +217,89 @@ Required GitHub secrets for this path:
 - `GOOGLE_MAPS_API_KEY`
 - `REDIS_PASSWORD`
 
+## Troubleshooting (MER-347)
+
+Use this section when a deploy script finishes but apps misbehave, or when Azure CLI / CI returns errors. Replace `<env>` with `qa`, `staging`, or `prod` and set `RESOURCE_GROUP` to `rg-meridian-<env>` unless you use a custom name.
+
+### 1. Deployment script exits before “deployment complete”
+
+| Symptom | Likely cause | What to do |
+|--------|----------------|------------|
+| `Please export DB_PASSWORD` (or `JWT_SECRET`, `GOOGLE_MAPS_API_KEY`, `REDIS_CONNECTION_STRING`) | Required env var missing | Export all variables listed under **Local environment variables required by deployment scripts** (Prerequisites), then re-run `./scripts/deploy-env.sh` via `deploy-qa.sh` / `deploy-prod.sh`. |
+| `Required command not found: az` (or `docker`) | Tool not installed or not on `PATH` | Install Azure CLI and/or Docker; open a new terminal. |
+| `usage` / invalid environment name | Wrong argument to `deploy-env.sh` | Use exactly `qa`, `staging`, or `prod`. |
+| Azure errors about subscription or authorization | Wrong account or insufficient RBAC | Run `az account show` and `az account set --subscription "<id>"` if needed; confirm your principal can modify the resource group and Container Apps. |
+
+### 2. Image pull failures or wrong revision
+
+Deploy scripts point Container Apps at `meridian-<service>:$IMAGE_TAG` in ACR. If the tag does not exist, revisions can fail to become healthy.
+
+1. Confirm the tag exists:
+
+   ```bash
+   az acr repository show-tags --name <acr-name> --repository meridian-apigateway --orderby time_desc --top 5 -o table
+   ```
+
+2. Ensure `IMAGE_TAG` (default `v1`) matches what you pushed with `./scripts/build-push.sh` (`TAG` env var).
+
+3. Inspect the latest revision and provisioning state:
+
+   ```bash
+   az containerapp revision list --name ca-api-gateway --resource-group "$RESOURCE_GROUP" -o table
+   az containerapp show --name ca-api-gateway --resource-group "$RESOURCE_GROUP" \
+     --query "properties.provisioningState" -o tsv
+   ```
+
+**Recovery:** Re-run `./scripts/build-push.sh` with the correct `ACR_NAME`, `RESOURCE_GROUP`, and `TAG`, then run the deploy script again with the same `IMAGE_TAG`.
+
+### 3. HTTP 502 / 503 / timeouts on the gateway URL
+
+| Check | Command / action |
+|--------|------------------|
+| Gateway has an FQDN and ingress | `az containerapp show --name ca-api-gateway --resource-group "$RESOURCE_GROUP" --query "properties.configuration.ingress"` |
+| App is not permanently scaled to zero traffic | Scripts use `--min-replicas 0`; first request after idle can **cold-start**. Retry after a short wait or temporarily raise min replicas in Azure Portal / CLI for debugging. |
+| Downstream service | 502 often means Ocelot could not reach an internal service. Check logs on `ca-user-service`, `ca-delivery-service`, etc. (see below). |
+
+### 4. SQL / database errors in logs
+
+Connection strings are built in `deploy-env.sh` from `DB_PASSWORD`, `DB_ADMIN`, and `SQL_SERVER` (default `sql-meridian-<env>001`). Services expect databases named `meridian_user`, `meridian_delivery`, and so on (see **Azure resources/data prerequisites** in Prerequisites).
+
+| Symptom | Likely cause | What to do |
+|--------|----------------|------------|
+| Login failed for user | Wrong `DB_PASSWORD` or `DB_ADMIN` | Fix env vars and redeploy; verify credentials in Azure SQL. |
+| Cannot open database "meridian_…" | Database not created on the server | Create the missing database on the logical server for that environment. |
+| Firewall / networking | Client IP blocked (rare for apps inside Azure if firewall allows Azure services) | Confirm SQL firewall allows Azure services; `deploy-env.sh` uses patterns consistent with in-Azure Container Apps. |
+
+### 5. RouteService / Redis
+
+RouteService sets `ConnectionStrings__RedisCache` from `REDIS_CONNECTION_STRING`. Wrong host, password, or TLS settings usually surface as cache errors or failed route features in **RouteService** logs—not necessarily on the gateway health path.
+
+**Recovery:** Validate the same string works from a local Redis client if possible; fix `REDIS_CONNECTION_STRING` (local scripts) or `REDIS_ENDPOINT` + `REDIS_PASSWORD` (GitHub Actions), then redeploy.
+
+### 6. GitHub Actions deploy failures
+
+| Symptom | Likely cause | What to do |
+|--------|----------------|------------|
+| OIDC / login step fails | Missing or wrong `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | Compare with federated credentials for the workflow’s branch/environment in Entra ID / Azure. |
+| Secret not found | Repository secret name typo | Match names in `.github/workflows/*-cicd.yml` exactly. |
+| Build succeeds, deploy fails on same tag | Image tag not pushed to the ACR the workflow uses | Align `image_tag` input with tags in ACR for that environment. |
+
+### 7. Logs and revision details (primary diagnostics)
+
+Stream logs for a specific app (example: API Gateway):
+
+```bash
+az containerapp logs show --name ca-api-gateway --resource-group "$RESOURCE_GROUP" --follow
+```
+
+List all Container Apps in the group:
+
+```bash
+az containerapp list --resource-group "$RESOURCE_GROUP" -o table
+```
+
+For HTTP errors, capture **status**, **response time**, and **which upstream** failed; then open logs for that microservice’s container app name (`ca-user-service`, `ca-delivery-service`, etc.).
+
 ## Azure Acronym Legend
 
 To keep resource names concise while adhering to naming standards, the following abbreviations (prefixes/suffixes) are used throughout the guide and in the deployment script:
