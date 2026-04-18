@@ -11,7 +11,7 @@ This manual is organized by user role:
 - **Driver:** views active assignments and shares live location updates.
 - **Manager:** reviews dashboards, trends, reports, and CSV exports.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/01-login-page.png`
+![Screenshot: 01-login-page.png](screenshots/01-login-page.png)
 
 ---
 
@@ -24,7 +24,7 @@ This manual is organized by user role:
 
 If login fails, confirm that the account is active and the credentials are correct.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/02-login-error.png`
+![Screenshot: 02-login-error.png](screenshots/02-login-error.png)
 
 ---
 
@@ -36,7 +36,7 @@ If login fails, confirm that the account is active and the credentials are corre
 2. Open the Admin dashboard.
 3. Review delivery and operations summary cards.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/03-admin-dashboard.png`
+![Screenshot: 03-admin-dashboard.png](screenshots/03-admin-dashboard.png)
 
 ### 2.2 Manage Drivers
 
@@ -53,9 +53,9 @@ If login fails, confirm that the account is active and the credentials are corre
 4. Submit the form.
 5. Confirm the driver appears in the driver list.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/04-drivers-list.png`
+![Screenshot: 04-drivers-list.png](screenshots/04-drivers-list.png)
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/05-create-driver-form.png`
+![Screenshot: 05-create-driver-form.png](screenshots/05-create-driver-form.png)
 
 ### 2.3 Manage Vehicles
 
@@ -74,9 +74,9 @@ If login fails, confirm that the account is active and the credentials are corre
 4. Submit the form.
 5. Confirm the vehicle appears in the vehicle list.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/06-vehicles-list.png`
+![Screenshot: 06-vehicles-list.png](screenshots/06-vehicles-list.png)
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/07-create-vehicle-form.png`
+![Screenshot: 07-create-vehicle-form.png](screenshots/07-create-vehicle-form.png)
 
 ---
 
@@ -88,7 +88,7 @@ If login fails, confirm that the account is active and the credentials are corre
 2. Open the Dispatcher dashboard.
 3. Review active deliveries, completed deliveries, pending deliveries, and overdue deliveries.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/08-dispatcher-dashboard.png`
+![Screenshot: 08-dispatcher-dashboard.png](screenshots/08-dispatcher-dashboard.png)
 
 ### 3.2 Create a Delivery
 
@@ -98,9 +98,9 @@ If login fails, confirm that the account is active and the credentials are corre
 4. Submit the delivery.
 5. Confirm the delivery appears in the delivery list.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/09-deliveries-list.png`
+![Screenshot: 09-deliveries-list.png](screenshots/09-deliveries-list.png)
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/10-create-delivery-form.png`
+![Screenshot: 10-create-delivery-form.png](screenshots/10-create-delivery-form.png)
 
 ### 3.3 View Delivery Details
 
@@ -108,16 +108,16 @@ If login fails, confirm that the account is active and the credentials are corre
 2. Select a delivery.
 3. Review addresses, package details, deadline, current status, assignment information, and status history.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/11-delivery-details.png`
+![Screenshot: 11-delivery-details.png](screenshots/11-delivery-details.png)
 
 ### 3.4 Use Vehicle Recommendations
 
-1. Open a delivery details page.
-2. Use the vehicle recommendation action.
+1. Open the dispatcher workflow and select a delivery.
+2. Use the vehicle recommendation section.
 3. Review suggested vehicles based on capacity and availability.
 4. Use a suitable recommended vehicle when creating an assignment.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/12-vehicle-recommendations.png`
+![Screenshot: 12-vehicle-recommendations.png](screenshots/12-vehicle-recommendations.png)
 
 ### 3.5 Create an Assignment
 
@@ -130,9 +130,9 @@ If login fails, confirm that the account is active and the credentials are corre
 7. Submit the assignment.
 8. Confirm the assignment appears in the assignment list.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/13-assignments-list.png`
+![Screenshot: 13-assignments-list.png](screenshots/13-assignments-list.png)
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/14-create-assignment.png`
+![Screenshot: 14-create-assignment.png](screenshots/14-create-assignment.png)
 
 ### 3.6 Complete or Cancel an Assignment
 
@@ -142,7 +142,7 @@ If login fails, confirm that the account is active and the credentials are corre
 4. Select **Cancel** when the assignment should stop.
 5. Confirm the status update.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/15-assignment-status-actions.png`
+![Screenshot: 15-assignment-status-actions.png](screenshots/15-assignment-status-actions.png)
 
 ### 3.7 Monitor Live Tracking
 
@@ -151,7 +151,7 @@ If login fails, confirm that the account is active and the credentials are corre
 3. Select markers to inspect live driver/delivery location details.
 4. Watch marker positions update when drivers send GPS updates.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/19-dispatcher-live-tracking.png`
+![Screenshot: 19-dispatcher-live-tracking.png](screenshots/19-dispatcher-live-tracking.png)
 
 ---
 
@@ -165,9 +165,9 @@ If login fails, confirm that the account is active and the credentials are corre
 4. Review the map, distance, duration, estimated fuel cost, and route options.
 5. Select the best route when required.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/16-route-calculation.png`
+![Screenshot: 16-route-calculation.png](screenshots/16-route-calculation.png)
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/17-route-comparison.png`
+![Screenshot: 17-route-comparison.png](screenshots/17-route-comparison.png)
 
 ### 4.2 View Fuel Cost Report
 
@@ -178,7 +178,7 @@ If login fails, confirm that the account is active and the credentials are corre
 5. Review trip count, distance, fuel consumption, and fuel cost.
 6. Export the report as CSV if required.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/18-fuel-cost-report.png`
+![Screenshot: 18-fuel-cost-report.png](screenshots/18-fuel-cost-report.png)
 
 ---
 
@@ -191,7 +191,7 @@ If login fails, confirm that the account is active and the credentials are corre
 3. Review the active assignment card.
 4. Check the delivery ID, assignment status, GPS tracking status, and assigned vehicle.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/20-driver-dashboard-active-assignment.png`
+![Screenshot: 20-driver-dashboard-active-assignment.png](screenshots/20-driver-dashboard-active-assignment.png)
 
 ### 5.2 Share Live Location Updates
 
@@ -201,9 +201,9 @@ If login fails, confirm that the account is active and the credentials are corre
 4. Allow browser location permission.
 5. Keep the dashboard open during active delivery work so the system can send location updates.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/21-location-permission-prompt.png`
+![Screenshot: 21-location-permission-prompt.png](screenshots/21-location-permission-prompt.png)
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/22-driver-live-location.png`
+![Screenshot: 22-driver-live-location.png](screenshots/22-driver-live-location.png)
 
 ---
 
@@ -216,9 +216,9 @@ If login fails, confirm that the account is active and the credentials are corre
 3. Open **Delivery Trends**.
 4. Review delivery volume and status trends over time.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/23-manager-dashboard.png`
+![Screenshot: 23-manager-dashboard.png](screenshots/23-manager-dashboard.png)
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/24-delivery-trends.png`
+![Screenshot: 24-delivery-trends.png](screenshots/24-delivery-trends.png)
 
 ### 6.2 View Driver Performance
 
@@ -227,7 +227,7 @@ If login fails, confirm that the account is active and the credentials are corre
 3. Review completed deliveries, average delivery time, and on-time rate.
 4. Export CSV if required.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/25-driver-performance-report.png`
+![Screenshot: 25-driver-performance-report.png](screenshots/25-driver-performance-report.png)
 
 ### 6.3 View Vehicle Utilization
 
@@ -236,7 +236,7 @@ If login fails, confirm that the account is active and the credentials are corre
 3. Review trip count, distance, active time, and utilization rate.
 4. Export CSV if required.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/26-vehicle-utilization-report.png`
+![Screenshot: 26-vehicle-utilization-report.png](screenshots/26-vehicle-utilization-report.png)
 
 ### 6.4 View Delivery Success Rate
 
@@ -245,9 +245,9 @@ If login fails, confirm that the account is active and the credentials are corre
 3. Review delivered, failed, cancelled, terminal delivery count, and success rate.
 4. Export CSV if required.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/27-delivery-success-rate-report.png`
+![Screenshot: 27-delivery-success-rate-report.png](screenshots/27-delivery-success-rate-report.png)
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/28-csv-export-button.png`
+![Screenshot: 28-csv-export-button.png](screenshots/28-csv-export-button.png)
 
 ---
 
@@ -256,9 +256,9 @@ If login fails, confirm that the account is active and the credentials are corre
 1. Open **Profile** to review account details.
 2. Open **Settings** to review available preferences.
 
-> Screenshot placeholder: `docs/screenshots/user-manual/29-profile-page.png`
+![Screenshot: 29-profile-page.png](screenshots/29-profile-page.png)
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/30-settings-page.png`
+![Screenshot: 30-settings-page.png](screenshots/30-settings-page.png)
 
 ---
 
@@ -275,15 +275,15 @@ If login fails, confirm that the account is active and the credentials are corre
 | Location permission denied | Browser blocked GPS access | Allow location permission and reload |
 | Service unavailable | Backend or gateway issue | Retry and report if it continues |
 
-> Screenshot placeholder: `docs/screenshots/user-manual/31-report-empty-state.png`
+> TODO screenshot placeholder: `docs/screenshots/31-report-empty-state.png`
 >
-> Screenshot placeholder: `docs/screenshots/user-manual/32-error-banner.png`
+> TODO screenshot placeholder: `docs/screenshots/32-error-banner.png`
 
 ---
 
 ## 9. Screenshot Checklist
 
-Capture these screenshots and save them under `docs/screenshots/user-manual/`.
+Capture these screenshots and save them under `docs/screenshots/`.
 
 | # | Filename | Screen |
 | --- | --- | --- |
