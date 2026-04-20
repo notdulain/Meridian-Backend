@@ -26,7 +26,7 @@ env:
   CAE_NAME: cae-meridian-qa
   SQL_SERVER: sql-meridian-qa001
   REDIS_ENDPOINT: redis-17031.c251.east-us-mz.azure.cloud.redislabs.com:17031
-  DB_ADMIN: CloudSA28323cc6
+  DB_ADMIN: meridianadmin
 
 jobs:
   build-and-push:
@@ -372,7 +372,7 @@ jobs:
           GATEWAY_ENV=(
             "OCELOT_BASE_URL=https://placeholder"
             "Cors__AllowedOrigins__0=http://localhost:3000"
-            "Cors__AllowedOrigins__1=https://blue-rock-0c1e01a00.2.azurestaticapps.net"
+            "Cors__AllowedOrigins__1=https://jolly-hill-0547c9300.2.azurestaticapps.net"
             "USER_SERVICE_HOST=$USER_SERVICE_HOST"
             "DELIVERY_SERVICE_HOST=$DELIVERY_SERVICE_HOST"
             "VEHICLE_SERVICE_HOST=$VEHICLE_SERVICE_HOST"
@@ -397,7 +397,7 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" "Services__DriverServiceBaseUrl=https://$DRIVER_SERVICE_HOST" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=meridian_user;" "Services__DriverServiceBaseUrl=https://$DRIVER_SERVICE_HOST" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-user-service 8080 internal ""
 
           create_or_update_app ca-delivery-service \
@@ -440,7 +440,7 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Reporting__DeliveryDatabaseName=meridian_delivery" "Swagger__ServerBasePath=/driver" "ServiceMode=Rest" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=meridian_driver;" "Reporting__DeliveryDatabaseName=meridian_delivery" "Swagger__ServerBasePath=/driver" "ServiceMode=Rest" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-driver-service 8080 internal auto
 
           create_or_update_app ca-driver-service-grpc \
@@ -452,7 +452,7 @@ jobs:
             --transport http2 \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Reporting__DeliveryDatabaseName=meridian_delivery" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
+            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=meridian_driver;" "Reporting__DeliveryDatabaseName=meridian_delivery" "ServiceMode=GrpcOnly" "${SHARED_ENV[@]}"
           create_or_update_ingress ca-driver-service-grpc 8080 internal http2
 
           create_or_update_app ca-assignment-service \
@@ -462,7 +462,7 @@ jobs:
             --min-replicas 0 \
             --max-replicas 3 \
             --set-env-vars \
-              "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=assignment_db;" \
+              "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" \
               "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_GRPC_HOST" \
               "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_GRPC_HOST" \
               "Services__DeliveryServiceUrl=https://$DELIVERY_SERVICE_HOST" \

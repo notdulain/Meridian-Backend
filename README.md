@@ -126,7 +126,7 @@ The backend is organized into an API gateway and several microservices, followin
   - `http://localhost:5050/tracking/swagger`
   - `http://localhost:5050/user/swagger`
 - In Azure Container Apps, all containers listen internally on `8080`, but the public entry point remains the API Gateway FQDN.
-- QA and PROD deployments expect these SQL databases to already exist on their respective Azure SQL logical servers: `user_db`, `meridian_delivery`, `meridian_vehicle`, `driver_db`, `meridian_assignment`, `meridian_route`, `meridian_tracking`.
+- QA, staging, and PROD deployments expect these SQL databases to already exist on their respective Azure SQL logical servers: `meridian_user`, `meridian_delivery`, `meridian_vehicle`, `meridian_driver`, `meridian_assignment`, `meridian_route`, `meridian_tracking`.
 - QA and PROD deployments use Redis Cloud for RouteService cache configuration instead of Azure Cache for Redis.
 
 ## 🗺️ Future Plans & Developer Roadmap

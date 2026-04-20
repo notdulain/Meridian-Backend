@@ -1,9 +1,9 @@
-name: PROD CI/CD
+﻿name: PROD CI/CD
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       image_tag:
@@ -27,6 +27,8 @@ env:
   SQL_SERVER: sql-meridian-prod001
   REDIS_ENDPOINT: redis-17031.c251.east-us-mz.azure.cloud.redislabs.com:17031
   DB_ADMIN: meridianadmin
+  LAW_NAME: law-meridian-prod
+  APPI_NAME: appi-meridian-prod
 
 jobs:
   build-and-push:
@@ -146,14 +148,21 @@ jobs:
         shell: bash
         run: az extension add --name containerapp --upgrade
 
+      - name: Install Application Insights CLI extension
+        shell: bash
+        run: az extension add --name application-insights --upgrade --allow-preview true || true
+
       - name: Register required Azure providers
         shell: bash
         run: |
           az provider register --namespace Microsoft.ContainerRegistry --wait
           az provider register --namespace Microsoft.Sql --wait
           az provider register --namespace Microsoft.App --wait
+          az provider register --namespace Microsoft.Insights --wait
+          az provider register --namespace Microsoft.OperationalInsights --wait
 
       - name: Ensure Azure infrastructure
+        id: infra
         shell: bash
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -210,6 +219,53 @@ jobs:
               --output none
           fi
 
+          # -- MER-326: Log Analytics Workspace -----------------------------------
+          if az monitor log-analytics workspace show \
+              --resource-group "$RESOURCE_GROUP" \
+              --workspace-name "$LAW_NAME" \
+              --output none 2>/dev/null; then
+            echo "Log Analytics Workspace $LAW_NAME already exists."
+          else
+            az monitor log-analytics workspace create \
+              --resource-group "$RESOURCE_GROUP" \
+              --workspace-name "$LAW_NAME" \
+              --location "$LOCATION" \
+              --sku PerGB2018 \
+              --retention-time 30 \
+              --tags Project=Meridian Environment=PROD MER=MER-326 \
+              --output none
+            echo "Log Analytics Workspace $LAW_NAME created."
+          fi
+
+          # -- MER-323: Application Insights --------------------------------------
+          if az monitor app-insights component show \
+              --app "$APPI_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --output none 2>/dev/null; then
+            echo "Application Insights $APPI_NAME already exists."
+          else
+            LAW_FULL_ID=$(az monitor log-analytics workspace show \
+              --resource-group "$RESOURCE_GROUP" \
+              --workspace-name "$LAW_NAME" \
+              --query id -o tsv)
+            az monitor app-insights component create \
+              --app "$APPI_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --location "$LOCATION" \
+              --kind web \
+              --application-type web \
+              --workspace "$LAW_FULL_ID" \
+              --tags Project=Meridian Environment=PROD MER=MER-323 \
+              --output none
+            echo "Application Insights $APPI_NAME created."
+          fi
+
+          APPI_CONNECTION_STRING=$(az monitor app-insights component show \
+            --app "$APPI_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query connectionString -o tsv)
+          echo "appi_connection_string=$APPI_CONNECTION_STRING" >> "$GITHUB_OUTPUT"
+
       - name: Deploy Container Apps
         id: deploy
         shell: bash
@@ -220,6 +276,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          APPI_CONNECTION_STRING: ${{ steps.infra.outputs.appi_connection_string }}
         run: |
           set -euo pipefail
 
@@ -289,8 +346,36 @@ jobs:
 
               az containerapp update "${update_args[@]}" --output none
             else
+              local -a create_args=()
+              local -a create_env_vars=()
+
+              while [ $# -gt 0 ]; do
+                case "$1" in
+                  --set-env-vars)
+                    shift
+                    while [ $# -gt 0 ] && [[ "$1" != --* ]]; do
+                      create_env_vars+=("$1")
+                      shift
+                    done
+                    ;;
+                  *)
+                    local current_arg="$1"
+                    create_args+=("$current_arg")
+                    shift
+                    if [ $# -gt 0 ] && [[ "$current_arg" == --* ]] && [[ "$1" != --* ]]; then
+                      create_args+=("$1")
+                      shift
+                    fi
+                    ;;
+                esac
+              done
+
+              if [ ${#create_env_vars[@]} -gt 0 ]; then
+                create_args+=(--env-vars "${create_env_vars[@]}")
+              fi
+
               echo "Creating $app_name..."
-              az containerapp create --name "$app_name" --resource-group "$RESOURCE_GROUP" "$@" --output none
+              az containerapp create --name "$app_name" --resource-group "$RESOURCE_GROUP" "${create_args[@]}" --output none
             fi
           }
 
@@ -305,14 +390,23 @@ jobs:
               args+=(--transport "$transport")
             fi
 
-            az containerapp ingress update "${args[@]}" --output none
+            local current_ingress
+            current_ingress=$(az containerapp show --name "$app_name" --resource-group "$RESOURCE_GROUP" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)
+
+            if [ -z "$current_ingress" ]; then
+              az containerapp ingress enable "${args[@]}" --output none
+            else
+              az containerapp ingress update "${args[@]}" --output none
+            fi
           }
 
           ACA_DOMAIN=$(az containerapp env show --name "$CAE_NAME" --resource-group "$RESOURCE_GROUP" --query "properties.defaultDomain" -o tsv)
           USER_SERVICE_HOST="ca-user-service.internal.$ACA_DOMAIN"
           DELIVERY_SERVICE_HOST="ca-delivery-service.internal.$ACA_DOMAIN"
           VEHICLE_SERVICE_HOST="ca-vehicle-service.internal.$ACA_DOMAIN"
+          VEHICLE_SERVICE_GRPC_HOST="ca-vehicle-service-grpc.internal.$ACA_DOMAIN"
           DRIVER_SERVICE_HOST="ca-driver-service.internal.$ACA_DOMAIN"
+          DRIVER_SERVICE_GRPC_HOST="ca-driver-service-grpc.internal.$ACA_DOMAIN"
           ASSIGNMENT_SERVICE_HOST="ca-assignment-service.internal.$ACA_DOMAIN"
           ROUTE_SERVICE_HOST="ca-route-service.internal.$ACA_DOMAIN"
           TRACKING_SERVICE_HOST="ca-tracking-service.internal.$ACA_DOMAIN"
@@ -330,12 +424,13 @@ jobs:
             "Jwt__Audience=meridian-api"
             "Jwt__SecretKey=$JWT_SECRET"
             "Jwt__Secret=$JWT_SECRET"
+            "APPLICATIONINSIGHTS_CONNECTION_STRING=$APPI_CONNECTION_STRING"
           )
 
           GATEWAY_ENV=(
             "OCELOT_BASE_URL=https://placeholder"
             "Cors__AllowedOrigins__0=http://localhost:3000"
-            "Cors__AllowedOrigins__1=https://blue-rock-0c1e01a00.2.azurestaticapps.net"
+            "Cors__AllowedOrigins__1=https://jolly-hill-0547c9300.2.azurestaticapps.net"
             "USER_SERVICE_HOST=$USER_SERVICE_HOST"
             "DELIVERY_SERVICE_HOST=$DELIVERY_SERVICE_HOST"
             "VEHICLE_SERVICE_HOST=$VEHICLE_SERVICE_HOST"
@@ -360,7 +455,10 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=user_db;" "${SHARED_ENV[@]}"
+            --set-env-vars \
+              "ConnectionStrings__UserDb=$CONN_BASE;Initial Catalog=meridian_user;" \
+              "Services__DriverServiceBaseUrl=https://$DRIVER_SERVICE_HOST" \
+              "${SHARED_ENV[@]}"
           create_or_update_ingress ca-user-service 8080 internal ""
 
           create_or_update_app ca-delivery-service \
@@ -371,7 +469,7 @@ jobs:
             --max-replicas 3 \
             --set-env-vars \
               "ConnectionStrings__DeliveryDb=$CONN_BASE;Initial Catalog=meridian_delivery;" \
-              "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
+              "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_GRPC_HOST" \
               "Swagger__ServerBasePath=/delivery" \
               "${SHARED_ENV[@]}"
           create_or_update_ingress ca-delivery-service 8080 internal auto
@@ -382,8 +480,31 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" "Reporting__DeliveryDatabaseName=meridian_delivery" "Reporting__RouteDatabaseName=meridian_route" "Swagger__ServerBasePath=/vehicle" "${SHARED_ENV[@]}"
+            --set-env-vars \
+              "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" \
+              "Reporting__DeliveryDatabaseName=meridian_delivery" \
+              "Reporting__RouteDatabaseName=meridian_route" \
+              "Swagger__ServerBasePath=/vehicle" \
+              "ServiceMode=Rest" \
+              "${SHARED_ENV[@]}"
           create_or_update_ingress ca-vehicle-service 8080 internal auto
+
+          create_or_update_app ca-vehicle-service-grpc \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-vehicleservice:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --target-port 8080 \
+            --ingress internal \
+            --transport http2 \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars \
+              "ConnectionStrings__VehicleDb=$CONN_BASE;Initial Catalog=meridian_vehicle;" \
+              "Reporting__DeliveryDatabaseName=meridian_delivery" \
+              "Reporting__RouteDatabaseName=meridian_route" \
+              "ServiceMode=GrpcOnly" \
+              "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-vehicle-service-grpc 8080 internal http2
 
           create_or_update_app ca-driver-service \
             --environment "$CAE_NAME" \
@@ -391,8 +512,29 @@ jobs:
             "${REGISTRY_ARGS[@]}" \
             --min-replicas 0 \
             --max-replicas 3 \
-            --set-env-vars "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=driver_db;" "Reporting__DeliveryDatabaseName=meridian_delivery" "Swagger__ServerBasePath=/driver" "${SHARED_ENV[@]}"
+            --set-env-vars \
+              "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=meridian_driver;" \
+              "Reporting__DeliveryDatabaseName=meridian_delivery" \
+              "Swagger__ServerBasePath=/driver" \
+              "ServiceMode=Rest" \
+              "${SHARED_ENV[@]}"
           create_or_update_ingress ca-driver-service 8080 internal auto
+
+          create_or_update_app ca-driver-service-grpc \
+            --environment "$CAE_NAME" \
+            --image "$ACR_LOGIN_SERVER/meridian-driverservice:$IMAGE_TAG" \
+            "${REGISTRY_ARGS[@]}" \
+            --target-port 8080 \
+            --ingress internal \
+            --transport http2 \
+            --min-replicas 0 \
+            --max-replicas 3 \
+            --set-env-vars \
+              "ConnectionStrings__DriverDb=$CONN_BASE;Initial Catalog=meridian_driver;" \
+              "Reporting__DeliveryDatabaseName=meridian_delivery" \
+              "ServiceMode=GrpcOnly" \
+              "${SHARED_ENV[@]}"
+          create_or_update_ingress ca-driver-service-grpc 8080 internal http2
 
           create_or_update_app ca-assignment-service \
             --environment "$CAE_NAME" \
@@ -402,8 +544,8 @@ jobs:
             --max-replicas 3 \
             --set-env-vars \
               "ConnectionStrings__AssignmentDb=$CONN_BASE;Initial Catalog=meridian_assignment;" \
-              "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
-              "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_HOST" \
+              "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_GRPC_HOST" \
+              "Grpc__DriverServiceUrl=https://$DRIVER_SERVICE_GRPC_HOST" \
               "Services__DeliveryServiceUrl=https://$DELIVERY_SERVICE_HOST" \
               "Swagger__ServerBasePath=/assignment" \
               "${SHARED_ENV[@]}"
@@ -418,7 +560,7 @@ jobs:
             --set-env-vars \
               "ConnectionStrings__RouteDb=$CONN_BASE;Initial Catalog=meridian_route;" \
               "ConnectionStrings__RedisCache=$REDIS_CONNECTION_STRING" \
-              "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_HOST" \
+              "Grpc__VehicleServiceUrl=https://$VEHICLE_SERVICE_GRPC_HOST" \
               "GoogleMaps__ApiKey=$GOOGLE_MAPS_API_KEY" \
               "Swagger__ServerBasePath=/route" \
               "${SHARED_ENV[@]}"
@@ -449,3 +591,45 @@ jobs:
         shell: bash
         run: |
           echo "PROD gateway: ${{ steps.deploy.outputs.gateway_url }}"
+
+      - name: Health Check & Rollback
+        shell: bash
+        env:
+          GATEWAY_URL: ${{ steps.deploy.outputs.gateway_url }}
+          RESOURCE_GROUP: ${{ env.RESOURCE_GROUP }}
+        run: |
+          set -e
+          echo "Testing $GATEWAY_URL/diagnostics for 60 seconds..."
+          
+          # Poll the root diagnostics endpoint
+          success=false
+          for i in {1..12}; do
+            status_code=$(curl -s -o /dev/null -w "%{http_code}" "$GATEWAY_URL/diagnostics" || true)
+            if [ "$status_code" = "200" ]; then
+              echo "Gateway gracefully responded with HTTP 200!"
+              success=true
+              break
+            fi
+            echo "Attempt $i: HTTP $status_code. Waiting 5s..."
+            sleep 5
+          done
+          
+          if [ "$success" = false ]; then
+            echo "::error::Health check failed! Automated system-wide rollback initiated."
+            
+            SERVICES=("ca-api-gateway" "ca-user-service" "ca-delivery-service" "ca-vehicle-service" "ca-vehicle-service-grpc" "ca-driver-service" "ca-driver-service-grpc" "ca-assignment-service" "ca-route-service" "ca-tracking-service")
+            
+            for app in "${SERVICES[@]}"; do
+              echo "Reverting $app to previous revision..."
+              PREV_REVISION=$(az containerapp revision list -n "$app" -g "$RESOURCE_GROUP" --query "sort_by([*], &properties.createdTime)[-2].name" -o tsv || echo "")
+              
+              if [ -n "$PREV_REVISION" ] && [ "$PREV_REVISION" != "None" ]; then
+                  echo "Activating previous revision for $app: $PREV_REVISION"
+                  az containerapp revision activate -g "$RESOURCE_GROUP" --revision "$PREV_REVISION" || echo "Warning: Failed to rollback $app"
+              else
+                  echo "Warning: No previous revision found for $app."
+              fi
+            done
+            
+            exit 1
+          fi

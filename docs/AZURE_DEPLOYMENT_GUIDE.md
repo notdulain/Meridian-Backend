@@ -8,11 +8,297 @@ Important deployment notes:
 - Local `appsettings.Development.json` files are for local development only and should not be baked into container images.
 - Secrets such as JWT keys, database connection strings, Redis connection strings, and Google Maps API keys should be supplied through Container App environment variables or a secret store.
 
-## Prerequisites
+## Prerequisites (MER-345)
 
-1.  **Azure Account:** An active Microsoft Azure account.
-2.  **Azure CLI:** Installed on your local machine (`brew update && brew install azure-cli` on Mac).
-3.  **Docker Desktop:** Running locally.
+Complete these prerequisites before running any `bootstrap-*` or `deploy-*` script.
+
+### 1. Access and permissions
+
+1. **Azure account and subscription**
+   - You must be able to create/update:
+     - Resource groups
+     - Azure SQL logical servers
+     - Azure Container Registry (ACR)
+     - Azure Container Apps environments/apps
+2. **GitHub repository access**
+   - Permission to update repository/environment secrets (for CI/CD workflows).
+
+### 2. Required local tools
+
+1. **Azure CLI** (required)
+   - Install (macOS): `brew install azure-cli`
+   - Login: `az login`
+   - Confirm active subscription: `az account show`
+2. **Container Apps extension for Azure CLI** (required by scripts/workflows)
+   - Install/upgrade: `az extension add --name containerapp --upgrade`
+3. **Docker + Buildx** (required if building images locally)
+   - Docker Desktop running (`docker version`)
+   - Buildx available (`docker buildx version`)
+4. **Bash shell** (required)
+   - Scripts under `scripts/` are bash scripts (`#!/bin/bash`).
+
+### 3. Local environment variables required by deployment scripts
+
+The script `scripts/deploy-env.sh` requires these variables:
+
+| Variable | Why it is required |
+|---|---|
+| `DB_PASSWORD` | SQL server admin password used in connection strings |
+| `JWT_SECRET` | Shared JWT signing secret used by gateway/services |
+| `GOOGLE_MAPS_API_KEY` | RouteService external API integration |
+| `REDIS_CONNECTION_STRING` | RouteService distributed cache connection |
+
+Optional overrides:
+
+| Variable | Default |
+|---|---|
+| `IMAGE_TAG` | `v1` |
+| `LOCATION` | `eastasia` |
+| `DB_ADMIN` | `meridianadmin` |
+| `ACR_NAME` | `acrmeridian<env>` |
+
+### 4. GitHub secrets required for CI/CD workflows
+
+The QA/Staging/Prod workflows (`.github/workflows/*-cicd.yml`) require:
+
+| Secret | Purpose |
+|---|---|
+| `AZURE_CLIENT_ID` | OIDC login to Azure from GitHub Actions |
+| `AZURE_TENANT_ID` | OIDC login to Azure from GitHub Actions |
+| `AZURE_SUBSCRIPTION_ID` | Target Azure subscription |
+| `DB_PASSWORD` | SQL admin password during infrastructure/deploy jobs |
+| `JWT_SECRET` | Injected into gateway/services runtime environment |
+| `GOOGLE_MAPS_API_KEY` | RouteService runtime dependency |
+| `REDIS_PASSWORD` | Combined with `REDIS_ENDPOINT` to form Redis connection string |
+
+> `REDIS_ENDPOINT` is defined in workflows as an environment value, while `REDIS_PASSWORD` must come from secrets.
+
+### 5. Azure resources/data prerequisites
+
+The bootstrap step creates/ensures Azure infrastructure, but **you still need these databases** in each environment before app deploy:
+
+- `meridian_user`
+- `meridian_delivery`
+- `meridian_vehicle`
+- `meridian_driver`
+- `meridian_assignment`
+- `meridian_route`
+- `meridian_tracking`
+
+### 6. Quick preflight checklist
+
+- `az account show` works and points to the correct subscription
+- `az extension show --name containerapp` succeeds
+- Required environment variables are exported (for local deployment scripts)
+- Required GitHub secrets are set (for workflow-based deployment)
+- SQL databases listed above exist in the target environment
+
+## Step-by-step deployment runbook (MER-346)
+
+This section describes the exact sequence for `deploy-qa.sh` and the production equivalent.
+
+### A. QA deployment via local scripts
+
+#### A1) Login and select subscription
+
+```bash
+az login
+az account show
+# Optional if you use multiple subscriptions:
+# az account set --subscription "<subscription-id-or-name>"
+```
+
+#### A2) Export required secrets/config
+
+```bash
+export DB_PASSWORD="<sql-admin-password>"
+export JWT_SECRET="<jwt-secret>"
+export GOOGLE_MAPS_API_KEY="<google-maps-api-key>"
+export REDIS_CONNECTION_STRING="<host>:<port>,user=default,password=<redis-password>,ssl=True,abortConnect=False"
+```
+
+Optional overrides:
+
+```bash
+export IMAGE_TAG="v1"        # must exist in ACR before deploy
+export LOCATION="eastasia"
+export DB_ADMIN="meridianadmin"
+```
+
+#### A3) Build and push images (required before deploy)
+
+`deploy-qa.sh` uses images already in ACR. Build/push first:
+
+```bash
+export ACR_NAME="acrmeridianqa"
+export RESOURCE_GROUP="rg-meridian-qa"
+export TAG="${IMAGE_TAG:-v1}"
+
+./scripts/build-push.sh
+```
+
+#### A4) Deploy QA apps
+
+```bash
+./scripts/deploy-qa.sh
+```
+
+This wraps:
+- `./scripts/deploy-env.sh qa`
+- `./scripts/bootstrap-azure-env.sh qa`
+
+#### A5) Verify deployment
+
+```bash
+az containerapp show \
+  --resource-group rg-meridian-qa \
+  --name ca-api-gateway \
+  --query "properties.configuration.ingress.fqdn" -o tsv
+```
+
+Then open:
+- `https://<gateway-fqdn>/delivery/swagger`
+- `https://<gateway-fqdn>/user/swagger`
+
+---
+
+### B. Production deployment equivalent
+
+You can deploy production in two supported ways.
+
+#### B1) Local script path (manual)
+
+```bash
+az login
+az account show
+
+export DB_PASSWORD="<sql-admin-password>"
+export JWT_SECRET="<jwt-secret>"
+export GOOGLE_MAPS_API_KEY="<google-maps-api-key>"
+export REDIS_CONNECTION_STRING="<host>:<port>,user=default,password=<redis-password>,ssl=True,abortConnect=False"
+export IMAGE_TAG="<image-tag-in-acr>"
+```
+
+Build/push production tag:
+
+```bash
+export ACR_NAME="acrmeridianprod"
+export RESOURCE_GROUP="rg-meridian-prod"
+export TAG="$IMAGE_TAG"
+
+./scripts/build-push.sh
+```
+
+Deploy production:
+
+```bash
+./scripts/deploy-prod.sh
+```
+
+#### B2) GitHub Actions path (recommended for team deployments)
+
+The production workflow is `.github/workflows/prod-cicd.yml`.
+
+Trigger options:
+
+1. Push a version tag:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+2. Run manually via **Actions -> PROD CI/CD -> Run workflow** (optional `image_tag` input).
+
+Required GitHub secrets for this path:
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `DB_PASSWORD`
+- `JWT_SECRET`
+- `GOOGLE_MAPS_API_KEY`
+- `REDIS_PASSWORD`
+
+## Troubleshooting (MER-347)
+
+Use this section when a deploy script finishes but apps misbehave, or when Azure CLI / CI returns errors. Replace `<env>` with `qa`, `staging`, or `prod` and set `RESOURCE_GROUP` to `rg-meridian-<env>` unless you use a custom name.
+
+### 1. Deployment script exits before “deployment complete”
+
+| Symptom | Likely cause | What to do |
+|--------|----------------|------------|
+| `Please export DB_PASSWORD` (or `JWT_SECRET`, `GOOGLE_MAPS_API_KEY`, `REDIS_CONNECTION_STRING`) | Required env var missing | Export all variables listed under **Local environment variables required by deployment scripts** (Prerequisites), then re-run `./scripts/deploy-env.sh` via `deploy-qa.sh` / `deploy-prod.sh`. |
+| `Required command not found: az` (or `docker`) | Tool not installed or not on `PATH` | Install Azure CLI and/or Docker; open a new terminal. |
+| `usage` / invalid environment name | Wrong argument to `deploy-env.sh` | Use exactly `qa`, `staging`, or `prod`. |
+| Azure errors about subscription or authorization | Wrong account or insufficient RBAC | Run `az account show` and `az account set --subscription "<id>"` if needed; confirm your principal can modify the resource group and Container Apps. |
+
+### 2. Image pull failures or wrong revision
+
+Deploy scripts point Container Apps at `meridian-<service>:$IMAGE_TAG` in ACR. If the tag does not exist, revisions can fail to become healthy.
+
+1. Confirm the tag exists:
+
+   ```bash
+   az acr repository show-tags --name <acr-name> --repository meridian-apigateway --orderby time_desc --top 5 -o table
+   ```
+
+2. Ensure `IMAGE_TAG` (default `v1`) matches what you pushed with `./scripts/build-push.sh` (`TAG` env var).
+
+3. Inspect the latest revision and provisioning state:
+
+   ```bash
+   az containerapp revision list --name ca-api-gateway --resource-group "$RESOURCE_GROUP" -o table
+   az containerapp show --name ca-api-gateway --resource-group "$RESOURCE_GROUP" \
+     --query "properties.provisioningState" -o tsv
+   ```
+
+**Recovery:** Re-run `./scripts/build-push.sh` with the correct `ACR_NAME`, `RESOURCE_GROUP`, and `TAG`, then run the deploy script again with the same `IMAGE_TAG`.
+
+### 3. HTTP 502 / 503 / timeouts on the gateway URL
+
+| Check | Command / action |
+|--------|------------------|
+| Gateway has an FQDN and ingress | `az containerapp show --name ca-api-gateway --resource-group "$RESOURCE_GROUP" --query "properties.configuration.ingress"` |
+| App is not permanently scaled to zero traffic | Scripts use `--min-replicas 0`; first request after idle can **cold-start**. Retry after a short wait or temporarily raise min replicas in Azure Portal / CLI for debugging. |
+| Downstream service | 502 often means Ocelot could not reach an internal service. Check logs on `ca-user-service`, `ca-delivery-service`, etc. (see below). |
+
+### 4. SQL / database errors in logs
+
+Connection strings are built in `deploy-env.sh` from `DB_PASSWORD`, `DB_ADMIN`, and `SQL_SERVER` (default `sql-meridian-<env>001`). Services expect databases named `meridian_user`, `meridian_delivery`, and so on (see **Azure resources/data prerequisites** in Prerequisites).
+
+| Symptom | Likely cause | What to do |
+|--------|----------------|------------|
+| Login failed for user | Wrong `DB_PASSWORD` or `DB_ADMIN` | Fix env vars and redeploy; verify credentials in Azure SQL. |
+| Cannot open database "meridian_…" | Database not created on the server | Create the missing database on the logical server for that environment. |
+| Firewall / networking | Client IP blocked (rare for apps inside Azure if firewall allows Azure services) | Confirm SQL firewall allows Azure services; `deploy-env.sh` uses patterns consistent with in-Azure Container Apps. |
+
+### 5. RouteService / Redis
+
+RouteService sets `ConnectionStrings__RedisCache` from `REDIS_CONNECTION_STRING`. Wrong host, password, or TLS settings usually surface as cache errors or failed route features in **RouteService** logs—not necessarily on the gateway health path.
+
+**Recovery:** Validate the same string works from a local Redis client if possible; fix `REDIS_CONNECTION_STRING` (local scripts) or `REDIS_ENDPOINT` + `REDIS_PASSWORD` (GitHub Actions), then redeploy.
+
+### 6. GitHub Actions deploy failures
+
+| Symptom | Likely cause | What to do |
+|--------|----------------|------------|
+| OIDC / login step fails | Missing or wrong `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | Compare with federated credentials for the workflow’s branch/environment in Entra ID / Azure. |
+| Secret not found | Repository secret name typo | Match names in `.github/workflows/*-cicd.yml` exactly. |
+| Build succeeds, deploy fails on same tag | Image tag not pushed to the ACR the workflow uses | Align `image_tag` input with tags in ACR for that environment. |
+
+### 7. Logs and revision details (primary diagnostics)
+
+Stream logs for a specific app (example: API Gateway):
+
+```bash
+az containerapp logs show --name ca-api-gateway --resource-group "$RESOURCE_GROUP" --follow
+```
+
+List all Container Apps in the group:
+
+```bash
+az containerapp list --resource-group "$RESOURCE_GROUP" -o table
+```
+
+For HTTP errors, capture **status**, **response time**, and **which upstream** failed; then open logs for that microservice’s container app name (`ca-user-service`, `ca-delivery-service`, etc.).
 
 ## Azure Acronym Legend
 
@@ -39,7 +325,7 @@ As per the architectural design, Meridian uses three distinct environments, each
 Within each Resource Group, the following resources will be created:
 *   **Azure Container Apps Environment:** The managed cluster hosting the microservices.
 *   **Azure Container Apps:** The actual microservices (`ca-api-gateway`, `ca-user-service`, `ca-delivery-service`, `ca-vehicle-service`, `ca-driver-service`, `ca-assignment-service`, `ca-route-service`, `ca-tracking-service`).
-*   **Azure SQL Database Server:** Hosting the relational databases (`user_db`, `meridian_delivery`, `meridian_vehicle`, `driver_db`, `meridian_assignment`, `meridian_route`, `meridian_tracking`).
+*   **Azure SQL Database Server:** Hosting the relational databases (`meridian_user`, `meridian_delivery`, `meridian_vehicle`, `meridian_driver`, `meridian_assignment`, `meridian_route`, `meridian_tracking`).
 *   **Redis Cloud database:** Used by RouteService for distributed route caching.
 *   **Azure Key Vault:** Securely storing secrets (connection strings, JWT keys).
 *   **Log Analytics Workspace & Application Insights:** For centralized logging and distributed tracing.
@@ -139,7 +425,7 @@ az sql server create --name $SQL_SERVER --resource-group $RESOURCE_GROUP --locat
 az sql server firewall-rule create --resource-group $RESOURCE_GROUP --server $SQL_SERVER --name AllowAllAzureIPs --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
 
 # Manually create these seven databases on the logical server before deployment:
-# user_db, meridian_delivery, meridian_vehicle, driver_db,
+# meridian_user, meridian_delivery, meridian_vehicle, meridian_driver,
 # meridian_assignment, meridian_route, meridian_tracking
 
 # 3. Create Azure Container Registry
