@@ -65,6 +65,15 @@ ACR_NAME="${ACR_NAME:-acrmeridian$ENVIRONMENT}"
 DB_ADMIN="${DB_ADMIN:-meridianadmin}"
 IMAGE_TAG="${IMAGE_TAG:-v1}"
 
+case "$ENVIRONMENT" in
+    prod)
+        FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-https://ambitious-desert-0c4aa0700.7.azurestaticapps.net}"
+        ;;
+    *)
+        FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-https://blue-rock-0c1e01a00.2.azurestaticapps.net}"
+        ;;
+esac
+
 : "${DB_PASSWORD:?Please export DB_PASSWORD before running this script}"
 : "${JWT_SECRET:?Please export JWT_SECRET before running this script}"
 : "${GOOGLE_MAPS_API_KEY:?Please export GOOGLE_MAPS_API_KEY before running this script}"
@@ -223,7 +232,7 @@ SHARED_ENV=(
 GATEWAY_ENV=(
     "OCELOT_BASE_URL=https://placeholder"
     "Cors__AllowedOrigins__0=http://localhost:3000"
-    "Cors__AllowedOrigins__1=https://jolly-hill-0547c9300.2.azurestaticapps.net"
+    "Cors__AllowedOrigins__1=$FRONTEND_ORIGIN"
     "USER_SERVICE_HOST=$USER_SERVICE_HOST"
     "DELIVERY_SERVICE_HOST=$DELIVERY_SERVICE_HOST"
     "VEHICLE_SERVICE_HOST=$VEHICLE_SERVICE_HOST"
