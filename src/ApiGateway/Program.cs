@@ -218,19 +218,48 @@ app.UseWhen(
     });
 });
 
-// Azure Container Apps health probe endpoint
-app.MapGet("/", () => Results.Ok("Meridian API Gateway is running."));
+// Handle liveness checks before Ocelot so ACA probes and CI/CD health checks
+// do not depend on gateway route matching.
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+    {
+        if (context.Request.Path.Equals("/", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.ContentType = "text/plain";
+            await context.Response.WriteAsync("Meridian API Gateway is running.");
+            return;
+        }
 
-app.MapGet("/diagnostics", async () => {
-    try {
-        var client = new System.Net.Http.HttpClient();
-        client.Timeout = TimeSpan.FromSeconds(10);
-        var response = await client.GetAsync(diagnosticsDeliverySwaggerUrl);
-        var content = await response.Content.ReadAsStringAsync();
-        return Results.Ok($"Connected to {diagnosticsDeliverySwaggerUrl}. Status: {response.StatusCode}. Content length: {content.Length}");
-    } catch (Exception ex) {
-        return Results.Problem(ex.ToString());
+        if (context.Request.Path.Equals("/diagnostics", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                using var client = new System.Net.Http.HttpClient
+                {
+                    Timeout = TimeSpan.FromSeconds(10)
+                };
+                var response = await client.GetAsync(diagnosticsDeliverySwaggerUrl, context.RequestAborted);
+                var content = await response.Content.ReadAsStringAsync(context.RequestAborted);
+
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                context.Response.ContentType = "text/plain";
+                await context.Response.WriteAsync(
+                    $"Connected to {diagnosticsDeliverySwaggerUrl}. Status: {response.StatusCode}. Content length: {content.Length}");
+            }
+            catch (Exception ex)
+            {
+                context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                context.Response.ContentType = "text/plain";
+                await context.Response.WriteAsync(ex.ToString());
+            }
+
+            return;
+        }
     }
+
+    await next();
 });
 
 await app.UseOcelot();
