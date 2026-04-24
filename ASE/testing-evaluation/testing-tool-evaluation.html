@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Meridian ASE Testing Evaluation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#09111f;
+    --panel:#102038;
+    --panel2:#152844;
+    --ink:#edf4ff;
+    --muted:#bfd0ea;
+    --accent:#58d6a3;
+    --accent2:#73b8ff;
+    --warn:#ffcf6d;
+    --line:rgba(255,255,255,.12);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at top right, rgba(88,214,163,.18), transparent 28%),
+      radial-gradient(circle at left 20%, rgba(115,184,255,.15), transparent 24%),
+      linear-gradient(180deg, #09111f 0%, #0f1a2d 100%);
+    color:var(--ink);
+    font:16px/1.6 "Segoe UI", system-ui, sans-serif;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:40px 20px 60px}
+  header{margin-bottom:28px}
+  h1{font-size:clamp(28px,4vw,44px);line-height:1.1;margin:0 0 10px}
+  h2{font-size:clamp(20px,2.2vw,28px);margin:0 0 12px;color:var(--accent)}
+  h3{font-size:18px;margin:0 0 10px;color:var(--accent2)}
+  p,li{color:var(--muted)}
+  .lead{max-width:800px}
+  .badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .badge{
+    padding:6px 12px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:rgba(255,255,255,.04);
+    color:var(--ink);
+    font-size:13px;
+  }
+  .grid{display:grid;gap:18px}
+  .grid.two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 16px 38px rgba(0,0,0,.2);
+  }
+  .warn{
+    border-left:4px solid var(--warn);
+    background:rgba(255,207,109,.08);
+  }
+  ul{padding-left:20px;margin:10px 0 0}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:12px;
+    font-size:14px;
+  }
+  th,td{
+    border:1px solid var(--line);
+    padding:10px;
+    vertical-align:top;
+    text-align:left;
+  }
+  th{background:rgba(255,255,255,.06);color:var(--ink)}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:rgba(255,255,255,.07);
+    padding:2px 6px;
+    border-radius:6px;
+    color:#fff;
+  }
+  .small{font-size:14px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Meridian ASE Testing Evaluation</h1>
+      <p class="lead">
+        Meridian is a microservice-based logistics platform with an API gateway and separate delivery,
+        route, driver, vehicle, assignment, tracking, and user services. For the ASE testing task,
+        the team selected <b>xUnit</b> for backend unit testing and <b>k6</b> for API-gateway load testing.
+      </p>
+      <div class="badges">
+        <span class="badge">Course: Advanced Software Engineering</span>
+        <span class="badge">Group Size: 4</span>
+        <span class="badge">Tools: xUnit + k6</span>
+        <span class="badge">Demo Style: Local-first</span>
+      </div>
+    </header>
+
+    <section class="grid two">
+      <article class="card">
+        <h2>Why These Tools</h2>
+        <ul>
+          <li><b>xUnit</b> matches the existing Meridian backend stack, so the team can extend real project tests instead of creating a disconnected demo setup.</li>
+          <li><b>k6</b> already exists in the backend repository for gateway traffic, making it a natural fit for performance-focused ASE work.</li>
+          <li>The two tools come from different categories: <b>unit testing</b> and <b>load testing</b>.</li>
+        </ul>
+      </article>
+
+      <article class="card warn">
+        <h2>Current Readiness Snapshot</h2>
+        <ul>
+          <li>The backend already contains <b>7 xUnit test projects</b> and about <b>220 discovered tests</b>.</li>
+          <li><code>RouteService.Tests</code> and <code>TrackingService.Tests</code> were already locally runnable.</li>
+          <li>The ASE work hardened <code>UserService.Tests/AuthValidationTests.cs</code> so it no longer depends on <code>ConnectionStrings:UserDb</code> for the auth demo path.</li>
+          <li>The backend already had <code>load-tests/dispatcher-session.js</code> and <code>load-tests/report-generation.js</code>; ASE work adds local smoke profiles, env templates, wrappers, and evidence flow.</li>
+          <li><b>Local machine requirement:</b> <code>k6</code> must be installed before the load demos can run.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>ASE Scope In The Repository</h2>
+      <p class="small">
+        The tracked ASE hub is <code>Meridian-Backend/ASE/testing-evaluation/</code>. ASE-only deliverables live there,
+        while real test code remains in the existing test projects and <code>load-tests/</code>.
+      </p>
+      <ul>
+        <li>ASE documentation: README, team work, demo plan, runbook, evidence guidance, and this HTML file</li>
+        <li>Unit-test implementation: existing xUnit projects under <code>src/*/*.Tests</code></li>
+        <li>Load-test implementation: existing scripts under <code>load-tests/</code></li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Team Work And Branch Strategy</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Feature</th>
+            <th>Implementation Area</th>
+            <th>Branch</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Suhasna</td>
+            <td>xUnit parameterized testing</td>
+            <td><code>src/RouteService/RouteService.Tests</code></td>
+            <td><code>ase/suhasna-xunit-parameterized-route</code></td>
+          </tr>
+          <tr>
+            <td>Sumuditha</td>
+            <td>xUnit fixture and dependency replacement</td>
+            <td><code>src/UserService/UserService.Tests</code></td>
+            <td><code>ase/sumuditha-xunit-fixture-auth</code></td>
+          </tr>
+          <tr>
+            <td>Luchitha</td>
+            <td>k6 dispatcher local smoke run</td>
+            <td><code>load-tests/dispatcher-session.js</code></td>
+            <td><code>ase/luchitha-k6-dispatcher-local</code></td>
+          </tr>
+          <tr>
+            <td>Sasindi</td>
+            <td>k6 report local smoke run</td>
+            <td><code>load-tests/report-generation.js</code></td>
+            <td><code>ase/sasindi-k6-report-local</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small">
+        Shared integration branch: <code>ase/testing-evaluation</code>. Each student should open PRs into this branch first,
+        then the team should merge to <code>main</code> only after rehearsal.
+      </p>
+    </section>
+
+    <section class="grid two">
+      <article class="card">
+        <h2>12-Minute Demo Flow</h2>
+        <ul>
+          <li><b>2 min:</b> Group intro and tool justification</li>
+          <li><b>2 min:</b> Suhasna shows theory-based RouteService tests</li>
+          <li><b>2 min:</b> Sumuditha shows local auth fixture/mocking setup</li>
+          <li><b>2 min:</b> Luchitha runs dispatcher k6 local smoke profile</li>
+          <li><b>2 min:</b> Sasindi runs report k6 local smoke profile</li>
+          <li><b>2 min:</b> VIVA / Q&amp;A</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Live Demo Commands</h2>
+        <ul>
+          <li><code>dotnet test src/RouteService/RouteService.Tests/RouteService.Tests.csproj --filter "FullyQualifiedName~FuelCostCalculatorTests"</code></li>
+          <li><code>dotnet test src/UserService/UserService.Tests/UserService.Tests.csproj --filter "FullyQualifiedName~AuthValidationTests"</code></li>
+          <li><code>./ASE/testing-evaluation/scripts/run-dispatcher-local-smoke.sh</code></li>
+          <li><code>./ASE/testing-evaluation/scripts/run-report-local-smoke.sh</code></li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>Rehearsal Defaults</h2>
+      <ul>
+        <li>Start Docker SQL and Redis first.</li>
+        <li>Launch all microservices and verify the gateway at <code>http://localhost:5050</code>.</li>
+        <li>Use short local smoke profiles for k6, not QA-scale runs.</li>
+        <li>Save outputs into <code>ASE/testing-evaluation/evidence/</code> before the viva.</li>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>

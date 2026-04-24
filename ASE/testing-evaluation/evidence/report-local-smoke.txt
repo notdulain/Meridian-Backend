@@ -1,0 +1,92 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: load-tests/report-generation.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 30s max duration (incl. graceful stop):
+              * concurrent_report_users: 1 looping VUs for 20s (gracefulStop: 10s)
+
+
+running (01.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+concurrent_report_users   [   4% ] 1 VUs  00.8s/20s
+
+running (02.0s), 1/1 VUs, 1 complete and 0 interrupted iterations
+concurrent_report_users   [   9% ] 1 VUs  01.8s/20s
+
+running (03.0s), 1/1 VUs, 2 complete and 0 interrupted iterations
+concurrent_report_users   [  14% ] 1 VUs  02.8s/20s
+
+running (04.0s), 1/1 VUs, 3 complete and 0 interrupted iterations
+concurrent_report_users   [  19% ] 1 VUs  03.8s/20s
+
+running (05.0s), 1/1 VUs, 4 complete and 0 interrupted iterations
+concurrent_report_users   [  24% ] 1 VUs  04.8s/20s
+
+running (06.0s), 1/1 VUs, 5 complete and 0 interrupted iterations
+concurrent_report_users   [  29% ] 1 VUs  05.8s/20s
+
+running (07.0s), 1/1 VUs, 6 complete and 0 interrupted iterations
+concurrent_report_users   [  34% ] 1 VUs  06.8s/20s
+
+running (08.0s), 1/1 VUs, 7 complete and 0 interrupted iterations
+concurrent_report_users   [  39% ] 1 VUs  07.8s/20s
+
+running (09.0s), 1/1 VUs, 8 complete and 0 interrupted iterations
+concurrent_report_users   [  44% ] 1 VUs  08.8s/20s
+
+running (10.0s), 1/1 VUs, 9 complete and 0 interrupted iterations
+concurrent_report_users   [  49% ] 1 VUs  09.8s/20s
+
+running (11.0s), 1/1 VUs, 10 complete and 0 interrupted iterations
+concurrent_report_users   [  54% ] 1 VUs  10.8s/20s
+
+running (12.0s), 1/1 VUs, 11 complete and 0 interrupted iterations
+concurrent_report_users   [  59% ] 1 VUs  11.8s/20s
+
+running (13.0s), 1/1 VUs, 12 complete and 0 interrupted iterations
+concurrent_report_users   [  64% ] 1 VUs  12.8s/20s
+
+running (14.0s), 1/1 VUs, 13 complete and 0 interrupted iterations
+concurrent_report_users   [  69% ] 1 VUs  13.8s/20s
+
+running (15.0s), 1/1 VUs, 14 complete and 0 interrupted iterations
+concurrent_report_users   [  74% ] 1 VUs  14.8s/20s
+
+running (16.0s), 1/1 VUs, 15 complete and 0 interrupted iterations
+concurrent_report_users   [  79% ] 1 VUs  15.8s/20s
+
+running (17.0s), 1/1 VUs, 16 complete and 0 interrupted iterations
+concurrent_report_users   [  84% ] 1 VUs  16.8s/20s
+
+running (18.0s), 1/1 VUs, 17 complete and 0 interrupted iterations
+concurrent_report_users   [  89% ] 1 VUs  17.8s/20s
+
+running (19.0s), 1/1 VUs, 18 complete and 0 interrupted iterations
+concurrent_report_users   [  94% ] 1 VUs  18.8s/20s
+
+running (20.0s), 1/1 VUs, 19 complete and 0 interrupted iterations
+concurrent_report_users   [  99% ] 1 VUs  19.8s/20s
+
+========== MER-295 / MER-297: run diagnostics ==========
+http_req_failed: 0.00% (threshold: rate<0.5)
+http_reqs (total): 21
+checks: pass=20 fail=0
+K6_REPORT_VARIANT this run: r1
+(r1 only calls delivery report — vehicle/driver timings will stay empty. Use r2 or r3 for those endpoints.)
+
+========== MER-295: report endpoint timings (http_req_duration) ==========
+http_req_duration{name:report_delivery}: avg=7.46ms med=5.49ms p(90)=17.65ms p(95)=18.93ms max=25.57ms
+http_req_duration{name:report_vehicle}: avg=0.00ms med=0.00ms p(90)=0.00ms p(95)=0.00ms max=0.00ms
+http_req_duration{name:report_driver}: avg=0.00ms med=0.00ms p(90)=0.00ms p(95)=0.00ms max=0.00ms
+http_req_duration{name:login}: avg=164.87ms med=164.87ms p(90)=164.87ms p(95)=164.87ms max=164.87ms
+========================================================================
+
+running (20.4s), 0/1 VUs, 20 complete and 0 interrupted iterations
+concurrent_report_users ✓ [ 100% ] 1 VUs  20s

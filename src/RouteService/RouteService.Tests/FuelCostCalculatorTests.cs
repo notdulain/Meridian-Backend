@@ -5,46 +5,61 @@ namespace RouteService.Tests;
 
 public class FuelCostCalculatorTests
 {
-    [Fact]
-    public void CalculateFuelMetrics_ReturnsExpectedValues_ForValidInput()
+    public static TheoryData<double, double, double, double, double, double> FuelMetricCases => new()
     {
-        var result = FuelCostCalculator.CalculateFuelMetrics(108000, 12, 303);
+        { 108000, 12, 303, 108, 9, 2727 },
+        { 0, 12, 303, 0, 0, 0 },
+        { 100500, 12, 303, 100.5, 8.38, 2537.63 },
+        { 1500, 15, 330, 1.5, 0.1, 33 }
+    };
 
-        Assert.Equal(108, result.DistanceKm);
-        Assert.Equal(9, result.FuelConsumptionLitres);
-        Assert.Equal(2727, result.FuelCostLKR);
+    public static TheoryData<double> InvalidDistanceValues => new()
+    {
+        double.NaN,
+        double.PositiveInfinity,
+        double.NegativeInfinity
+    };
+
+    [Theory]
+    [MemberData(nameof(FuelMetricCases))]
+    public void CalculateFuelMetrics_ReturnsExpectedRoundedValues_ForSupportedInputs(
+        double distanceMeters,
+        double fuelEfficiency,
+        double fuelPrice,
+        double expectedDistanceKm,
+        double expectedFuelConsumptionLitres,
+        double expectedFuelCostLkr)
+    {
+        var result = FuelCostCalculator.CalculateFuelMetrics(distanceMeters, fuelEfficiency, fuelPrice);
+
+        Assert.Equal(expectedDistanceKm, result.DistanceKm);
+        Assert.Equal(expectedFuelConsumptionLitres, result.FuelConsumptionLitres);
+        Assert.Equal(expectedFuelCostLkr, result.FuelCostLKR);
     }
 
-    [Fact]
-    public void CalculateFuelMetrics_ReturnsZero_WhenDistanceIsZero()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void CalculateFuelMetrics_ThrowsArgumentException_WhenFuelEfficiencyInvalid(double fuelEfficiency)
     {
-        var result = FuelCostCalculator.CalculateFuelMetrics(0, 12, 303);
-
-        Assert.Equal(0, result.DistanceKm);
-        Assert.Equal(0, result.FuelConsumptionLitres);
-        Assert.Equal(0, result.FuelCostLKR);
+        Assert.Throws<ArgumentException>(() => FuelCostCalculator.CalculateFuelMetrics(1000, fuelEfficiency, 303));
     }
 
-    [Fact]
-    public void CalculateFuelMetrics_ThrowsArgumentException_WhenFuelEfficiencyInvalid()
+    [Theory]
+    [InlineData(-10)]
+    [InlineData(double.NaN)]
+    [InlineData(double.NegativeInfinity)]
+    public void CalculateFuelMetrics_ThrowsArgumentException_WhenFuelPriceInvalid(double fuelPrice)
     {
-        Assert.Throws<ArgumentException>(() => FuelCostCalculator.CalculateFuelMetrics(1000, 0, 303));
-        Assert.Throws<ArgumentException>(() => FuelCostCalculator.CalculateFuelMetrics(1000, -1, 303));
+        Assert.Throws<ArgumentException>(() => FuelCostCalculator.CalculateFuelMetrics(1000, 12, fuelPrice));
     }
 
-    [Fact]
-    public void CalculateFuelMetrics_ThrowsArgumentException_WhenFuelPriceNegative()
+    [Theory]
+    [MemberData(nameof(InvalidDistanceValues))]
+    public void CalculateFuelMetrics_ThrowsArgumentException_WhenDistanceMetersInvalid(double distanceMeters)
     {
-        Assert.Throws<ArgumentException>(() => FuelCostCalculator.CalculateFuelMetrics(1000, 12, -10));
-    }
-
-    [Fact]
-    public void CalculateFuelMetrics_RoundsToTwoDecimals()
-    {
-        var result = FuelCostCalculator.CalculateFuelMetrics(100500, 12, 303);
-
-        Assert.Equal(100.5, result.DistanceKm);
-        Assert.Equal(8.38, result.FuelConsumptionLitres);
-        Assert.Equal(2537.63, result.FuelCostLKR);
+        Assert.Throws<ArgumentException>(() => FuelCostCalculator.CalculateFuelMetrics(distanceMeters, 12, 303));
     }
 }

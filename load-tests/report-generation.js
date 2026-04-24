@@ -10,6 +10,7 @@
  *     per_iteration — login every iteration (realistic; login can dominate / timeout)
  *
  * Optional:
+ *   K6_REPORT_PROFILE   qa | demo (default: qa)
  *   K6_REPORT_VARIANT   r1 | r2 | r3 (default: r2 — sequential; less backend contention than r3)
  *   MER_REPORT_START_UTC, MER_REPORT_END_UTC
  *   K6_REPORT_VUS       default 2 (raise after QA is stable)
@@ -27,6 +28,7 @@ import http from "k6/http";
 import { check, sleep } from "k6";
 
 const base = () => (__ENV.BASE_URL || "").replace(/\/$/, "");
+const reportProfile = (__ENV.K6_REPORT_PROFILE || "qa").toLowerCase();
 
 function mustEnv(name) {
   const v = __ENV[name];
@@ -38,14 +40,14 @@ const http2 = false;
 
 function loginHttpParams() {
   return {
-    timeout: __ENV.K6_REPORT_LOGIN_TIMEOUT || "90s",
+    timeout: __ENV.K6_REPORT_LOGIN_TIMEOUT || (reportProfile === "demo" ? "15s" : "90s"),
     http2,
   };
 }
 
 function reportHttpParams() {
   return {
-    timeout: __ENV.K6_REPORT_HTTP_TIMEOUT || "120s",
+    timeout: __ENV.K6_REPORT_HTTP_TIMEOUT || (reportProfile === "demo" ? "20s" : "120s"),
     http2,
   };
 }
@@ -191,11 +193,15 @@ function loginThresholdMs() {
 }
 
 function gracefulStop() {
-  return __ENV.K6_REPORT_GRACEFUL_STOP || "120s";
+  return __ENV.K6_REPORT_GRACEFUL_STOP || (reportProfile === "demo" ? "10s" : "120s");
 }
 
 /** r2/r3 need a long stage: each report can take 60s+ on slow QA; a 90s hold stops VUs mid-iteration. */
 function defaultMainStageDuration() {
+  if (reportProfile === "demo") {
+    return "20s";
+  }
+
   const v = (__ENV.K6_REPORT_VARIANT || "r2").toLowerCase();
   return v === "r1" ? "90s" : "5m";
 }
@@ -209,8 +215,8 @@ function constantStageDuration() {
 }
 
 function buildScenarios() {
-  const vus = parseInt(__ENV.K6_REPORT_VUS || "2", 10);
-  const exec = (__ENV.K6_REPORT_EXECUTOR || "ramping").toLowerCase();
+  const vus = parseInt(__ENV.K6_REPORT_VUS || (reportProfile === "demo" ? "1" : "2"), 10);
+  const exec = (__ENV.K6_REPORT_EXECUTOR || (reportProfile === "demo" ? "constant" : "ramping")).toLowerCase();
   const gs = gracefulStop();
 
   if (exec === "constant") {
@@ -277,7 +283,7 @@ function failRateThreshold() {
 }
 
 export const options = {
-  setupTimeout: __ENV.K6_REPORT_SETUP_TIMEOUT || "120s",
+  setupTimeout: __ENV.K6_REPORT_SETUP_TIMEOUT || (reportProfile === "demo" ? "30s" : "120s"),
   scenarios: buildScenarios(),
   thresholds: {
     http_req_failed: [failRateThreshold()],

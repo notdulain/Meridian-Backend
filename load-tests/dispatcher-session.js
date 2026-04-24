@@ -7,14 +7,24 @@
  *   K6_LOGIN_PASSWORD
  *
  * Optional:
- *   DELIVERY_ID  (default 1)
- *   VEHICLE_ID   (default 1)
- *   DRIVER_ID    (default 1)
+ *   K6_DISPATCHER_PROFILE     qa | demo (default: qa)
+ *   K6_DISPATCHER_HTTP_TIMEOUT
+ *   K6_DISPATCHER_HTTP_DEBUG  full | headers | body
+ *   K6_DISPATCHER_P95_MS      default: 10000
+ *   K6_DISPATCHER_MAX_FAIL_RATE default: 0.5
+ *   K6_LOGIN_VUS / K6_LOGIN_DURATION
+ *   K6_DELIVERIES_VUS / K6_DELIVERIES_DURATION
+ *   K6_ASSIGNMENT_VUS / K6_ASSIGNMENT_DURATION
+ *   DELIVERY_ID  (default 1)  or DELIVERY_IDS=1,2,3
+ *   VEHICLE_ID   (default 1)  or VEHICLE_IDS=1,2,3
+ *   DRIVER_ID    (default 1)  or DRIVER_IDS=1,2,3
+ *   K6_ASSIGNMENT_NOTES
  */
 import http from "k6/http";
 import { check, sleep } from "k6";
 
 const base = () => (__ENV.BASE_URL || "").replace(/\/$/, "");
+const profile = (__ENV.K6_DISPATCHER_PROFILE || "qa").toLowerCase();
 
 function mustEnv(name) {
   const v = __ENV[name];
@@ -22,36 +32,80 @@ function mustEnv(name) {
   return v;
 }
 
-const httpParams = {
-  timeout: "60s",
-  http2: false,
-};
+function positiveInt(raw, fallback) {
+  const parsed = parseInt(raw || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function failRateThreshold() {
+  const raw = __ENV.K6_DISPATCHER_MAX_FAIL_RATE;
+  const parsed = raw != null && raw !== "" ? parseFloat(raw) : 0.5;
+  if (Number.isNaN(parsed) || parsed < 0 || parsed > 1) {
+    return "rate<0.5";
+  }
+
+  return `rate<${parsed}`;
+}
+
+function durationThreshold() {
+  const parsed = positiveInt(__ENV.K6_DISPATCHER_P95_MS, 10000);
+  return `p(95)<${parsed}`;
+}
+
+function scenarioValue(name, qaFallback, demoFallback) {
+  return __ENV[name] || (profile === "demo" ? demoFallback : qaFallback);
+}
+
+function httpParams() {
+  return {
+    timeout: __ENV.K6_DISPATCHER_HTTP_TIMEOUT || (profile === "demo" ? "15s" : "60s"),
+    http2: false,
+  };
+}
+
+function parseIdPool(poolEnvName, singleEnvName, fallback) {
+  const pool = (__ENV[poolEnvName] || "")
+    .split(",")
+    .map((value) => parseInt(value.trim(), 10))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  if (pool.length > 0) {
+    return pool;
+  }
+
+  return [positiveInt(__ENV[singleEnvName], fallback)];
+}
+
+function pickId(poolEnvName, singleEnvName, fallback) {
+  const pool = parseIdPool(poolEnvName, singleEnvName, fallback);
+  return pool[(__VU + __ITER) % pool.length];
+}
 
 export const options = {
-  httpDebug: "full",
+  ...( __ENV.K6_DISPATCHER_HTTP_DEBUG ? { httpDebug: __ENV.K6_DISPATCHER_HTTP_DEBUG } : {}),
   scenarios: {
     login: {
       executor: "constant-vus",
       exec: "loginScenario",
-      vus: 3,
-      duration: "45s",
+      vus: positiveInt(scenarioValue("K6_LOGIN_VUS", "3", "1"), 3),
+      duration: scenarioValue("K6_LOGIN_DURATION", "45s", "15s"),
     },
     fetch_deliveries: {
       executor: "constant-vus",
       exec: "fetchDeliveriesScenario",
-      vus: 3,
-      duration: "45s",
+      vus: positiveInt(scenarioValue("K6_DELIVERIES_VUS", "3", "1"), 3),
+      duration: scenarioValue("K6_DELIVERIES_DURATION", "45s", "15s"),
     },
     assign_vehicle: {
       executor: "constant-vus",
       exec: "assignVehicleScenario",
-      vus: 3,
-      duration: "45s",
+      vus: positiveInt(scenarioValue("K6_ASSIGNMENT_VUS", "3", "1"), 3),
+      duration: scenarioValue("K6_ASSIGNMENT_DURATION", "45s", "15s"),
     },
   },
   thresholds: {
-    http_req_failed: ["rate<0.5"],
-    http_req_duration: ["p(95)<10000"],
+    http_req_failed: [failRateThreshold()],
+    http_req_duration: [durationThreshold()],
   },
 };
 
@@ -63,7 +117,7 @@ function login(root) {
       password: mustEnv("K6_LOGIN_PASSWORD"),
     }),
     {
-      ...httpParams,
+      ...httpParams(),
       headers: { "Content-Type": "application/json" },
       tags: { name: "login" },
     }
@@ -101,7 +155,7 @@ export function fetchDeliveriesScenario() {
   if (!accessToken) return;
   const auth = { Authorization: `Bearer ${accessToken}` };
   const listRes = http.get(`${root}/delivery/api/deliveries`, {
-    ...httpParams,
+    ...httpParams(),
     headers: { ...auth, Accept: "application/json" },
     tags: { name: "list_deliveries" },
   });
@@ -120,9 +174,9 @@ export function assignVehicleScenario() {
   const accessToken = getAccessToken(loginRes);
   if (!accessToken) return;
   const auth = { Authorization: `Bearer ${accessToken}` };
-  const deliveryId = parseInt(__ENV.DELIVERY_ID || "1", 10);
-  const vehicleId = parseInt(__ENV.VEHICLE_ID || "1", 10);
-  const driverId = parseInt(__ENV.DRIVER_ID || "1", 10);
+  const deliveryId = pickId("DELIVERY_IDS", "DELIVERY_ID", 1);
+  const vehicleId = pickId("VEHICLE_IDS", "VEHICLE_ID", 1);
+  const driverId = pickId("DRIVER_IDS", "DRIVER_ID", 1);
 
   const assignRes = http.post(
     `${root}/assignment/api/assignments`,
@@ -130,10 +184,10 @@ export function assignVehicleScenario() {
       deliveryId,
       vehicleId,
       driverId,
-      notes: "k6 dispatcher-session",
+      notes: __ENV.K6_ASSIGNMENT_NOTES || "k6 dispatcher-session",
     }),
     {
-      ...httpParams,
+      ...httpParams(),
       headers: { ...auth, "Content-Type": "application/json" },
       tags: { name: "create_assignment" },
     }
@@ -145,4 +199,34 @@ export function assignVehicleScenario() {
   });
 
   sleep(1);
+}
+
+function fmtMs(value) {
+  return value != null && typeof value === "number" ? value.toFixed(2) : "n/a";
+}
+
+export function handleSummary(data) {
+  const durationMetric = data.metrics.http_req_duration;
+  const failureMetric = data.metrics.http_req_failed;
+  const lines = [
+    "\n========== ASE dispatcher smoke summary ==========\n",
+    `profile: ${profile}\n`,
+    `BASE_URL: ${base() || "(unset)"}\n`,
+    `http_req_failed threshold: ${failRateThreshold()}\n`,
+    `http_req_duration threshold: ${durationThreshold()}\n`,
+  ];
+
+  if (failureMetric?.values?.rate != null) {
+    lines.push(`http_req_failed: ${(failureMetric.values.rate * 100).toFixed(2)}%\n`);
+  }
+
+  if (durationMetric?.values) {
+    lines.push(
+      `http_req_duration: avg=${fmtMs(durationMetric.values.avg)}ms ` +
+      `p(95)=${fmtMs(durationMetric.values["p(95)"])}ms max=${fmtMs(durationMetric.values.max)}ms\n`
+    );
+  }
+
+  lines.push("==================================================\n");
+  return { stdout: lines.join("") };
 }

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using UserService.API.DTOs;
 using UserService.API.Services;
@@ -43,8 +43,13 @@ public class UserServiceApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            // Replace IUserService with a test double that does not hit a real database
+            services.RemoveAll<IUserService>();
+            services.RemoveAll<IDriverAccountProvisioningService>();
+
+            // Keep the auth tests fully local by replacing controller dependencies that would otherwise
+            // instantiate repository-backed services during controller activation.
             services.AddScoped<IUserService, FakeUserService>();
+            services.AddScoped<IDriverAccountProvisioningService, FakeDriverAccountProvisioningService>();
         });
     }
 }
@@ -213,3 +218,35 @@ internal class FakeUserService : IUserService
         Task.FromResult(false);
 }
 
+internal sealed class FakeDriverAccountProvisioningService : IDriverAccountProvisioningService
+{
+    public Task<CreateDriverAccountResponse> CreateDriverAccountAsync(
+        CreateDriverAccountRequest request,
+        string authorizationHeader,
+        CancellationToken cancellationToken = default)
+    {
+        var response = new CreateDriverAccountResponse(
+            new UserResponse(
+                UserId: 99,
+                FullName: request.FullName,
+                Email: request.Email,
+                Role: "Driver",
+                IsActive: true,
+                CreatedAt: DateTime.UtcNow,
+                UpdatedAt: DateTime.UtcNow),
+            new DriverProfileResponse(
+                DriverId: 99,
+                UserId: "99",
+                FullName: request.FullName,
+                LicenseNumber: request.LicenseNumber,
+                LicenseExpiry: request.LicenseExpiry,
+                PhoneNumber: request.PhoneNumber,
+                MaxWorkingHoursPerDay: request.MaxWorkingHoursPerDay,
+                CurrentWorkingHoursToday: 0,
+                IsActive: true,
+                CreatedAt: DateTime.UtcNow,
+                UpdatedAt: DateTime.UtcNow));
+
+        return Task.FromResult(response);
+    }
+}
