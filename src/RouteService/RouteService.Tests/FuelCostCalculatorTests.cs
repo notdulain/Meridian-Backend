@@ -7,7 +7,7 @@ public class FuelCostCalculatorTests
 {
     public static TheoryData<double, double, double, double, double, double> FuelMetricCases => new()
     {
-        { 108000, 12, 303, 108, 9, 2727 },
+        { 120000, 15, 350, 120, 8, 2800 },
         { 0, 12, 303, 0, 0, 0 },
         { 100500, 12, 303, 100.5, 8.38, 2537.63 },
         { 1500, 15, 330, 1.5, 0.1, 33 }
