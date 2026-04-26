@@ -101,11 +101,17 @@ Main files:
 - Helped combine all testing outputs into one final evaluation package
 - Reviewed the saved evidence files and made sure the results were understandable
 
-#### Screenshot Placeholders
+ASE folder structure:
 
-- `[Insert screenshot: ASE folder structure]`
-- `[Insert screenshot: branch list / git branch output]`
-- `[Insert screenshot: compiled evidence folder]`
+![ASE folder structure](https://res.cloudinary.com/dhntips7e/image/upload/v1777213233/ASE_Folder_Structure_fd25cx.png)
+
+Branch list / git branch output:
+
+![Branch list](https://res.cloudinary.com/dhntips7e/image/upload/v1777213234/Branch_List_aden0w.png)
+
+Compiled evidence folder:
+
+![Evidence folder](https://res.cloudinary.com/dhntips7e/image/upload/v1777213235/Evidence_Folder_onvdld.png)
 
 ---
 
@@ -142,10 +148,13 @@ dotnet test src/RouteService/RouteService.Tests/RouteService.Tests.csproj --filt
 - Tests should pass
 - Final output should show the filtered test class succeeded
 
-#### Screenshot Placeholders
+Code view of `FuelCostCalculatorTests.cs`:
 
-- `[Insert screenshot: code view of FuelCostCalculatorTests.cs]`
-- `[Insert screenshot: terminal output for filtered RouteService tests]`
+![FuelCostCalculatorTests code](https://res.cloudinary.com/dhntips7e/image/upload/v1777213235/FuelCostCalculator_lfo9q4.png)
+
+Terminal output for filtered RouteService tests:
+
+![RouteService test output](https://res.cloudinary.com/dhntips7e/image/upload/v1777213237/Suhasna-FuelCost_scwzzi.jpg)
 
 ---
 
@@ -188,10 +197,14 @@ dotnet test src/UserService/UserService.Tests/UserService.Tests.csproj --filter 
 
 The terminal output contains many security log messages such as invalid token, expired token, wrong issuer, and wrong audience. These are expected because the tests intentionally send bad tokens to verify that the system rejects them correctly.
 
-#### Screenshot Placeholders
+Code view of `AuthValidationTests.cs`:
 
-- `[Insert screenshot: code view of AuthValidationTests.cs]`
-- `[Insert screenshot: final terminal summary showing 12/12 tests passed]`
+![AuthValidationTests code](https://res.cloudinary.com/dhntips7e/image/upload/v1777213235/AuthValidation_rzjdmw.png)
+
+Final terminal summary showing `12/12` tests passed:
+
+![UserService auth test output 1](https://res.cloudinary.com/dhntips7e/image/upload/v1777213239/Sumuditha-AuthValidation-1_u3daxc.jpg)
+![UserService auth test output 2](https://res.cloudinary.com/dhntips7e/image/upload/v1777213238/Sumuditha-AuthValidation-2_arsh1z.jpg)
 
 ---
 
@@ -240,11 +253,14 @@ The terminal output contains many security log messages such as invalid token, e
 
 This flow includes assignment creation. Because this is a write operation, repeated runs can produce business conflicts such as `409 Conflict`. These are not login or routing failures. They are expected in repeated assignment scenarios.
 
-#### Screenshot Placeholders
+Code view of `dispatcher-session.js`:
 
-- `[Insert screenshot: code view of dispatcher-session.js]`
-- `[Insert screenshot: terminal output for dispatcher k6 run]`
-- `[Insert screenshot: dispatcher-local-smoke.txt or summary JSON file]`
+![Dispatcher session code](https://res.cloudinary.com/dhntips7e/image/upload/v1777213235/dispatcher-session_fdfxf7.png)
+
+Terminal output for dispatcher k6 run:
+
+![Dispatcher k6 output 1](https://res.cloudinary.com/dhntips7e/image/upload/v1777213237/Luchitha-k6-1_jnytcy.png)
+![Dispatcher k6 output 2](https://res.cloudinary.com/dhntips7e/image/upload/v1777213239/Luchitha-k6-2_sxrx1x.png)
 
 ---
 
@@ -289,11 +305,17 @@ This flow includes assignment creation. Because this is a write operation, repea
 - Delivery report endpoint timings were shown clearly
 - This was the cleanest and safest k6 result for presentation
 
-#### Screenshot Placeholders
+Code view of `report-generation.js`:
 
-- `[Insert screenshot: code view of report-generation.js]`
-- `[Insert screenshot: terminal output for report k6 run]`
-- `[Insert screenshot: report-local-smoke.txt or summary JSON file]`
+![Report generation code](https://res.cloudinary.com/dhntips7e/image/upload/v1777213238/report-generation_jtlts5.png)
+
+Terminal output for report k6 run:
+
+![Report k6 output](https://res.cloudinary.com/dhntips7e/image/upload/v1777218211/Sasindi-Report-k6_ov7uyy.jpg)
+
+Report evidence file screenshot:
+
+![Report evidence file](https://res.cloudinary.com/dhntips7e/image/upload/v1777218808/Sasindi-Textfile_sxhgkx.jpg)
 
 ## Saved Evidence Files
 
@@ -318,34 +340,4 @@ The work also produced:
 - local demo-ready scripts
 - saved evidence files for presentation and reporting
 
-The overall work was reviewed and compiled by D. N. Gunawardhana.
-
-## Required Screenshots Checklist
-
-### Group / Overall
-
-- `[ ] ASE folder structure screenshot`
-- `[ ] Branch list screenshot`
-- `[ ] Evidence folder screenshot`
-
-### Unit Testing Member - RouteService
-
-- `[ ] Code screenshot of FuelCostCalculatorTests.cs`
-- `[ ] Terminal screenshot of filtered RouteService test run`
-
-### Unit Testing Member - UserService
-
-- `[ ] Code screenshot of AuthValidationTests.cs`
-- `[ ] Terminal screenshot showing 12 tests passed`
-
-### k6 Member - Dispatcher
-
-- `[ ] Code screenshot of dispatcher-session.js`
-- `[ ] Terminal screenshot of dispatcher k6 run summary`
-- `[ ] Screenshot of dispatcher-local-smoke.txt or summary JSON`
-
-### k6 Member - Report
-
-- `[ ] Code screenshot of report-generation.js`
-- `[ ] Terminal screenshot of report k6 run summary`
-- `[ ] Screenshot of report-local-smoke.txt or summary JSON`
+The overall work was reviewed and compiled by D. N. Gunawardhana (IT23750760)
